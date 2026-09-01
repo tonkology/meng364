@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Module 7 — Cam Design | MENG 364</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#055934;--blue-dk:#0A353E;--blue-lt:#EEF8F5;
+  --teal:#2BB673;--green:#208D44;--red:#733B43;--amber:#A68A58;
+  --bg:#F2F7ED;--surface:#fff;--border:#C2CCC6;--text:#1D2921;--muted:#5C6660;
+}
+body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh}
+
+.mod-nav{background:var(--blue-dk);display:flex;padding:0 8px;overflow-x:auto;scrollbar-width:none;position:sticky;top:0;z-index:200;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.mod-nav::-webkit-scrollbar{display:none}
+.mod-pill{display:inline-block;padding:8px 13px;color:rgba(255,255,255,.65);font-size:.73rem;font-weight:700;text-decoration:none;border-bottom:3px solid transparent;white-space:nowrap;transition:all .15s}
+.mod-pill:hover{color:#fff;border-bottom-color:rgba(255,255,255,.4)}
+.mod-pill.active{color:#fff;border-bottom-color:#fff}
+.tip{display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;background:var(--blue-lt);color:var(--blue);font-size:.58rem;font-weight:800;cursor:help;flex-shrink:0;position:relative;margin-left:2px;vertical-align:middle;}
+.tip::after{content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 7px);transform:translateX(-50%);background:#1D2921;color:#fff;padding:6px 10px;border-radius:6px;font-size:.71rem;font-weight:500;line-height:1.45;white-space:normal;width:210px;text-align:left;opacity:0;pointer-events:none;transition:opacity .15s;z-index:9999;box-shadow:0 3px 10px rgba(0,0,0,.3);}
+.tip:hover::after{opacity:1;}
+.print-btn{background:none;border:1.5px solid rgba(255,255,255,.5);color:#fff;border-radius:6px;padding:4px 11px;font-size:.7rem;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.print-btn:hover{background:rgba(255,255,255,.15);}
+.zoom-bar{display:flex;gap:5px;margin-top:8px;align-items:center;}
+.zoom-btn{padding:3px 9px;border:1.5px solid var(--border);border-radius:5px;background:#fff;font-size:.73rem;font-weight:700;cursor:pointer;color:var(--muted);transition:all .15s;line-height:1.6;}
+.zoom-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-lt);}
+.zoom-lbl{font-size:.7rem;color:var(--muted);min-width:38px;text-align:center;font-weight:600;}
+@media print{.mod-nav,.btn-sm,.btn-solve,.zoom-bar,.print-btn,.plt-dl-btn{display:none!important;}.hdr{background:#fff!important;color:#000!important;box-shadow:none!important;border-bottom:2px solid #055934;}.badge{background:#E0F2F1!important;color:#2BB673!important;}body{background:#fff!important;}.card{box-shadow:none!important;border:1px solid #ddd!important;page-break-inside:avoid;}canvas{max-width:100%!important;}}
+
+.hdr{background:var(--blue);color:#fff;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.hdr h1{font-size:.97rem;font-weight:700}.hdr p{font-size:.7rem;opacity:.82;margin-top:1px}
+.badge{background:var(--teal);border-radius:20px;padding:4px 14px;font-size:.73rem;font-weight:700;white-space:nowrap}
+
+.main{max-width:1280px;margin:0 auto;padding:12px 12px;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:720px){.grid2{grid-template-columns:1fr;}}
+
+.card{background:var(--surface);border-radius:10px;box-shadow:0 1px 5px rgba(0,0,0,.09);padding:14px;margin-bottom:12px}
+.card:last-child{margin-bottom:0}
+.card-ttl{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--blue);border-bottom:2px solid var(--blue-lt);padding-bottom:6px;margin-bottom:12px}
+.card-ttl.teal{color:var(--teal);border-bottom-color:#EEF8F5}
+.card-ttl.green{color:var(--green);border-bottom-color:#E8F5E9}
+.card-ttl.red{color:var(--red);border-bottom-color:#FFEBEE}
+
+.row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px;align-items:center;}
+label{color:var(--muted);font-size:.78rem;white-space:nowrap;}
+input[type=number],select{background:#FAFAFA;color:var(--text);border:1.5px solid var(--border);border-radius:5px;padding:4px 8px;font-size:.82rem;font-weight:700;width:90px;min-width:0;}
+select{width:auto;}
+input:focus,select:focus{outline:none;border-color:var(--blue);background:#fff;}
+
+.seg-table{width:100%;border-collapse:collapse;font-size:.8rem;margin-top:8px;}
+.seg-table th{background:#EEF2F5;color:var(--muted);padding:6px 8px;text-align:left;border:1px solid var(--border);font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;}
+.seg-table td{padding:4px 6px;border:1px solid #EEF2F5;vertical-align:middle;}
+.seg-table td input{width:72px;min-width:0;background:#FAFAFA;border:1px solid var(--border);border-radius:4px;padding:3px 5px;font-size:.78rem;font-weight:700;text-align:right;}
+.seg-table td select{min-width:110px;background:#FAFAFA;border:1px solid var(--border);border-radius:4px;padding:3px 5px;font-size:.78rem;font-weight:700;}
+
+.btn-sm{background:#fff;color:var(--blue);border:1.5px solid var(--border);border-radius:6px;padding:4px 10px;font-size:.73rem;font-weight:700;cursor:pointer;transition:all .15s;}
+.btn-sm:hover{border-color:var(--blue);background:var(--blue-lt);}
+.btn-del{color:var(--red);border-color:rgba(198,40,40,.3);}
+.btn-del:hover{background:#FFEBEE;border-color:var(--red);}
+
+.btn-solve{background:var(--blue);color:#fff;border:none;border-radius:7px;padding:9px 28px;font-size:.88rem;font-weight:700;cursor:pointer;letter-spacing:.4px;transition:background .15s;margin-top:8px;}
+.btn-solve:hover{background:var(--blue-dk);}
+
+.status{font-size:.75rem;padding:6px 10px;border-radius:6px;margin-top:6px;}
+.status.ok{background:#E8F5E9;color:var(--green);border:1px solid #A5D6A7;}
+.status.err{background:#FFEBEE;color:var(--red);border:1px solid #EF9A9A;}
+.status.warn{background:#FFF8E1;color:var(--amber);border:1px solid #FFE082;}
+
+.result-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:8px;margin-bottom:12px;}
+.rcard{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;}
+.rcard .rlabel{color:var(--muted);font-size:.72rem;}
+.rcard .rval{color:var(--blue);font-size:1.05rem;font-weight:800;font-family:'Courier New',monospace;}
+.rcard .runit{color:var(--muted);font-size:.72rem;}
+
+canvas.cam-canvas{border:1px solid var(--border);border-radius:8px;background:#F4F7F9;width:100%;display:block;}
+.chart-wrap{position:relative;height:160px;margin-bottom:10px;}
+.plt-dl-btn{position:absolute;top:4px;right:5px;background:none;border:1px solid var(--border);border-radius:4px;color:var(--muted);font-size:.63rem;padding:2px 5px;cursor:pointer;line-height:1.4;transition:all .15s;z-index:5;}
+.plt-dl-btn:hover{background:var(--blue-lt);color:var(--blue);border-color:var(--blue);}
+
+.diag-card .card-ttl{color:var(--teal);border-bottom-color:#EEF8F5;}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body, button, input, select, textarea { font-family:'Alexandria', system-ui, sans-serif !important; }
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div><h1>Machine Dynamics Tool</h1><p>MENG 364 &nbsp;·&nbsp; King Abdulaziz University</p></div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div class="badge">Module 7 — Cam Design</div>
+    <button class="print-btn" onclick="window.print()">⎙ Print / PDF</button>
+  </div>
+</header>
+
+<nav class="mod-nav">
+  <a href="index.html"   class="mod-pill">Module 1 — 4-Bar Linkage</a>
+  <a href="module2.html" class="mod-pill">Module 2 — Coupler Point</a>
+  <a href="module3.html" class="mod-pill">Module 3 — Force Analysis</a>
+  <a href="module4.html" class="mod-pill">Module 4 — Flywheel</a>
+  <a href="module5.html" class="mod-pill">Module 5 — Balancing</a>
+  <a href="module6.html" class="mod-pill">Module 6 — Gear Trains</a>
+  <a href="module7.html" class="mod-pill active">Module 7 — Cam Design</a>
+</nav>
+
+<div class="main">
+
+  <!-- PARAMETERS -->
+  <div class="card">
+    <div class="card-ttl">Cam Parameters</div>
+    <div class="row">
+      <label>R<sub>b</sub> (mm) <span class="tip" data-tip="Base circle radius. Larger R_b reduces pressure angle and curvature problems but increases cam size.">?</span></label>
+      <input type="number" id="iRb" value="40" min="5" step="1">
+      <label>h (mm) <span class="tip" data-tip="Total follower lift (stroke). Maximum displacement from base to peak.">?</span></label>
+      <input type="number" id="iH" value="25" min="1" step="1">
+      <label>R<sub>r</sub> (mm) <span class="tip" data-tip="Roller follower radius. Must be less than the minimum pitch curve radius of curvature to avoid undercutting.">?</span></label>
+      <input type="number" id="iRr" value="8" min="0" step="1">
+      <label>Follower <span class="tip" data-tip="Knife-edge: point contact. Roller: reduces friction. Flat-face: no pressure angle limit but needs wide face.">?</span></label>
+      <select id="iFollower">
+        <option value="knife">Knife-edge</option>
+        <option value="roller" selected>Roller</option>
+        <option value="flat">Flat-face</option>
+      </select>
+      <label>ω (rad/s) <span class="tip" data-tip="Cam angular speed. Used to convert kinematic quantities (mm/rad) to physical velocities (mm/s).">?</span></label>
+      <input type="number" id="iOmega" value="10" min="0.1" step="0.5">
+    </div>
+  </div>
+
+  <!-- SEGMENTS -->
+  <div class="card">
+    <div class="card-ttl">Motion Segments <span style="color:var(--muted);font-weight:400;font-size:.8rem;">— must sum to 360°</span></div>
+    <table class="seg-table" id="segTable">
+      <thead>
+        <tr>
+          <th>#</th><th>&beta; (°)</th><th>Type</th><th>Motion Program</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="segBody"></tbody>
+    </table>
+    <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <button class="btn-sm" onclick="addSeg()">+ Add Segment</button>
+      <span id="segSum" style="font-size:.78rem;color:var(--muted);"></span>
+    </div>
+    <div id="segStatus" class="status" style="display:none;"></div>
+    <br>
+    <button class="btn-solve" onclick="solve()">Compute SVAJ &amp; Profile</button>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results" style="display:none;">
+    <div class="result-grid" id="keyResults"></div>
+
+    <div class="grid2">
+      <!-- LEFT: cam canvas + pressure angle -->
+      <div>
+        <div class="card">
+          <div class="card-ttl" style="display:flex;justify-content:space-between;align-items:center">
+            <span>Cam Profile &amp; Follower</span>
+            <span style="font-size:.65rem;color:var(--muted);font-weight:500">Scroll to zoom · Drag to pan · Double-click to reset</span>
+          </div>
+          <canvas id="camCanvas" class="cam-canvas" height="360" style="cursor:grab;"></canvas>
+          <div class="zoom-bar">
+            <button class="zoom-btn" onclick="zoomStep(1.25)">＋ Zoom</button>
+            <button class="zoom-btn" onclick="zoomStep(1/1.25)">－ Zoom</button>
+            <span class="zoom-lbl" id="zoom-lbl">100%</span>
+            <button class="zoom-btn" onclick="resetView()">⟳ Reset</button>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <button class="btn-sm" id="btnAnim" onclick="toggleAnim()">&#9654; Animate</button>
+            <label>Speed</label>
+            <input type="range" id="animSpeed" min="0.1" max="5" step="0.1" value="1" style="width:80px;background:none;cursor:pointer;">
+            <span id="animSpeedLabel" style="font-size:.75rem;color:var(--muted);">1.0×</span>
+          </div>
+          <div id="camLegend" style="margin-top:8px;font-size:.74rem;color:var(--muted);line-height:1.7;">
+            <span style="color:#055934;">&#9632;</span> Cam body &nbsp;
+            <span style="color:#90A4AE;">&#9135;</span> Base circle (ref) &nbsp;
+            <span style="color:#A68A58;">&#9135;</span> Pressure angle line
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-ttl teal">Pressure Angle α</div>
+          <div class="chart-wrap"><canvas id="chartPA"></canvas></div>
+          <div id="paResults" class="result-grid" style="margin-top:8px;"></div>
+        </div>
+      </div>
+
+      <!-- RIGHT: SVAJ charts -->
+      <div>
+        <div class="card">
+          <div class="card-ttl">SVAJ Diagrams</div>
+          <div style="font-size:.74rem;color:var(--muted);margin-bottom:8px;">
+            Kinematic quantities per unit cam rotation (dimensionless theta)
+          </div>
+          <div class="chart-wrap"><canvas id="chartS"></canvas></div>
+          <div class="chart-wrap"><canvas id="chartV"></canvas></div>
+          <div class="chart-wrap"><canvas id="chartA"></canvas></div>
+          <div class="chart-wrap"><canvas id="chartJ"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MOTION PROGRAM REFERENCE -->
+    <div class="card">
+      <div class="card-ttl teal">Motion Program Summary</div>
+      <div id="segSummary" style="font-size:.8rem;color:var(--muted);line-height:1.8;"></div>
+    </div>
+
+    <!-- EXPORT -->
+    <div class="card">
+      <div class="card-ttl green">Export Cam Data</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start;">
+
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <button class="btn-sm" onclick="exportCSV()">⬇ CSV — Full Profile Data</button>
+          <span style="font-size:.68rem;color:var(--muted);max-width:280px;">θ, S, dS/dθ, d²S/dθ², d³S/dθ³, cam_x/y, pitch_x/y</span>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <button class="btn-sm" onclick="exportDXF()" style="border-color:var(--teal);color:var(--teal);">⬇ DXF — SolidWorks 2D Sketch</button>
+          <span style="font-size:.68rem;color:var(--muted);max-width:300px;">Opens in SolidWorks as a sketch with cam surface, pitch curve, and base circle on separate layers. Extrude to create the cam part.</span>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <button class="btn-sm" onclick="exportSWEQ()" style="border-color:var(--purple,#0A353E);color:var(--purple,#0A353E);">⬇ SW Equations — Drive a Template</button>
+          <span style="font-size:.68rem;color:var(--muted);max-width:280px;">Import into a parametric SolidWorks template to update all dimensions automatically.</span>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /results -->
+
+</div><!-- /main -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  SEGMENT TABLE
+// ═══════════════════════════════════════════════════════════════
+const PROGRAMS = ['Uniform','Parabolic','SHM','Cycloidal','3-4-5 Poly'];
+let segs = [];
+
+function defaultSegs(){
+  segs = [
+    {beta:90,  type:'Rise',   prog:'Cycloidal'},
+    {beta:60,  type:'Dwell',  prog:'Cycloidal'},
+    {beta:90,  type:'Return', prog:'Cycloidal'},
+    {beta:120, type:'Dwell',  prog:'Cycloidal'},
+  ];
+  renderSegs();
+}
+
+function renderSegs(){
+  const tb = document.getElementById('segBody');
+  tb.innerHTML='';
+  segs.forEach((s,i)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML=`
+      <td style="color:var(--muted);text-align:center;">${i+1}</td>
+      <td><input type="number" value="${s.beta}" min="1" max="360" step="1"
+          oninput="segs[${i}].beta=+this.value;updateSum();"></td>
+      <td>
+        <select onchange="segs[${i}].type=this.value;renderSegs();">
+          ${['Rise','Dwell','Return'].map(t=>`<option${t===s.type?' selected':''}>${t}</option>`).join('')}
+        </select>
+      </td>
+      <td>${s.type==='Dwell'
+        ?`<span style="color:var(--muted);font-size:.75rem;">— (hold position)</span>`
+        :`<select onchange="segs[${i}].prog=this.value;">
+            ${PROGRAMS.map(p=>`<option${p===s.prog?' selected':''}>${p}</option>`).join('')}
+          </select>`
+      }</td>
+      <td><button class="btn-sm btn-del" onclick="delSeg(${i})">&#10005;</button></td>
+    `;
+    tb.appendChild(tr);
+  });
+  updateSum();
+}
+
+function addSeg(){ segs.push({beta:60,type:'Dwell',prog:'Cycloidal'}); renderSegs(); }
+function delSeg(i){ segs.splice(i,1); renderSegs(); }
+
+function updateSum(){
+  const sum = segs.reduce((a,s)=>a+s.beta,0);
+  const el  = document.getElementById('segSum');
+  el.textContent = `Sum = ${sum.toFixed(1)}°  (need 360°)`;
+  el.style.color  = Math.abs(sum-360)<0.01 ? '#3fb950' : '#f85149';
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MOTION PROGRAMS  (normalized phi = 0..1)
+//  Returns {s, v, a, j} — all w.r.t. phi (dimensionless)
+//  s: 0→1 for Rise (or 1→0 for Return when multiplied by dir)
+// ═══════════════════════════════════════════════════════════════
+function motionNorm(phi, prog){
+  let s,v,a,j;
+  switch(prog){
+    case 'Uniform':
+      s=phi; v=1; a=0; j=0; break;
+    case 'Parabolic':
+      if(phi<=0.5){
+        s=2*phi*phi; v=4*phi; a=4; j=0;
+      } else {
+        const q=1-phi;
+        s=1-2*q*q; v=4*q; a=-4; j=0;
+      }
+      break;
+    case 'SHM':
+      s=0.5*(1-Math.cos(Math.PI*phi));
+      v=0.5*Math.PI*Math.sin(Math.PI*phi);
+      a=0.5*Math.PI*Math.PI*Math.cos(Math.PI*phi);
+      j=-0.5*Math.PI**3*Math.sin(Math.PI*phi);
+      break;
+    case 'Cycloidal':
+      s=phi-Math.sin(2*Math.PI*phi)/(2*Math.PI);
+      v=1-Math.cos(2*Math.PI*phi);
+      a=2*Math.PI*Math.sin(2*Math.PI*phi);
+      j=4*Math.PI*Math.PI*Math.cos(2*Math.PI*phi);
+      break;
+    case '3-4-5 Poly':
+      s=10*phi**3-15*phi**4+6*phi**5;
+      v=30*phi**2-60*phi**3+30*phi**4;
+      a=60*phi-180*phi**2+120*phi**3;
+      j=60-360*phi+360*phi**2;
+      break;
+    default:
+      s=phi; v=1; a=0; j=0;
+  }
+  return {s,v,a,j};
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  BUILD SVAJ ARRAYS  (361 points: 0° to 360°)
+// ═══════════════════════════════════════════════════════════════
+function buildSVAJ(h){
+  // Cumulative start angles and entry displacement per segment
+  const starts=[], entryS=[];
+  let cum=0, cumS=0;
+  for(let i=0;i<segs.length;i++){
+    starts.push(cum);
+    entryS.push(cumS);
+    cum += segs[i].beta;
+    if(segs[i].type==='Rise')   cumS += h;
+    else if(segs[i].type==='Return') cumS -= h;
+  }
+
+  const S=[],V=[],A=[],J=[];
+  for(let deg=0;deg<=360;deg++){
+    const degW = deg%360;
+    // Find segment
+    let si = segs.length-1;
+    for(let i=0;i<segs.length;i++){
+      if(degW>=starts[i] && degW<starts[i]+segs[i].beta){ si=i; break; }
+    }
+    const seg = segs[si];
+    const betaRad = seg.beta * Math.PI/180;
+    const phiDeg  = (degW - starts[si]);
+    const phi     = phiDeg / seg.beta;       // 0..1
+    const s0      = entryS[si];
+
+    if(seg.type==='Dwell'){
+      S.push(s0); V.push(0); A.push(0); J.push(0);
+    } else {
+      const dir = (seg.type==='Rise') ? 1 : -1;
+      const nm  = motionNorm(Math.min(Math.max(phi,0),1), seg.prog);
+      S.push(s0 + dir*h*nm.s);
+      V.push(dir*h*nm.v / betaRad);              // mm/rad
+      A.push(dir*h*nm.a / (betaRad*betaRad));    // mm/rad²
+      J.push(dir*h*nm.j / (betaRad**3));         // mm/rad³
+    }
+  }
+  return {S,V,A,J};
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PRESSURE ANGLE  (radial translating follower)
+// ═══════════════════════════════════════════════════════════════
+function buildPressureAngle(S,V,Rb){
+  return S.map((s,i)=> Math.atan(Math.abs(V[i])/(Rb+s)) * 180/Math.PI );
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RADIUS OF CURVATURE (pitch curve check for undercutting)
+// ═══════════════════════════════════════════════════════════════
+function minRadiusOfCurvature(S,V,A,Rb){
+  let rho_min = Infinity;
+  for(let i=0;i<360;i++){
+    const r  = Rb + S[i];
+    const dr = V[i];    // dS/dtheta
+    const d2r= A[i];    // d²S/dtheta²
+    const num  = Math.pow(r*r + dr*dr, 1.5);
+    const den  = Math.abs(r*r + 2*dr*dr - r*d2r);
+    if(den>1e-12) rho_min = Math.min(rho_min, num/den);
+  }
+  return rho_min;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PITCH CURVE POINTS  (in cam's reference frame, canvas coords)
+//  Convention: pitch[i] = cam point that contacts follower when
+//  cam has rotated by theta_i = 2*pi*i/360 CCW.
+//  Parameterized so pitch[0] is at the top (follower sits above cam center).
+//  Canvas: x right, y down  ⟹  pitch_x = r*sin(theta), pitch_y = -r*cos(theta)
+// ═══════════════════════════════════════════════════════════════
+function buildPitchPts(S,Rb){
+  const N=360;
+  const pts=[];
+  for(let i=0;i<N;i++){
+    const theta=(2*Math.PI*i)/N;
+    const r=Rb+S[i];
+    pts.push({x:r*Math.sin(theta), y:-r*Math.cos(theta)});
+  }
+  pts.push(pts[0]); // close
+  return pts;
+}
+
+function buildSurfPts(S,V,Rb,Rr){
+  // Cam surface = pitch curve offset inward by Rr (toward cam center)
+  // Inward (left) normal in canvas coords:
+  //   N_x = (V*cos(theta) - r*sin(theta)) / sqrt(V²+r²)
+  //   N_y = (V*sin(theta) + r*cos(theta)) / sqrt(V²+r²)
+  // surf = pitch + Rr * N  (adding N_inward moves toward cam center)
+  const N=360;
+  const pts=[];
+  for(let i=0;i<N;i++){
+    const theta=(2*Math.PI*i)/N;
+    const r=Rb+S[i], dS=V[i];
+    const mag=Math.sqrt(dS*dS+r*r);
+    const nx=(dS*Math.cos(theta)-r*Math.sin(theta))/mag;
+    const ny=(dS*Math.sin(theta)+r*Math.cos(theta))/mag;
+    pts.push({x:r*Math.sin(theta)+Rr*nx, y:-r*Math.cos(theta)+Rr*ny});
+  }
+  pts.push(pts[0]);
+  return pts;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CAM CANVAS
+// ═══════════════════════════════════════════════════════════════
+let camData=null, animRunning=false, animAngle=0, lastT=null;
+let viewZoom=1,panX=0,panY=0,_isPanning=false,_dragX=0,_dragY=0;
+function zoomStep(f){viewZoom=Math.min(8,Math.max(0.2,viewZoom*f));updateZoomLbl();if(camData)drawCam(animAngle);}
+function resetView(){viewZoom=1;panX=0;panY=0;updateZoomLbl();if(camData)drawCam(animAngle);}
+function updateZoomLbl(){const el=document.getElementById('zoom-lbl');if(el)el.textContent=Math.round(viewZoom*100)+'%';}
+
+function toggleAnim(){
+  animRunning=!animRunning;
+  document.getElementById('btnAnim').textContent=animRunning?'⏸ Pause':'▶ Animate';
+  if(animRunning){ lastT=null; requestAnimationFrame(animLoop); }
+}
+
+document.getElementById('animSpeed').oninput=function(){
+  document.getElementById('animSpeedLabel').textContent=parseFloat(this.value).toFixed(1)+'×';
+};
+
+function animLoop(ts){
+  if(!animRunning){lastT=null;return;}
+  if(lastT===null) lastT=ts;
+  const dt=(ts-lastT)/1000; lastT=ts;
+  const speed=+document.getElementById('animSpeed').value;
+  animAngle+=camData.omega*speed*dt;
+  if(animAngle>2*Math.PI) animAngle-=2*Math.PI;
+  drawCam(animAngle);
+  requestAnimationFrame(animLoop);
+}
+
+function drawCam(thetaCam){
+  if(!camData) return;
+  const canvas=document.getElementById('camCanvas');
+  const DPR=window.devicePixelRatio||1;
+  const W=canvas.clientWidth, H=canvas.clientHeight||360;
+  if(canvas.width!==W*DPR||canvas.height!==H*DPR){ canvas.width=W*DPR; canvas.height=H*DPR; }
+  const ctx=canvas.getContext('2d');
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.clearRect(0,0,W,H);
+
+  const {S,V,pitchPts,surfPts,Rb,Rr,followerType,omega}=camData;
+
+  // Scale: fit cam in canvas with room for follower above
+  const maxR=Math.max(...pitchPts.map(p=>Math.hypot(p.x,p.y)));
+  const sc=(Math.min(W,H*0.55)-30)/maxR;
+  const cx=W/2, cy=H*0.62; // cam center
+
+  // Deg index for current angle
+  const degNow=((thetaCam*180/Math.PI)%360+360)%360;
+  const idx=Math.min(Math.round(degNow),359);
+  const Scurr=S[idx], Vcurr=V[idx];
+  const followerR=Rb+Scurr; // distance from cam center to follower contact
+
+  ctx.save(); // zoom/pan wrap
+  ctx.translate(W/2+panX,H/2+panY);
+  ctx.scale(viewZoom,viewZoom);
+  ctx.translate(-W/2,-H/2);
+  ctx.save();
+  ctx.translate(cx,cy);
+
+  // ── Rotate cam ──
+  ctx.save();
+  ctx.rotate(-thetaCam); // CCW rotation in math = ctx.rotate(-thetaCam)
+
+  // Cam body fill
+  const profile=(followerType==='roller'&&surfPts)?surfPts:pitchPts;
+  ctx.beginPath();
+  ctx.moveTo(profile[0].x*sc, profile[0].y*sc);
+  for(let i=1;i<profile.length;i++) ctx.lineTo(profile[i].x*sc, profile[i].y*sc);
+  ctx.closePath();
+  ctx.fillStyle='#BBDEFB';  // light blue cam body
+  ctx.fill();
+  ctx.strokeStyle='#055934';
+  ctx.lineWidth=2;
+  ctx.stroke();
+
+  // Pitch curve (dashed, only show for roller)
+  if(followerType==='roller'){
+    ctx.beginPath();
+    ctx.moveTo(pitchPts[0].x*sc, pitchPts[0].y*sc);
+    for(let i=1;i<pitchPts.length;i++) ctx.lineTo(pitchPts[i].x*sc, pitchPts[i].y*sc);
+    ctx.strokeStyle='rgba(21,101,192,.4)';
+    ctx.lineWidth=1;
+    ctx.setLineDash([4,4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Base circle (dashed reference)
+  ctx.beginPath();
+  ctx.arc(0,0,Rb*sc,0,2*Math.PI);
+  ctx.strokeStyle='rgba(96,125,139,.5)';
+  ctx.lineWidth=1;
+  ctx.setLineDash([3,4]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Hub and keyway
+  ctx.beginPath(); ctx.arc(0,0,Rb*0.18*sc,0,2*Math.PI);
+  ctx.fillStyle='#055934'; ctx.fill();
+  ctx.strokeStyle='#0A353E'; ctx.lineWidth=1.5; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Rb*0.32*sc,0);
+  ctx.strokeStyle='#fff'; ctx.lineWidth=2.5; ctx.stroke();
+
+  ctx.restore(); // un-rotate
+
+  // ── Follower guide rails (fixed) ──
+  const railH=followerR*sc+80;
+  ctx.beginPath();
+  ctx.moveTo(-18,-(Rb*sc*0.15)); ctx.lineTo(-18,-railH);
+  ctx.moveTo( 18,-(Rb*sc*0.15)); ctx.lineTo( 18,-railH);
+  ctx.strokeStyle='#B0BEC5'; ctx.lineWidth=1;
+  ctx.setLineDash([2,3]); ctx.stroke(); ctx.setLineDash([]);
+
+  // ── Draw follower ──
+  const fY=-followerR*sc; // contact point y (above cam center)
+
+  if(followerType==='roller'){
+    ctx.beginPath(); ctx.arc(0,fY,Rr*sc,0,2*Math.PI);
+    ctx.fillStyle='#E8F5E9'; ctx.fill();
+    ctx.strokeStyle='#208D44'; ctx.lineWidth=2; ctx.stroke();
+    ctx.beginPath(); ctx.arc(0,fY,2.5,0,2*Math.PI);
+    ctx.fillStyle='#208D44'; ctx.fill();
+    const stemTop=fY-Rr*sc;
+    ctx.beginPath(); ctx.moveTo(0,stemTop); ctx.lineTo(0,stemTop-42);
+    ctx.strokeStyle='#546E7A'; ctx.lineWidth=4; ctx.stroke();
+    ctx.beginPath(); ctx.rect(-14,stemTop-42,28,9);
+    ctx.fillStyle='#F2F7ED'; ctx.fill();
+    ctx.strokeStyle='#90A4AE'; ctx.lineWidth=1; ctx.stroke();
+  } else if(followerType==='knife'){
+    ctx.beginPath();
+    ctx.moveTo(-8,fY); ctx.lineTo(8,fY); ctx.lineTo(0,fY+7);
+    ctx.closePath(); ctx.fillStyle='#546E7A'; ctx.fill();
+    ctx.strokeStyle='#37474F'; ctx.lineWidth=1; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,fY); ctx.lineTo(0,fY-42);
+    ctx.strokeStyle='#546E7A'; ctx.lineWidth=4; ctx.stroke();
+    ctx.beginPath(); ctx.rect(-14,fY-42,28,9);
+    ctx.fillStyle='#F2F7ED'; ctx.fill();
+    ctx.strokeStyle='#90A4AE'; ctx.lineWidth=1; ctx.stroke();
+  } else { // flat-face
+    ctx.beginPath(); ctx.rect(-30,fY-4,60,8);
+    ctx.fillStyle='#546E7A'; ctx.fill();
+    ctx.strokeStyle='#37474F'; ctx.lineWidth=1; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,fY-4); ctx.lineTo(0,fY-46);
+    ctx.strokeStyle='#546E7A'; ctx.lineWidth=4; ctx.stroke();
+    ctx.beginPath(); ctx.rect(-14,fY-46,28,9);
+    ctx.fillStyle='#F2F7ED'; ctx.fill();
+    ctx.strokeStyle='#90A4AE'; ctx.lineWidth=1; ctx.stroke();
+  }
+
+  // ── Pressure angle line ──
+  if(followerType!=='flat'){
+    const tanA=Math.abs(Vcurr)/(Rb+Scurr);
+    const alpha=Math.atan(tanA);
+    const pLen=50;
+    const signV=Vcurr>=0?1:-1;
+    const px=Math.sin(alpha)*pLen*signV;
+    const py=-Math.cos(alpha)*pLen;
+    ctx.beginPath();
+    ctx.moveTo(0,fY); ctx.lineTo(px,fY+py);
+    ctx.strokeStyle='#A68A58'; ctx.lineWidth=2; ctx.stroke();
+    ctx.beginPath(); ctx.arc(0,fY,16,-(Math.PI/2),-(Math.PI/2)+alpha*signV,signV<0);
+    ctx.strokeStyle='#A68A58'; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.fillStyle='#A68A58'; ctx.font='bold 11px system-ui';
+    ctx.fillText(`α=${(alpha*180/Math.PI).toFixed(1)}°`,px+6,fY+py-4);
+  }
+
+  // ── Center dot ──
+  ctx.beginPath(); ctx.arc(0,0,3.5,0,2*Math.PI);
+  ctx.fillStyle='#733B43'; ctx.fill();
+
+  ctx.restore(); // close inner (cam center translate)
+  ctx.restore(); // close zoom/pan wrap
+
+  // ── Overlay: angle + displacement ──
+  const dpr2=DPR;
+  ctx.setTransform(dpr2,0,0,dpr2,0,0);
+  ctx.fillStyle='rgba(236,239,241,.88)';
+  ctx.fillRect(8,8,240,34);
+  ctx.strokeStyle='#C2CCC6'; ctx.lineWidth=1; ctx.strokeRect(8,8,240,34);
+  ctx.fillStyle='#5C6660'; ctx.font='11px system-ui';
+  ctx.fillText(`θ = ${degNow.toFixed(1)}°    S = ${Scurr.toFixed(2)} mm    V = ${Vcurr.toFixed(3)} mm/rad`,12,21);
+  ctx.fillStyle='#1D2921';
+  ctx.fillText(`ω = ${omega.toFixed(1)} rad/s    Ṡ = ${(Vcurr*omega).toFixed(2)} mm/s`,12,36);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CHARTS
+// ═══════════════════════════════════════════════════════════════
+let charts={};
+
+function mkChart(id,label,data,color,unit){
+  if(charts[id]){charts[id].destroy(); delete charts[id];}
+  const labels=data.map((_,i)=>i);
+  charts[id]=new Chart(document.getElementById(id),{
+    type:'line',
+    data:{
+      labels,
+      datasets:[{
+        label,data,
+        borderColor:color,backgroundColor:color+'18',
+        borderWidth:1.5,pointRadius:0,fill:true,tension:0
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{labels:{color:'#5C6660',font:{size:11}}},
+        tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y.toFixed(4)} ${unit}`}}
+      },
+      scales:{
+        x:{
+          ticks:{color:'#5C6660',font:{size:10},maxTicksLimit:13,
+                 callback:v=>`${v}°`},
+          grid:{color:'#EEF2F5'}
+        },
+        y:{ticks:{color:'#5C6660',font:{size:10}},grid:{color:'#EEF2F5'}}
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MAIN SOLVE
+// ═══════════════════════════════════════════════════════════════
+function solve(){
+  const st=document.getElementById('segStatus');
+  const sum=segs.reduce((a,s)=>a+s.beta,0);
+  if(Math.abs(sum-360)>0.01){
+    st.style.display='block'; st.className='status err';
+    st.textContent=`Segments sum to ${sum}° — must equal exactly 360°.`; return;
+  }
+
+  // Check Rise/Return balance
+  let net=0;
+  for(const s of segs){ if(s.type==='Rise') net++; else if(s.type==='Return') net--; }
+  if(net!==0){
+    st.style.display='block'; st.className='status warn';
+    st.textContent=`Warning: ${net>0?'more Rise than Return':'more Return than Rise'} segments — follower may not return to start.`;
+  } else { st.style.display='none'; }
+
+  const Rb   = +document.getElementById('iRb').value;
+  const h    = +document.getElementById('iH').value;
+  const Rr   = +document.getElementById('iRr').value;
+  const ft   = document.getElementById('iFollower').value;
+  const omega= +document.getElementById('iOmega').value;
+
+  const {S,V,A,J}=buildSVAJ(h);
+  const PA  =buildPressureAngle(S,V,Rb);
+  const rhoMin=minRadiusOfCurvature(S,V,A,Rb);
+  const pitchPts=buildPitchPts(S,Rb);
+  const surfPts =(ft==='roller')?buildSurfPts(S,V,Rb,Rr):null;
+
+  camData={S,V,A,J,pitchPts,surfPts,Rb,Rr,followerType:ft,omega};
+
+  // Key metrics
+  const Smax =Math.max(...S);
+  const Vmax =Math.max(...V.map(Math.abs));
+  const Amax =Math.max(...A.map(Math.abs));
+  const Jmax =Math.max(...J.map(Math.abs));
+  const PAmax=Math.max(...PA);
+  const Rmax =Math.max(...pitchPts.map(p=>Math.hypot(p.x,p.y)));
+  const Vcam_max=Vmax*omega;   // mm/s
+  const Acam_max=Amax*omega*omega; // mm/s²
+  const Wflatface=2*Vmax+2;   // minimum face half-width for flat-face
+
+  const paOK=PAmax<=(ft==='flat'?0:30);
+  const rhoOK=(ft!=='roller')||rhoMin>Rr;
+
+  document.getElementById('keyResults').innerHTML=`
+    <div class="rcard"><div class="rlabel">S max</div><div class="rval">${Smax.toFixed(2)}</div><div class="runit">mm</div></div>
+    <div class="rcard"><div class="rlabel">|dS/dθ| max</div><div class="rval">${Vmax.toFixed(3)}</div><div class="runit">mm/rad</div></div>
+    <div class="rcard"><div class="rlabel">|d²S/dθ²| max</div><div class="rval">${Amax.toFixed(3)}</div><div class="runit">mm/rad²</div></div>
+    <div class="rcard"><div class="rlabel">|d³S/dθ³| max</div><div class="rval">${Jmax.toFixed(3)}</div><div class="runit">mm/rad³</div></div>
+    <div class="rcard"><div class="rlabel">Ṡ max (@ω)</div><div class="rval">${Vcam_max.toFixed(1)}</div><div class="runit">mm/s</div></div>
+    <div class="rcard"><div class="rlabel">S̈ max (@ω)</div><div class="rval">${Acam_max.toFixed(1)}</div><div class="runit">mm/s²</div></div>
+    <div class="rcard"><div class="rlabel">R max</div><div class="rval">${Rmax.toFixed(2)}</div><div class="runit">mm</div></div>
+    ${ft==='roller'?`<div class="rcard"><div class="rlabel">ρ min (pitch)</div><div class="rval" style="color:${rhoOK?'#3fb950':'#f85149'}">${rhoMin.toFixed(2)}</div><div class="runit">mm ${rhoOK?'✓':'⚠ < Rr'}</div></div>`:''}
+    ${ft==='flat'?`<div class="rcard"><div class="rlabel">Face half-width min</div><div class="rval">${Wflatface.toFixed(1)}</div><div class="runit">mm</div></div>`:''}
+  `;
+
+  document.getElementById('paResults').innerHTML=`
+    <div class="rcard"><div class="rlabel">α max</div><div class="rval" style="color:${PAmax>30?'#f85149':PAmax>20?'#d29922':'#3fb950'}">${PAmax.toFixed(2)}</div><div class="runit">° ${PAmax>30?'⚠ exceeds 30°':PAmax>20?'(moderate)':'✓ OK'}</div></div>
+    <div class="rcard"><div class="rlabel">Recommended limit</div><div class="rval">30</div><div class="runit">° (roller follower)</div></div>
+    ${PAmax>30?`<div class="rcard" style="grid-column:1/-1"><div class="rlabel" style="color:var(--red);">⚠ Increase R<sub>b</sub> to reduce pressure angle below 30°</div></div>`:''}
+  `;
+
+  // SVAJ charts
+  mkChart('chartS','S — Displacement (mm)',         S,    '#055934','mm');
+  mkChart('chartV','V — dS/dθ (mm/rad)',             V,    '#208D44','mm/rad');
+  mkChart('chartA','A — d²S/dθ² (mm/rad²)',         A,    '#A68A58','mm/rad²');
+  mkChart('chartJ','J — d³S/dθ³ (mm/rad³)',         J,    '#733B43','mm/rad³');
+  mkChart('chartPA','α — Pressure Angle (°)',        PA,   '#0A353E','°');
+
+  // Segment summary
+  let sumHTML='<table style="border-collapse:collapse;width:100%;font-size:.79rem;">';
+  sumHTML+='<tr style="color:var(--muted);border-bottom:1px solid var(--border);"><th style="padding:4px 8px;text-align:left;">#</th><th style="padding:4px 8px;text-align:left;">β (°)</th><th style="padding:4px 8px;text-align:left;">Type</th><th style="padding:4px 8px;text-align:left;">Program</th><th style="padding:4px 8px;text-align:left;">Notes</th></tr>';
+  const progNotes={
+    'Uniform':'Infinite jerk at endpoints — avoid for high speed',
+    'Parabolic':'Finite accel, infinite jerk — moderate speed',
+    'SHM':'Finite accel & jerk — good general purpose',
+    'Cycloidal':'Zero start/end velocity & accel — best for high speed',
+    '3-4-5 Poly':'Zero start/end vel, accel & zero-jerk at ends — smooth'
+  };
+  segs.forEach((s,i)=>{
+    sumHTML+=`<tr style="border-bottom:1px solid #EEF2F5;">
+      <td style="padding:4px 8px;color:var(--muted);">${i+1}</td>
+      <td style="padding:4px 8px;">${s.beta}°</td>
+      <td style="padding:4px 8px;color:${s.type==='Rise'?'#3fb950':s.type==='Return'?'#f85149':'#8b949e'}">${s.type}</td>
+      <td style="padding:4px 8px;">${s.type==='Dwell'?'—':s.prog}</td>
+      <td style="padding:4px 8px;color:var(--muted);">${s.type==='Dwell'?'Constant displacement':progNotes[s.prog]||''}</td>
+    </tr>`;
+  });
+  sumHTML+='</table>';
+  document.getElementById('segSummary').innerHTML=sumHTML;
+
+  document.getElementById('results').style.display='block';
+  animAngle=0;
+  setTimeout(()=>drawCam(0),60);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  EXPORT CSV
+// ═══════════════════════════════════════════════════════════════
+function exportCSV(){
+  if(!camData){alert('Run "Compute SVAJ & Profile" first.');return;}
+  const {S,V,A,J,pitchPts,surfPts,followerType}=camData;
+  const profile=(followerType==='roller'&&surfPts)?surfPts:pitchPts;
+
+  const rows=['theta_deg,S_mm,dS_dtheta_mm_per_rad,d2S_dtheta2,d3S_dtheta3,cam_x_mm,cam_y_mm,pitch_x_mm,pitch_y_mm'];
+  for(let i=0;i<=360;i++){
+    const idx=Math.min(i,360);
+    const ptC=profile[Math.min(idx,profile.length-1)];
+    const ptP=pitchPts[Math.min(idx,pitchPts.length-1)];
+    rows.push([
+      i,
+      (S[idx]||0).toFixed(6),
+      (V[idx]||0).toFixed(6),
+      (A[idx]||0).toFixed(6),
+      (J[idx]||0).toFixed(6),
+      ptC?(ptC.x).toFixed(6):'',
+      ptC?(ptC.y).toFixed(6):'',
+      ptP?(ptP.x).toFixed(6):'',
+      ptP?(ptP.y).toFixed(6):''
+    ].join(','));
+  }
+  const blob=new Blob([rows.join('\n')],{type:'text/csv'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download='cam_profile.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  EXPORT DXF
+// ═══════════════════════════════════════════════════════════════
+function exportDXF(){
+  if(!camData){alert('Run "Compute SVAJ & Profile" first.');return;}
+  const{pitchPts,surfPts,followerType,Rb,Rr}=camData;
+  const surface=(followerType==='roller'&&surfPts)?surfPts:pitchPts;
+
+  // ── helpers ──────────────────────────────────────────────────
+  function layerDef(name,color,ltype){
+    return `0\nLAYER\n2\n${name}\n70\n0\n62\n${color}\n6\n${ltype||'CONTINUOUS'}\n`;
+  }
+  function lwpoly(pts,layer,closed){
+    // pts may have a duplicate closing point — use only unique vertices
+    const n=closed?pts.length-1:pts.length;
+    let s=`0\nLWPOLYLINE\n8\n${layer}\n90\n${n}\n70\n${closed?1:0}\n`;
+    for(let i=0;i<n;i++) s+=`10\n${pts[i].x.toFixed(6)}\n20\n${pts[i].y.toFixed(6)}\n`;
+    return s;
+  }
+  function circle(cx,cy,r,layer){
+    return `0\nCIRCLE\n8\n${layer}\n10\n${cx.toFixed(6)}\n20\n${cy.toFixed(6)}\n30\n0.0\n40\n${r.toFixed(6)}\n`;
+  }
+  function line(x1,y1,x2,y2,layer){
+    return `0\nLINE\n8\n${layer}\n10\n${x1.toFixed(6)}\n20\n${y1.toFixed(6)}\n30\n0.0\n11\n${x2.toFixed(6)}\n21\n${y2.toFixed(6)}\n31\n0.0\n`;
+  }
+  function text(x,y,h,str,layer){
+    return `0\nTEXT\n8\n${layer}\n10\n${x.toFixed(4)}\n20\n${y.toFixed(4)}\n30\n0.0\n40\n${h}\n1\n${str}\n`;
+  }
+
+  // ── build DXF string ─────────────────────────────────────────
+  let d='';
+
+  // Header
+  d+='0\nSECTION\n2\nHEADER\n';
+  d+='9\n$ACADVER\n1\nAC1015\n';  // R2000 — widest compatibility
+  d+='9\n$INSUNITS\n70\n4\n';    // 4 = millimetres
+  d+='0\nENDSEC\n';
+
+  // Layer table
+  d+='0\nSECTION\n2\nTABLES\n';
+  d+='0\nTABLE\n2\nLAYER\n70\n5\n';
+  d+=layerDef('CAM_SURFACE', 5);        // blue
+  d+=layerDef('PITCH_CURVE', 4);        // cyan (roller only)
+  d+=layerDef('BASE_CIRCLE', 8);        // gray
+  d+=layerDef('ROLLER', 3);             // green (roller circle at follower)
+  d+=layerDef('ANNOTATIONS', 2);        // yellow – center mark + notes
+  d+='0\nENDTAB\n';
+  d+='0\nENDSEC\n';
+
+  // Entities
+  d+='0\nSECTION\n2\nENTITIES\n';
+
+  // 1. Cam surface profile (closed polyline)
+  d+=lwpoly(surface,'CAM_SURFACE',true);
+
+  // 2. Pitch curve (dashed layer — show for roller)
+  if(followerType==='roller'){
+    d+=lwpoly(pitchPts,'PITCH_CURVE',true);
+  }
+
+  // 3. Base circle (reference)
+  d+=circle(0,0,Rb,'BASE_CIRCLE');
+
+  // 4. Roller circle at top-of-stroke position (θ=0, follower fully up)
+  if(followerType==='roller'&&Rr>0){
+    const Smax=Math.max(...camData.S);
+    d+=circle(0,-(Rb+Smax),Rr,'ROLLER');
+  }
+
+  // 5. Center mark (crosshair)
+  const cs=Rb*0.12;
+  d+=line(-cs,0,cs,0,'ANNOTATIONS');
+  d+=line(0,-cs,0,cs,'ANNOTATIONS');
+  d+=circle(0,0,cs*0.35,'ANNOTATIONS');
+
+  // 6. Annotation text (bottom-left of drawing)
+  const notes=[
+    `Rb=${Rb} mm   Rr=${Rr} mm   Follower: ${followerType}`,
+    `Total lift h=${camData.S?Math.max(...camData.S).toFixed(2):'?'} mm`,
+    `MENG 364 — Module 7 Cam Design`
+  ];
+  notes.forEach((txt,i)=>{ d+=text(-(Rb*1.5), -(Rb*1.6+i*Rb*0.22), Rb*0.09, txt,'ANNOTATIONS'); });
+
+  d+='0\nENDSEC\n0\nEOF\n';
+
+  // ── download ─────────────────────────────────────────────────
+  const blob=new Blob([d],{type:'application/dxf'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download='cam_profile.dxf'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  EXPORT SOLIDWORKS EQUATIONS
+// ═══════════════════════════════════════════════════════════════
+function exportSWEQ(){
+  if(!camData){alert('Run "Compute SVAJ & Profile" first.');return;}
+  const{Rb,Rr,followerType,omega,S}=camData;
+  const h=S?Math.max(...S).toFixed(4):'0';
+  const Rb_val=Rb.toFixed(4);
+  const Rr_val=Rr.toFixed(4);
+
+  // SolidWorks equation file format:  "name"= value
+  // Can be imported via Tools > Equations > Import
+  const lines=[
+    `\\ MENG 364 — Module 7 Cam Design`,
+    `\\ Generated ${new Date().toLocaleString()}`,
+    `\\ Import via: Tools > Equations > Import Equations`,
+    ``,
+    `"base_circle_radius"= ${Rb_val}mm`,
+    `"total_lift"= ${h}mm`,
+    `"roller_radius"= ${Rr_val}mm`,
+    `"cam_omega"= ${omega.toFixed(4)}rad/s`,
+    `"follower_type"= \\ ${followerType}`,
+    ``,
+    `\\ Derived — use these to drive sketch dimensions:`,
+    `"pitch_radius_max"= "base_circle_radius" + "total_lift"`,
+    `"cam_extrude_depth"= 20mm  \\ adjust to your design`,
+    `"hub_radius"= "base_circle_radius" * 0.18`,
+  ];
+
+  // Add per-angle S values as a comment table for reference
+  // (SW can't use arrays, but this helps students read values for manual checks)
+  lines.push('');
+  lines.push('\\ S(θ) values at 10° intervals — for manual verification:');
+  for(let deg=0;deg<=360;deg+=10){
+    const idx=Math.min(deg,359);
+    lines.push(`\\ S(${deg}°) = ${(S[idx]||0).toFixed(4)} mm`);
+  }
+
+  const blob=new Blob([lines.join('\n')],{type:'text/plain'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download='cam_equations.txt'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════
+function addChartExportButtons(){
+  const nameMap={chartPA:'Pressure_Angle',chartS:'Displacement',chartV:'Velocity',chartA:'Acceleration',chartJ:'Jerk'};
+  document.querySelectorAll('.chart-wrap').forEach(wrap=>{
+    const cv=wrap.querySelector('canvas');
+    if(!cv||wrap.querySelector('.plt-dl-btn')) return;
+    const name=nameMap[cv.id]||cv.id||'chart';
+    const btn=document.createElement('button');
+    btn.className='plt-dl-btn'; btn.title='Download chart as PNG'; btn.textContent='⬇ PNG';
+    btn.onclick=()=>{ const a=document.createElement('a'); a.href=cv.toDataURL('image/png'); a.download=name+'.png'; a.click(); };
+    wrap.appendChild(btn);
+  });
+}
+defaultSegs();
+addChartExportButtons();
+
+// Zoom/pan on camCanvas
+(function(){
+  const canvas=document.getElementById('camCanvas');
+  canvas.addEventListener('wheel',e=>{
+    e.preventDefault();
+    const rect=canvas.getBoundingClientRect();
+    const W=canvas.clientWidth, H=canvas.clientHeight||360;
+    const mx=(e.clientX-rect.left)/rect.width*W;
+    const my=(e.clientY-rect.top)/rect.height*H;
+    const oldZoom=viewZoom;
+    viewZoom=Math.min(8,Math.max(0.2,viewZoom*(e.deltaY<0?1.12:1/1.12)));
+    const f=viewZoom/oldZoom;
+    panX=(mx-W/2)-((mx-W/2)-panX)*f;
+    panY=(my-H/2)-((my-H/2)-panY)*f;
+    updateZoomLbl();if(camData)drawCam(animAngle);
+  },{passive:false});
+  canvas.addEventListener('mousedown',e=>{_isPanning=true;_dragX=e.clientX;_dragY=e.clientY;canvas.style.cursor='grabbing';});
+  window.addEventListener('mousemove',e=>{if(!_isPanning)return;const rect=canvas.getBoundingClientRect();const scl=canvas.clientWidth/rect.width;panX+=(e.clientX-_dragX)*scl;panY+=(e.clientY-_dragY)*scl;_dragX=e.clientX;_dragY=e.clientY;if(camData)drawCam(animAngle);});
+  window.addEventListener('mouseup',()=>{_isPanning=false;canvas.style.cursor='grab';});
+  canvas.addEventListener('dblclick',()=>{resetView();});
+})();
+</script>
+<script>document.querySelector('.mod-pill.active')?.scrollIntoView({inline:'center',block:'nearest'});</script>
+</body>
+</html>

@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MENG 364 — Module 4: Flywheel Design</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#055934;--blue-dk:#0A353E;--blue-lt:#EEF8F5;
+  --orange:#A68A58;--green:#208D44;--red:#733B43;
+  --amber:#A68A58;--teal:#2BB673;--indigo:#0A353E;
+  --bg:#F2F7ED;--surface:#fff;--border:#C2CCC6;--text:#1D2921;--muted:#5C6660;
+  --c-crank:#055934;--c-coupler:#A68A58;--c-follower:#208D44;--c-ground:#8D9991;
+}
+body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh}
+
+/* ── header / nav ── */
+.hdr{background:var(--blue);color:#fff;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.hdr h1{font-size:.97rem;font-weight:700}.hdr p{font-size:.7rem;opacity:.82;margin-top:1px}
+.badge{background:var(--indigo);border-radius:20px;padding:4px 14px;font-size:.73rem;font-weight:700;white-space:nowrap}
+.mod-nav{background:var(--blue-dk);display:flex;padding:0 8px;overflow-x:auto;scrollbar-width:none;position:sticky;top:0;z-index:200;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.mod-nav::-webkit-scrollbar{display:none}
+.mod-pill{display:inline-block;padding:8px 13px;color:rgba(255,255,255,.65);font-size:.73rem;font-weight:700;text-decoration:none;border-bottom:3px solid transparent;white-space:nowrap;transition:all .15s}
+.mod-pill:hover{color:#fff;border-bottom-color:rgba(255,255,255,.4)}
+.mod-pill.active{color:#fff;border-bottom-color:#fff}
+.tip{display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;background:var(--blue-lt);color:var(--blue);font-size:.58rem;font-weight:800;cursor:help;flex-shrink:0;position:relative;margin-left:2px;vertical-align:middle;}
+.tip::after{content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 7px);transform:translateX(-50%);background:#1D2921;color:#fff;padding:6px 10px;border-radius:6px;font-size:.71rem;font-weight:500;line-height:1.45;white-space:normal;width:210px;text-align:left;opacity:0;pointer-events:none;transition:opacity .15s;z-index:9999;box-shadow:0 3px 10px rgba(0,0,0,.3);}
+.tip:hover::after{opacity:1;}
+.inum.invalid{border-color:var(--red)!important;background:#FFF5F5!important;}
+.inp-err{display:none;font-size:.7rem;color:var(--red);margin-top:5px;font-weight:600;padding:3px 7px;background:#FFF5F5;border-radius:4px;border-left:3px solid var(--red);}
+.inp-err.show{display:block;}
+.print-btn{background:none;border:1.5px solid rgba(255,255,255,.5);color:#fff;border-radius:6px;padding:4px 11px;font-size:.7rem;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.print-btn:hover{background:rgba(255,255,255,.15);}
+.push-m1-btn{width:100%;margin-top:8px;padding:5px;border:1.5px solid var(--blue);border-radius:5px;background:var(--blue-lt);color:var(--blue);font-size:.7rem;font-weight:700;cursor:pointer;transition:all .15s;}
+.push-m1-btn:hover{background:var(--blue);color:#fff;}
+@media print{.mod-nav,.btns,.presets,.tog-row,.m1-banner,.print-btn,.plt-dl-btn{display:none!important;}.hdr{background:#fff!important;color:#000!important;box-shadow:none!important;border-bottom:2px solid #055934;}.badge{background:#EEF8F5!important;color:#055934!important;}body{background:#fff!important;}.card{box-shadow:none!important;border:1px solid #ddd!important;page-break-inside:avoid;}.layout{display:block!important;}canvas{max-width:100%!important;}}
+
+/* ── layout ── */
+.layout{display:grid;grid-template-columns:272px 1fr 300px;gap:12px;padding:12px;max-width:1600px;margin:0 auto;align-items:start}
+@media(max-width:1150px){.layout{grid-template-columns:272px 1fr}.right{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:12px}}
+@media(max-width:720px){.layout{grid-template-columns:1fr}.right{grid-template-columns:1fr}}
+
+/* ── cards ── */
+.card{background:var(--surface);border-radius:10px;box-shadow:0 1px 5px rgba(0,0,0,.09);padding:14px;margin-bottom:12px}
+.card:last-child{margin-bottom:0}
+.card-ttl{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--blue);border-bottom:2px solid var(--blue-lt);padding-bottom:6px;margin-bottom:12px}
+.card-ttl.indigo{color:var(--indigo);border-bottom-color:#E8EAF6}
+.card-ttl.teal  {color:var(--teal);  border-bottom-color:#E0F2F1}
+.card-ttl.green {color:var(--green); border-bottom-color:#E8F5E9}
+
+/* ── inputs ── */
+.irow{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.ilbl{font-size:.79rem;font-weight:600;color:var(--muted);width:94px;flex-shrink:0}
+.inum{flex:1;min-width:0;width:0;padding:5px 8px;border:1.5px solid var(--border);border-radius:5px;font-size:.87rem;font-weight:700;text-align:right;color:var(--text);background:#FAFAFA;transition:border-color .15s}
+.inum:focus{outline:none;border-color:var(--blue);background:#fff}
+.iunit{font-size:.7rem;color:var(--muted);width:32px;flex-shrink:0}
+.isel{flex:1;min-width:0;padding:5px 6px;border:1.5px solid var(--border);border-radius:5px;font-size:.82rem;font-weight:700;color:var(--text);background:#FAFAFA;cursor:pointer}
+
+/* ── legend ── */
+.legend{display:grid;grid-template-columns:1fr 1fr;gap:5px 8px;margin-top:10px}
+.leg-item{display:flex;align-items:center;gap:6px;font-size:.73rem;color:var(--muted)}
+.leg-bar{width:20px;height:4px;border-radius:3px;flex-shrink:0}
+
+/* ── toggle ── */
+.tog-row{display:flex;align-items:center;gap:8px;margin-top:10px}
+.tog-lbl{font-size:.76rem;font-weight:600;color:var(--muted)}
+.toggle{position:relative;display:inline-block;width:38px;height:20px}
+.toggle input{opacity:0;width:0;height:0}
+.tog-sl{position:absolute;inset:0;background:var(--border);border-radius:20px;cursor:pointer;transition:.2s}
+.tog-sl::before{content:'';position:absolute;width:14px;height:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+input:checked+.tog-sl{background:var(--blue)}
+input:checked+.tog-sl::before{transform:translateX(18px)}
+
+/* ── grashof ── */
+.g-box{padding:7px 12px;border-radius:7px;font-size:.78rem;font-weight:700;text-align:center;margin-bottom:8px}
+.g-ok  {background:#E8F5E9;color:var(--green); border:1.5px solid #A5D6A7}
+.g-warn{background:#FFF8E1;color:var(--amber); border:1.5px solid #FFE082}
+.g-fail{background:#FFEBEE;color:var(--red);   border:1.5px solid #FFCDD2}
+.g-det {font-size:.72rem;color:var(--muted);line-height:1.9}
+
+/* ── sliders ── */
+.sl-lbl{display:flex;justify-content:space-between;font-size:.75rem;font-weight:600;color:var(--muted);margin-bottom:3px}
+input[type=range]{-webkit-appearance:none;width:100%;height:4px;border-radius:2px;background:var(--border);outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--blue);cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+#theta2-range::-webkit-slider-thumb{background:var(--orange)}
+.mt8{margin-top:8px}.mt12{margin-top:12px}
+
+/* ── buttons ── */
+.btns{display:flex;gap:7px;margin-top:8px}
+.btn{flex:1;padding:8px 6px;border:none;border-radius:6px;font-size:.76rem;font-weight:700;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:3px}
+.btn-p{background:var(--blue);color:#fff}.btn-p:hover{background:var(--blue-dk)}
+.btn-s{background:#C2CCC6;color:var(--text)}.btn-s:hover{background:#B0BEC5}
+.btn-r{background:var(--red);color:#fff}
+.presets{display:flex;gap:5px;margin-top:10px;flex-wrap:wrap}
+.pre-btn{flex:1;min-width:60px;padding:5px 4px;border:1.5px solid var(--border);border-radius:5px;background:#fff;font-size:.65rem;font-weight:700;cursor:pointer;color:var(--muted);transition:all .15s;text-align:center}
+.pre-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-lt)}
+
+/* ── section divider ── */
+.sec-div{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:10px 0 6px;border-top:1px solid var(--border);padding-top:8px}
+
+/* ── result rows ── */
+.res-row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:1px solid #EEF2F5;font-size:.82rem}
+.res-row:last-child{border:none}
+.res-lbl{color:var(--muted);font-weight:600}
+.res-val{font-family:'Courier New',monospace;font-weight:800}
+
+/* ── big result card ── */
+.big-res{background:var(--bg);border-radius:8px;padding:10px 14px;margin-top:10px;text-align:center}
+.big-res-n{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+.big-res-v{font-size:1.4rem;font-weight:800;font-family:'Courier New',monospace;margin-top:3px}
+
+/* ── flywheel sketch canvas ── */
+#fwCanvas{width:100%;height:auto;display:block;border-radius:6px;background:#F8FAFB;border:1px solid var(--border)}
+
+/* ── plots ── */
+.plots{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:560px){.plots{grid-template-columns:1fr}}
+.plt-card{background:var(--surface);border-radius:10px;box-shadow:0 1px 5px rgba(0,0,0,.09);padding:10px 11px 9px;position:relative}
+.plt-dl-btn{position:absolute;top:6px;right:7px;background:none;border:1px solid var(--border);border-radius:4px;color:var(--muted);font-size:.63rem;padding:2px 5px;cursor:pointer;line-height:1.4;transition:all .15s;z-index:5;}
+.plt-dl-btn:hover{background:var(--blue-lt);color:var(--blue);border-color:var(--blue);}
+.plt-ttl{font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);text-align:center;margin-bottom:4px}
+
+/* ── mechanism canvas ── */
+.cv-wrap{position:relative}
+#mechCanvas{width:100%;height:auto;display:block;border-radius:6px}
+.cv-badge{position:absolute;top:40px;right:14px;background:rgba(21,101,192,.9);color:#fff;padding:3px 12px;border-radius:20px;font-size:.78rem;font-weight:700;font-family:monospace;pointer-events:none}
+.cv-info{position:absolute;bottom:10px;left:14px;font-size:.75rem;font-weight:700;pointer-events:none}
+
+/* ── warning box ── */
+.warn-box{background:#FFF8E1;border:1.5px solid #FFE082;border-radius:7px;padding:8px 12px;font-size:.75rem;color:var(--amber);font-weight:600;margin-top:8px;display:none}
+.warn-box.show{display:block}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body, button, input, select, textarea { font-family:'Alexandria', system-ui, sans-serif !important; }
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div><h1>Machine Dynamics Tool</h1><p>MENG 364 &nbsp;·&nbsp; King Abdulaziz University</p></div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div class="badge">Module 4 — Flywheel Design</div>
+    <button class="print-btn" onclick="window.print()">⎙ Print / PDF</button>
+  </div>
+</header>
+
+<nav class="mod-nav">
+  <a href="index.html"   class="mod-pill">Module 1 — 4-Bar Linkage</a>
+  <a href="module2.html" class="mod-pill">Module 2 — Coupler Point</a>
+  <a href="module3.html" class="mod-pill">Module 3 — Force Analysis</a>
+  <a href="module4.html" class="mod-pill active">Module 4 — Flywheel</a>
+  <a href="module5.html" class="mod-pill">Module 5 — Balancing</a>
+  <a href="module6.html" class="mod-pill">Module 6 — Gear Trains</a>
+  <a href="module7.html" class="mod-pill">Module 7 — Cam Design</a>
+</nav>
+
+<div class="layout">
+
+<!-- ══════════════ LEFT PANEL ══════════════ -->
+<div class="left">
+
+  <!-- Link lengths -->
+  <div class="card">
+    <div class="card-ttl">Link Lengths</div>
+    <div class="irow"><div class="dot" style="background:var(--c-crank)"></div>  <span class="ilbl">a — Crank <span class="tip" data-tip="Driven input link length (cm). Must be positive.">?</span></span>  <input type="number" class="inum" id="inp-a" value="2"   min="0.01" step="0.1"><span class="iunit">cm</span></div>
+    <div class="irow"><div class="dot" style="background:var(--c-coupler)"></div><span class="ilbl">b — Coupler <span class="tip" data-tip="Floating coupler link length (cm). Must be positive.">?</span></span><input type="number" class="inum" id="inp-b" value="4.5" min="0.01" step="0.1"><span class="iunit">cm</span></div>
+    <div class="irow"><div class="dot" style="background:var(--c-follower)"></div><span class="ilbl">c — Follower <span class="tip" data-tip="Output follower link length (cm). Must be positive.">?</span></span><input type="number" class="inum" id="inp-c" value="3.5" min="0.01" step="0.1"><span class="iunit">cm</span></div>
+    <div class="irow"><div class="dot" style="background:var(--c-ground)"></div>  <span class="ilbl">d — Ground <span class="tip" data-tip="Fixed frame link — distance O₂ to O₄ (cm). Must be positive.">?</span></span>  <input type="number" class="inum" id="inp-d" value="4"   min="0.01" step="0.1"><span class="iunit">cm</span></div>
+    <div class="inp-err" id="link-err"></div>
+    <div class="legend">
+      <div class="leg-item"><div class="leg-bar" style="background:var(--c-crank)"></div>Crank (a)</div>
+      <div class="leg-item"><div class="leg-bar" style="background:var(--c-coupler)"></div>Coupler (b)</div>
+      <div class="leg-item"><div class="leg-bar" style="background:var(--c-follower)"></div>Follower (c)</div>
+      <div class="leg-item"><div class="leg-bar" style="background:var(--c-ground);height:6px"></div>Ground (d)</div>
+    </div>
+    <div class="tog-row">
+      <span class="tog-lbl">Assembly:</span>
+      <label class="toggle"><input type="checkbox" id="asm-tog" onchange="onAsmToggle()"><span class="tog-sl"></span></label>
+      <span class="tog-lbl" id="asm-lbl">Open</span>
+    </div>
+    <div class="presets">
+      <button class="pre-btn" onclick="setLP('cr')">Crank-Rocker</button>
+      <button class="pre-btn" onclick="setLP('dc')">Double Crank</button>
+    </div>
+    <div id="m1-banner" style="display:none;margin-top:8px;padding:6px 10px;background:#EEF8F5;border:1px solid #90CAF9;border-radius:6px;font-size:.72rem;color:#055934;align-items:center;justify-content:space-between;gap:6px;">
+      <span id="m1-banner-text"></span>
+      <button onclick="loadFromM1()" style="background:#055934;color:#fff;border:none;border-radius:4px;padding:3px 8px;font-size:.7rem;font-weight:700;cursor:pointer;white-space:nowrap;">Load ↓</button>
+    </div>
+    <button class="push-m1-btn" onclick="pushToM1()" title="Save current link values back to Module 1 shared state">↑ Push to Module 1</button>
+    <div style="margin-top:10px">
+      <div class="g-box g-ok" id="g-type">—</div>
+      <div class="g-det" id="g-det"></div>
+    </div>
+  </div>
+
+  <!-- Link masses -->
+  <div class="card">
+    <div class="card-ttl teal">Link Masses (kg)</div>
+    <div class="irow"><span class="ilbl">m₂ — Crank <span class="tip" data-tip="Mass of crank link (kg). Used to compute kinetic energy variation.">?</span></span>  <input type="number" class="inum" id="m2" value="0.5"  min="0" step="0.05"><span class="iunit">kg</span></div>
+    <div class="irow"><span class="ilbl">m₃ — Coupler <span class="tip" data-tip="Mass of coupler link (kg).">?</span></span><input type="number" class="inum" id="m3" value="1.0"  min="0" step="0.05"><span class="iunit">kg</span></div>
+    <div class="irow"><span class="ilbl">m₄ — Follower <span class="tip" data-tip="Mass of follower link (kg).">?</span></span><input type="number" class="inum" id="m4" value="0.75" min="0" step="0.05"><span class="iunit">kg</span></div>
+    <div class="irow"><span class="ilbl">T_L — Load <span class="tip" data-tip="Constant resistive torque at the output (N·m). Positive = resisting crank motion.">?</span></span>  <input type="number" class="inum" id="tload" value="0" step="0.1"><span class="iunit">N·m</span></div>
+  </div>
+
+  <!-- Flywheel specification -->
+  <div class="card">
+    <div class="card-ttl indigo">Flywheel Specification</div>
+
+    <div class="sec-div">Speed Fluctuation</div>
+    <div class="irow">
+      <span class="ilbl">ω₂ — Speed</span>
+      <input type="number" class="inum" id="spd-inp" value="30" min="1" step="5">
+      <span class="iunit">rpm</span>
+    </div>
+    <div class="irow">
+      <span class="ilbl">C_s <span class="tip" data-tip="Coefficient of speed fluctuation = (ω_max−ω_min)/ω_avg. Typical: 0.02 (precision) to 0.10 (general machinery).">?</span></span>
+      <input type="number" class="inum" id="cs" value="0.05" min="0.001" max="1" step="0.005">
+      <span class="iunit">—</span>
+    </div>
+    <div style="font-size:.68rem;color:var(--muted);margin-bottom:6px">
+      C_s = (ω_max−ω_min)/ω_avg &nbsp;·&nbsp; Typical: 0.02–0.10
+    </div>
+    <div class="sl-lbl"><span>C_s slider</span><span id="cs-lbl">0.050</span></div>
+    <input type="range" id="cs-range" min="0.005" max="0.200" step="0.005" value="0.05">
+
+    <div class="sec-div">Flywheel Geometry</div>
+    <div class="irow">
+      <span class="ilbl">Type</span>
+      <select class="isel" id="fw-type" onchange="refreshAll()">
+        <option value="disk">Solid Disk</option>
+        <option value="ring">Annular Ring</option>
+      </select>
+    </div>
+    <div class="irow">
+      <span class="ilbl">Material ρ</span>
+      <select class="isel" id="fw-mat" onchange="refreshAll()">
+        <option value="7800">Steel (7800 kg/m³)</option>
+        <option value="7200">Cast Iron (7200)</option>
+        <option value="2700">Aluminium (2700)</option>
+        <option value="custom">Custom…</option>
+      </select>
+    </div>
+    <div class="irow" id="rho-row" style="display:none">
+      <span class="ilbl">ρ — Custom</span>
+      <input type="number" class="inum" id="rho-custom" value="7800" min="100" step="100">
+      <span class="iunit">kg/m³</span>
+    </div>
+    <div class="irow">
+      <span class="ilbl">Width t</span>
+      <input type="number" class="inum" id="fw-t" value="30" min="1" step="1">
+      <span class="iunit">mm</span>
+    </div>
+    <div class="irow" id="ri-row">
+      <span class="ilbl">Inner r_i</span>
+      <input type="number" class="inum" id="fw-ri" value="40" min="0" step="5">
+      <span class="iunit">mm</span>
+    </div>
+
+    <div class="presets">
+      <button class="pre-btn" onclick="setCS(0.02)">Cs=0.02</button>
+      <button class="pre-btn" onclick="setCS(0.05)">Cs=0.05</button>
+      <button class="pre-btn" onclick="setCS(0.10)">Cs=0.10</button>
+    </div>
+  </div>
+
+  <!-- Animation -->
+  <div class="card">
+    <div class="card-ttl">Animation</div>
+    <div class="sl-lbl"><span>Crank angle θ₂</span><span id="th2-lbl">0°</span></div>
+    <input type="range" id="theta2-range" min="0" max="359" value="0" step="1">
+    <div class="btns">
+      <button class="btn btn-p" id="anim-btn" onclick="toggleAnim()">&#9654; Animate</button>
+      <button class="btn btn-s" onclick="resetCrank()">&#8635; Reset</button>
+    </div>
+    <div class="btns">
+      <button class="btn btn-s" onclick="stepCrank(-5)">&#9664; 5°</button>
+      <button class="btn btn-s" onclick="stepCrank(5)">5° &#9654;</button>
+    </div>
+  </div>
+
+</div><!-- /left -->
+
+<!-- ══════════════ CENTER PANEL ══════════════ -->
+<div class="center">
+
+  <!-- Mechanism canvas -->
+  <div class="card cv-wrap">
+    <div class="card-ttl">Mechanism View</div>
+    <canvas id="mechCanvas" width="800" height="350"></canvas>
+    <div class="cv-badge" id="cv-badge">θ₂ = 0°</div>
+    <div class="cv-info"  id="cv-mu"></div>
+  </div>
+
+  <!-- 4 plots -->
+  <div class="plots">
+    <div class="plt-card">
+      <div class="plt-ttl">Input Torque T₁₂ vs θ₂</div>
+      <canvas id="ch-t12"  height="145"></canvas>
+    </div>
+    <div class="plt-card">
+      <div class="plt-ttl">Energy Curve E(θ) = ∫T₁₂ dθ</div>
+      <canvas id="ch-energy" height="145"></canvas>
+    </div>
+    <div class="plt-card">
+      <div class="plt-ttl">Speed Fluctuation ω(θ)</div>
+      <canvas id="ch-omega" height="145"></canvas>
+    </div>
+    <div class="plt-card">
+      <div class="plt-ttl">ΔE Envelope (max swing)</div>
+      <canvas id="ch-de"   height="145"></canvas>
+    </div>
+  </div>
+
+</div><!-- /center -->
+
+<!-- ══════════════ RIGHT PANEL ══════════════ -->
+<div class="right">
+
+  <!-- Results -->
+  <div class="card">
+    <div class="card-ttl indigo">Flywheel Sizing Results</div>
+
+    <div class="res-row"><span class="res-lbl">ΔE (max energy swing)</span>    <span class="res-val" id="rv-de"  style="color:var(--indigo)">— J</span></div>
+    <div class="res-row"><span class="res-lbl">ω_avg</span>                    <span class="res-val" id="rv-wavg">— rad/s</span></div>
+    <div class="res-row"><span class="res-lbl">C_s (input)</span>               <span class="res-val" id="rv-cs">—</span></div>
+    <div class="res-row"><span class="res-lbl">I_total required</span>          <span class="res-val" id="rv-itot" style="color:var(--indigo)">— kg·m²</span></div>
+    <div class="res-row"><span class="res-lbl">I_links (links 2–4)</span>       <span class="res-val" id="rv-ilinks">— kg·m²</span></div>
+
+    <div class="big-res">
+      <div class="big-res-n">I_flywheel required</div>
+      <div class="big-res-v" id="rv-ifw" style="color:var(--indigo)">—</div>
+    </div>
+
+    <div class="warn-box" id="warn-neg">⚠ Link inertia already exceeds requirement — no flywheel needed, or reduce C_s.</div>
+
+    <div class="sec-div">Flywheel Dimensions</div>
+    <div class="res-row"><span class="res-lbl">Outer radius r_o</span>  <span class="res-val" id="rv-ro">— mm</span></div>
+    <div class="res-row"><span class="res-lbl">Inner radius r_i</span>  <span class="res-val" id="rv-ri">— mm</span></div>
+    <div class="res-row"><span class="res-lbl">Width t</span>           <span class="res-val" id="rv-t">— mm</span></div>
+    <div class="res-row"><span class="res-lbl">Mass m_fw</span>         <span class="res-val" id="rv-mfw" style="color:var(--green)">— kg</span></div>
+    <div class="res-row"><span class="res-lbl">Material</span>          <span class="res-val" id="rv-mat">—</span></div>
+  </div>
+
+  <!-- Flywheel cross-section sketch -->
+  <div class="card" style="margin-top:0">
+    <div class="card-ttl green">Cross-Section Sketch</div>
+    <canvas id="fwCanvas" width="276" height="220"></canvas>
+    <div style="font-size:.68rem;color:var(--muted);text-align:center;margin-top:5px" id="fw-caption">—</div>
+  </div>
+
+  <!-- Speed variation summary -->
+  <div class="card" style="margin-top:0">
+    <div class="card-ttl">Speed Variation</div>
+    <div class="res-row"><span class="res-lbl">ω_avg</span>    <span class="res-val" id="sv-wavg">— rad/s</span></div>
+    <div class="res-row"><span class="res-lbl">ω_max</span>    <span class="res-val" id="sv-wmax">— rad/s</span></div>
+    <div class="res-row"><span class="res-lbl">ω_min</span>    <span class="res-val" id="sv-wmin">— rad/s</span></div>
+    <div class="res-row" style="border:none"><span class="res-lbl">Actual C_s check</span><span class="res-val" id="sv-cs-chk">—</span></div>
+  </div>
+
+  <!-- Diagnostics -->
+  <div class="card" style="margin-top:0" id="diag-card">
+    <div class="card-ttl" style="color:var(--teal);border-bottom-color:#EEF8F5">Diagnostics &amp; Observations</div>
+    <div id="diag-list" style="font-size:.78rem;line-height:1.9;color:var(--text)"></div>
+  </div>
+
+</div><!-- /right -->
+
+</div><!-- /layout -->
+
+<script>
+'use strict';
+const PI=Math.PI,TAU=2*PI,D2R=PI/180,R2D=180/PI,CM2M=0.01;
+const NPTS=360;
+
+/* ── state ── */
+let links={a:2,b:4.5,c:3.5,d:4};
+let masses={m2:0.5,m3:1.0,m4:0.75,TL:0};
+let omega2=30*TAU/60;
+let theta2=0,animDir=1,isAnim=false,rafId=null,lastTs=null,asm=1;
+let cycleData=null;
+
+/* ── kinematics (identical across all modules) ── */
+function positionAnalysis(th2,a,b,c,d,assembly){
+  const K1=d/a,K2=d/c,K3=(a*a-b*b+c*c+d*d)/(2*a*c);
+  const c2=Math.cos(th2),s2=Math.sin(th2);
+  const A=K1+(K2-1)*c2-K3,B=2*s2,C=(K2+1)*c2-K1-K3;
+  const disc=B*B-4*A*C;if(disc<-1e-9)return null;
+  const sq=Math.sqrt(Math.max(0,disc));
+  let t=Math.abs(A)<1e-10?(Math.abs(B)<1e-10?0:-C/B):(-B+assembly*sq)/(2*A);
+  const th4=2*Math.atan(t),bx=d+c*Math.cos(th4)-a*c2,by=c*Math.sin(th4)-a*s2;
+  return{th3:Math.atan2(by,bx),th4};
+}
+function velocityAnalysis(th2,th3,th4,a,b,c,w2){
+  const s3=Math.sin(th3),c3=Math.cos(th3),s4=Math.sin(th4),c4=Math.cos(th4);
+  const M11=-b*s3,M12=c*s4,M21=b*c3,M22=-c*c4;
+  const r1=a*w2*Math.sin(th2),r2=-a*w2*Math.cos(th2),det=M11*M22-M12*M21;
+  if(Math.abs(det)<1e-10)return{w3:0,w4:0};
+  return{w3:(r1*M22-M12*r2)/det,w4:(M11*r2-r1*M21)/det};
+}
+function accelerationAnalysis(th2,th3,th4,a,b,c,w2,w3,w4){
+  const s3=Math.sin(th3),c3=Math.cos(th3),s4=Math.sin(th4),c4=Math.cos(th4);
+  const A1=a*w2*w2*Math.cos(th2)+b*w3*w3*c3-c*w4*w4*c4;
+  const A2=a*w2*w2*Math.sin(th2)+b*w3*w3*s3-c*w4*w4*s4;
+  const M11=-b*s3,M12=c*s4,M21=b*c3,M22=-c*c4,det=M11*M22-M12*M21;
+  if(Math.abs(det)<1e-10)return{a3:0,a4:0};
+  return{a3:(A1*M22-M12*A2)/det,a4:(M11*A2-A1*M21)/det};
+}
+
+/* ── 9×9 Newton-Euler solver (same as Module 3) ── */
+function solveLinear(A,b){
+  const n=b.length,M=A.map((row,i)=>[...row,b[i]]);
+  for(let col=0;col<n;col++){
+    let mx=col;for(let r=col+1;r<n;r++)if(Math.abs(M[r][col])>Math.abs(M[mx][col]))mx=r;
+    [M[col],M[mx]]=[M[mx],M[col]];
+    if(Math.abs(M[col][col])<1e-12)return null;
+    const piv=M[col][col];for(let j=col;j<=n;j++)M[col][j]/=piv;
+    for(let r=0;r<n;r++){if(r===col)continue;const f=M[r][col];for(let j=col;j<=n;j++)M[r][j]-=f*M[col][j];}
+  }
+  return M.map(r=>r[n]);
+}
+function forceAnalysis(th2,th3,th4,w2,w3,w4,a3,a4,a,b,c,d){
+  const{m2,m3,m4,TL}=masses;
+  const am=a*CM2M,bm=b*CM2M,cm=c*CM2M,dm=d*CM2M;
+  const IG2=m2*am*am/12,IG3=m3*bm*bm/12,IG4=m4*cm*cm/12;
+  const c2=Math.cos(th2),s2=Math.sin(th2),c3=Math.cos(th3),s3=Math.sin(th3),c4=Math.cos(th4),s4=Math.sin(th4);
+  const Ax=am*c2,Ay=am*s2,Bx=dm+cm*c4,By=cm*s4;
+  const G2x=Ax/2,G2y=Ay/2,G3x=(Ax+Bx)/2,G3y=(Ay+By)/2,G4x=(dm+Bx)/2,G4y=By/2;
+  const aG2x=-am*w2*w2*c2,aG2y=-am*w2*w2*s2;
+  const aAx=aG2x,aAy=aG2y;
+  const aBx=aAx-bm*w3*w3*c3-bm*a3*s3,aBy=aAy-bm*w3*w3*s3+bm*a3*c3;
+  const aG3x=(aAx+aBx)/2,aG3y=(aAy+aBy)/2;
+  const aG4x=-cm/2*w4*w4*c4-cm/2*a4*s4,aG4y=-cm/2*w4*w4*s4+cm/2*a4*c4;
+  const rO2x=-G2x,rO2y=-G2y,rA2x=Ax-G2x,rA2y=Ay-G2y;
+  const rA3x=Ax-G3x,rA3y=Ay-G3y,rB3x=Bx-G3x,rB3y=By-G3y;
+  const rB4x=Bx-G4x,rB4y=By-G4y,rO4x=dm-G4x,rO4y=-G4y;
+  const mat=[[1,0,1,0,0,0,0,0,0],[0,1,0,1,0,0,0,0,0],[-rO2y,rO2x,-rA2y,rA2x,0,0,0,0,1],[0,0,-1,0,1,0,0,0,0],[0,0,0,-1,0,1,0,0,0],[0,0,rA3y,-rA3x,-rB3y,rB3x,0,0,0],[0,0,0,0,-1,0,1,0,0],[0,0,0,0,0,-1,0,1,0],[0,0,0,0,rB4y,-rB4x,-rO4y,rO4x,0]];
+  const rhs=[m2*aG2x,m2*aG2y,0,m3*aG3x,m3*aG3y,IG3*a3,m4*aG4x,m4*aG4y,IG4*a4+TL];
+  const sol=solveLinear(mat,rhs);
+  return sol?{T12:sol[8]}:null;
+}
+
+/* ── link inertia about O2 (approx, slender rods) ── */
+function linkInertias(){
+  const{a,b,c}=links,{m2,m3,m4}=masses;
+  const am=a*CM2M,bm=b*CM2M,cm=c*CM2M;
+  // I_link2 about O2 = m2*a²/3  (rod pivoting at end)
+  // I_link3 and 4 contribute to system but are approximated at reference ω
+  // For flywheel sizing use effective I = ΣmL²/3 referred to crank shaft
+  const I2=m2*am*am/3;
+  const I3=m3*bm*bm/12; // centroidal; exact ref. to crank varies — use centroidal as conservative
+  const I4=m4*cm*cm/3;
+  return I2+I3+I4;
+}
+
+/* ── grashof ── */
+function grashofAnalysis(a,b,c,d){
+  const S=Math.min(a,b,c,d),L=Math.max(a,b,c,d),PQ=a+b+c+d-S-L,SL=S+L,eps=1e-9;
+  let type,cls;
+  if(SL>PQ+eps){type='Non-Grashof — Double Rocker';cls='g-fail';}
+  else if(Math.abs(SL-PQ)<eps){type='Special Grashof — Change Point';cls='g-warn';}
+  else{
+    const near=v=>Math.abs(v-S)<eps;
+    type=near(d)?'Grashof — Double Crank':near(a)?'Grashof — Crank-Rocker':near(c)?'Grashof — Rocker-Crank':'Grashof — Double Rocker (coupler shortest)';
+    cls='g-ok';
+  }
+  return{S,L,PQ,SL,type,cls};
+}
+function displayGrashof(){
+  const{a,b,c,d}=links,g=grashofAnalysis(a,b,c,d);
+  const el=document.getElementById('g-type');el.className=`g-box ${g.cls}`;el.textContent=g.type;
+  document.getElementById('g-det').innerHTML=`S=${g.S.toFixed(2)} &nbsp; L=${g.L.toFixed(2)}<br>S+L=${g.SL.toFixed(2)} `+(g.SL<=g.PQ+1e-9?`<span style="color:var(--green)">≤ P+Q=${g.PQ.toFixed(2)} ✓</span>`:`<span style="color:var(--red)">&gt; P+Q=${g.PQ.toFixed(2)} ✗</span>`);
+}
+
+/* ── full-cycle compute ── */
+function computeCycle(){
+  const{a,b,c,d}=links;
+  const w2=omega2;
+  const T12arr=[],Earr=[],Warr=[];
+  let E=0;
+  const dTh=TAU/NPTS;
+
+  for(let i=0;i<NPTS;i++){
+    const t2=i*dTh;
+    const pos=positionAnalysis(t2,a,b,c,d,asm);
+    if(!pos){T12arr.push(null);Earr.push(null);Warr.push(null);continue;}
+    const vel=velocityAnalysis(t2,pos.th3,pos.th4,a,b,c,w2);
+    const acc=accelerationAnalysis(t2,pos.th3,pos.th4,a,b,c,w2,vel.w3,vel.w4);
+    const fa=forceAnalysis(t2,pos.th3,pos.th4,w2,vel.w3,vel.w4,acc.a3,acc.a4,a,b,c,d);
+    const T12=fa?fa.T12:null;
+    T12arr.push(T12);
+    // Trapezoidal integration of T12 dθ
+    const prev=T12arr[i-1]??T12;
+    E+=(((prev??0)+(T12??0))/2)*dTh;
+    Earr.push(E);
+  }
+
+  // Shift E so minimum = 0
+  const validE=Earr.filter(v=>v!=null);
+  const Emin=Math.min(...validE),Emax=Math.max(...validE);
+  const deltaE=Emax-Emin;
+  const Enorm=Earr.map(v=>v!=null?v-Emin:null);
+
+  // Speed variation: ω(θ) = sqrt(ω²_avg + 2(E(θ)−E_avg)/I_total)
+  const cs=parseFloat(document.getElementById('cs').value)||0.05;
+  const I_links=linkInertias();
+  const I_req=deltaE/(w2*w2*cs);
+  const I_fw=Math.max(0,I_req-I_links);
+  const I_total=I_links+I_fw;
+
+  // Speed profile (assuming I_total available)
+  const w_avg=w2;
+  const E_avg=(Emin+Emax)/2-Emin; // offset-shifted average
+  for(let i=0;i<NPTS;i++){
+    if(Enorm[i]==null){Warr.push(null);continue;}
+    const arg=w_avg*w_avg+2*(Enorm[i]-E_avg)/I_total;
+    Warr.push(arg>0?Math.sqrt(arg):w_avg);
+  }
+
+  cycleData={T12:T12arr,E:Enorm,W:Warr,deltaE,I_req,I_fw,I_links,cs};
+  window._peakT12=Math.max(...T12arr.filter(v=>v!=null).map(Math.abs),0);
+
+  updateResultsPanel(deltaE,I_req,I_fw,I_links,cs,w2);
+  drawFlywheel(I_fw,cs);
+}
+
+/* ── results panel ── */
+function updateResultsPanel(dE,I_req,I_fw,I_links,cs,w2){
+  window._dE=dE; window._Ireq=I_req; window._Ilinks=I_links;
+  const f=(v,d=4)=>v==null?'—':v.toFixed(d);
+  const w_avg=w2;
+  document.getElementById('rv-de').textContent   =f(dE,4)+' J';
+  document.getElementById('rv-wavg').textContent  =f(w_avg,3)+' rad/s';
+  document.getElementById('rv-cs').textContent    =f(cs,4);
+  document.getElementById('rv-itot').textContent  =f(I_req,6)+' kg·m²';
+  document.getElementById('rv-ilinks').textContent=f(I_links,6)+' kg·m²';
+  document.getElementById('rv-ifw').textContent   =(I_fw<=0?'0 (not needed)':f(I_fw,6)+' kg·m²');
+  document.getElementById('warn-neg').className   ='warn-box'+(I_fw<=0?' show':'');
+
+  // Size flywheel
+  const rho=getRho();
+  const t_m=parseFloat(document.getElementById('fw-t').value)*1e-3||0.03;
+  const ri_m=parseFloat(document.getElementById('fw-ri').value)*1e-3||0;
+  const type=document.getElementById('fw-type').value;
+  let ro_m=0,mfw=0;
+
+  if(I_fw>0){
+    if(type==='disk'){
+      // I = (1/2)*m*ro²,  m = rho*PI*ro²*t  →  I = (1/2)*rho*PI*ro⁴*t
+      // ro⁴ = 2I/(rho*PI*t) → ro = (2I/(rho*PI*t))^0.25
+      ro_m=Math.pow(2*I_fw/(rho*PI*t_m),0.25);
+      mfw=rho*PI*ro_m*ro_m*t_m;
+    } else {
+      // Ring: I = (1/2)*m*(ro²+ri²),  m = rho*PI*(ro²-ri²)*t
+      // Substitute: I = (1/2)*rho*PI*(ro²-ri²)*(ro²+ri²)*t = (1/2)*rho*PI*(ro⁴-ri⁴)*t
+      // ro⁴ = 2I/(rho*PI*t) + ri⁴
+      const ri4=Math.pow(ri_m,4);
+      const ro4=2*I_fw/(rho*PI*t_m)+ri4;
+      ro_m=Math.pow(ro4,0.25);
+      mfw=rho*PI*(ro_m*ro_m-ri_m*ri_m)*t_m;
+    }
+  }
+
+  const matNames={'7800':'Steel','7200':'Cast Iron','2700':'Aluminium','custom':'Custom'};
+  const matKey=document.getElementById('fw-mat').value;
+
+  document.getElementById('rv-ro').textContent  =I_fw>0?(ro_m*1000).toFixed(1)+' mm':'—';
+  document.getElementById('rv-ri').textContent  =type==='ring'?(ri_m*1000).toFixed(1)+' mm':'0 (solid disk)';
+  document.getElementById('rv-t').textContent   =(t_m*1000).toFixed(1)+' mm';
+  document.getElementById('rv-mfw').textContent =I_fw>0?mfw.toFixed(3)+' kg':'—';
+  document.getElementById('rv-mat').textContent =matNames[matKey]||'Custom';
+
+  // Speed variation
+  const wmax=w_avg*(1+cs/2), wmin=w_avg*(1-cs/2);
+  document.getElementById('sv-wavg').textContent=w_avg.toFixed(3)+' rad/s';
+  document.getElementById('sv-wmax').textContent=wmax.toFixed(3)+' rad/s';
+  document.getElementById('sv-wmin').textContent=wmin.toFixed(3)+' rad/s';
+  document.getElementById('sv-cs-chk').textContent=((wmax-wmin)/w_avg).toFixed(4);
+
+  window._fwRo=ro_m; window._fwRi=type==='ring'?ri_m:0; window._fwT=t_m; window._fwI=I_fw; window._fwM=mfw;
+  document.getElementById('fw-caption').textContent=
+    I_fw>0?`r_o=${(ro_m*1000).toFixed(1)} mm  t=${(t_m*1000).toFixed(1)} mm  m=${mfw.toFixed(2)} kg`:'No flywheel needed';
+}
+
+function getRho(){
+  const sel=document.getElementById('fw-mat').value;
+  if(sel==='custom') return parseFloat(document.getElementById('rho-custom').value)||7800;
+  return parseFloat(sel)||7800;
+}
+
+/* ── flywheel cross-section sketch ── */
+function drawFlywheel(I_fw){
+  const cv=document.getElementById('fwCanvas');
+  const ctx=cv.getContext('2d');
+  const dpr=window.devicePixelRatio||1;
+  const logW=cv.parentElement.clientWidth-28;
+  const logH=Math.round(logW*220/276);
+  cv.style.width=logW+'px'; cv.style.height=logH+'px';
+  cv.width=Math.round(logW*dpr); cv.height=Math.round(logH*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const W=logW,H=logH;
+
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#F8FAFB'; ctx.fillRect(0,0,W,H);
+
+  const cx=W/2, cy=H/2;
+
+  if(I_fw<=0){
+    ctx.fillStyle='#90A4AE'; ctx.font='bold 12px system-ui'; ctx.textAlign='center';
+    ctx.fillText('No flywheel needed',cx,cy);
+    return;
+  }
+
+  const ro=window._fwRo||0.05, ri=window._fwRi||0, t=window._fwT||0.03;
+  const type=document.getElementById('fw-type').value;
+  const maxR=ro;
+  const scale=Math.min((W*0.38)/maxR,(H*0.38)/maxR);
+
+  const roP=ro*scale, riP=ri*scale, tP=Math.min(t*scale,W*0.18);
+
+  // Front face (circle)
+  ctx.fillStyle='#B0BEC5';
+  ctx.beginPath(); ctx.arc(cx-tP/2,cy,roP,0,TAU); ctx.fill();
+  if(type==='ring'){
+    ctx.fillStyle='#F8FAFB';
+    ctx.beginPath(); ctx.arc(cx-tP/2,cy,riP,0,TAU); ctx.fill();
+  }
+  // Stroke front
+  ctx.strokeStyle='#546E7A'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.arc(cx-tP/2,cy,roP,0,TAU); ctx.stroke();
+  if(type==='ring'){ctx.beginPath();ctx.arc(cx-tP/2,cy,riP,0,TAU);ctx.stroke();}
+
+  // Side face — parallelogram to give 3D feel
+  const ang=-PI/6;
+  const dx=tP*Math.cos(ang), dy=tP*Math.sin(ang);
+  ctx.fillStyle='#90A4AE';
+  // top arc → top edge → back top arc → close
+  ctx.beginPath();
+  ctx.moveTo(cx-tP/2,cy-roP);
+  ctx.lineTo(cx-tP/2+dx,cy-roP+dy);
+  ctx.lineTo(cx-tP/2+dx,cy+roP+dy);
+  ctx.lineTo(cx-tP/2,cy+roP);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+
+  // Back face ellipse (partial)
+  ctx.fillStyle='#8D9991';
+  ctx.beginPath(); ctx.ellipse(cx-tP/2+dx,cy+dy,roP,roP*0.25,0,PI/2,3*PI/2); ctx.fill();
+  ctx.strokeStyle='#546E7A'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.ellipse(cx-tP/2+dx,cy+dy,roP,roP*0.25,0,PI/2,3*PI/2); ctx.stroke();
+
+  // Hub hole on front face
+  if(riP>3){
+    ctx.fillStyle='#1D2921';
+    ctx.beginPath(); ctx.arc(cx-tP/2,cy,riP,0,TAU); ctx.fill();
+  }
+
+  // Dimension lines
+  ctx.strokeStyle='#055934'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+  // r_o line from centre to edge
+  ctx.beginPath(); ctx.moveTo(cx-tP/2,cy); ctx.lineTo(cx-tP/2+roP,cy); ctx.stroke();
+  if(riP>3){ctx.beginPath();ctx.moveTo(cx-tP/2,cy);ctx.lineTo(cx-tP/2+riP,cy);ctx.stroke();}
+  ctx.setLineDash([]);
+
+  // Labels
+  ctx.fillStyle='#055934'; ctx.font='bold 10px system-ui'; ctx.textAlign='left';
+  ctx.fillText(`r_o=${(ro*1000).toFixed(0)}mm`,cx-tP/2+roP+4,cy+4);
+  if(riP>3){ctx.fillStyle='#A68A58';ctx.fillText(`r_i=${(ri*1000).toFixed(0)}mm`,cx-tP/2+riP+4,cy+14);}
+  ctx.fillStyle='#1D2921'; ctx.textAlign='center';
+  ctx.fillText(`t=${(t*1000).toFixed(0)}mm`,cx+tP*0.4,cy-roP-8);
+
+  // Mass label
+  ctx.font='bold 11px system-ui'; ctx.fillStyle='#208D44';
+  ctx.fillText(`m=${(window._fwM||0).toFixed(2)} kg`,cx,H-10);
+}
+
+/* ── mechanism canvas ── */
+const mechCv=document.getElementById('mechCanvas');
+const mCtx=mechCv.getContext('2d');
+let CW=800,CH=350,O2x,O2y,SCALE;
+
+function setupCanvas(){
+  const dpr=window.devicePixelRatio||1;
+  const logW=Math.max(300,mechCv.parentElement.clientWidth-28);
+  const logH=Math.round(logW*350/800);
+  CW=logW;CH=logH;
+  mechCv.style.width=logW+'px';mechCv.style.height=logH+'px';
+  mechCv.width=Math.round(logW*dpr);mechCv.height=Math.round(logH*dpr);
+  mCtx.setTransform(dpr,0,0,dpr,0,0);
+}
+function w2c(wx,wy){return[O2x+wx*SCALE,O2y-wy*SCALE];}
+function calcTransform(){
+  const{a,b,c,d}=links;
+  const sX=CW*0.82/(2*(a+b));const sY=CH*0.72/(2*(a+b));
+  SCALE=Math.min(sX,sY,110);O2x=(CW-d*SCALE)/2;O2y=CH*0.58;
+}
+
+function drawMechanism(t2){
+  const{a,b,c,d}=links;
+  setupCanvas();calcTransform();
+  mCtx.clearRect(0,0,CW,CH);
+  mCtx.fillStyle='#F8FAFB';mCtx.fillRect(0,0,CW,CH);
+  // grid
+  mCtx.strokeStyle='#E4EBF0';mCtx.lineWidth=1;
+  const gS=SCALE,gOX=((O2x%gS)+gS)%gS,gOY=((O2y%gS)+gS)%gS;
+  for(let x=gOX;x<CW;x+=gS){mCtx.beginPath();mCtx.moveTo(x,0);mCtx.lineTo(x,CH);mCtx.stroke();}
+  for(let y=gOY;y<CH;y+=gS){mCtx.beginPath();mCtx.moveTo(0,y);mCtx.lineTo(CW,y);mCtx.stroke();}
+  const[xO2,yO2]=w2c(0,0),[xO4,yO4]=w2c(d,0);
+  mCtx.setLineDash([4,4]);mCtx.strokeStyle='rgba(21,101,192,0.11)';mCtx.lineWidth=1.5;
+  mCtx.beginPath();mCtx.arc(xO2,yO2,a*SCALE,0,TAU);mCtx.stroke();mCtx.setLineDash([]);
+  drawGroundLink(xO2,yO2,xO4,yO4);
+  const pos=positionAnalysis(t2,a,b,c,d,asm);
+  if(!pos){
+    drawGS(xO2,yO2);drawGS(xO4,yO4);drawPin(xO2,yO2,9,'#055934',true);drawPin(xO4,yO4,9,'#208D44',true);
+    mCtx.fillStyle='#733B43';mCtx.font='bold 13px system-ui';mCtx.textAlign='center';
+    mCtx.fillText('⚠ Cannot assemble at this angle',CW/2,CH*0.25);mCtx.textAlign='left';return;
+  }
+  const{th3,th4}=pos;
+  const Awx=a*Math.cos(t2),Awy=a*Math.sin(t2);
+  const Bwx=d+c*Math.cos(th4),Bwy=c*Math.sin(th4);
+  const[xA,yA]=w2c(Awx,Awy),[xB,yB]=w2c(Bwx,Bwy);
+  drawLink(xO4,yO4,xB,yB,'#208D44',7);
+  drawLink(xA,yA,xB,yB,'#A68A58',6);
+  drawLink(xO2,yO2,xA,yA,'#055934',8);
+  drawGS(xO2,yO2);drawGS(xO4,yO4);
+  drawPin(xO2,yO2,9,'#055934',true);drawPin(xO4,yO4,9,'#208D44',true);
+  drawPin(xA,yA,6,'#A68A58',false);drawPin(xB,yB,6,'#FF8F00',false);
+  // flywheel disk on crank (visual)
+  if(window._fwI>0&&window._fwRo>0){
+    const rPx=Math.min(window._fwRo*SCALE*100,40);
+    mCtx.beginPath();mCtx.arc(xO2,yO2,rPx,0,TAU);
+    mCtx.fillStyle='rgba(40,53,147,0.18)';mCtx.fill();
+    mCtx.strokeStyle='#0A353E';mCtx.lineWidth=2;mCtx.setLineDash([4,3]);mCtx.stroke();mCtx.setLineDash([]);
+  }
+  mCtx.font='bold 12px system-ui';mCtx.fillStyle='#37474F';
+  mCtx.fillText('O₂',xO2-17,yO2+5);mCtx.fillText('O₄',xO4+9,yO4+5);
+  mCtx.fillText('A',xA+9,yA-8);mCtx.fillText('B',xB+9,yB-8);
+  drawLL(xO2,yO2,xA,yA,`a=${a}`,'#055934');
+  drawLL(xA,yA,xB,yB,`b=${b}`,'#A68A58');
+  drawLL(xO4,yO4,xB,yB,`c=${c}`,'#208D44');
+  drawLL(xO2,yO2,xO4,yO4,`d=${d}`,'#8D9991',-1);
+  const mu=Math.acos(Math.min(1,Math.abs(Math.cos(th3-th4))))*R2D;
+  const deg=Math.round(t2*R2D)%360;
+  document.getElementById('cv-badge').textContent=`θ₂ = ${deg}°`;
+  document.getElementById('th2-lbl').textContent=`${deg}°`;
+  document.getElementById('theta2-range').value=deg;
+  const mc=mu<30?'#733B43':mu<45?'#A68A58':'#208D44';
+  document.getElementById('cv-mu').style.color=mc;
+  document.getElementById('cv-mu').textContent=`μ=${mu.toFixed(1)}°`;
+  // Update current-angle marker on charts
+  updateChartMarkers();
+}
+
+function drawLink(x1,y1,x2,y2,c,lw){mCtx.strokeStyle=c;mCtx.lineWidth=lw;mCtx.lineCap='round';mCtx.beginPath();mCtx.moveTo(x1,y1);mCtx.lineTo(x2,y2);mCtx.stroke();}
+function drawGroundLink(x1,y1,x2,y2){mCtx.save();mCtx.strokeStyle='#90A4AE';mCtx.lineWidth=3;mCtx.setLineDash([10,5]);mCtx.beginPath();mCtx.moveTo(x1,y1);mCtx.lineTo(x2,y2);mCtx.stroke();mCtx.restore();}
+function drawGS(cx,cy){const W=16,H=11;mCtx.beginPath();mCtx.moveTo(cx,cy);mCtx.lineTo(cx-W/2,cy+H);mCtx.lineTo(cx+W/2,cy+H);mCtx.closePath();mCtx.fillStyle='#F2F7ED';mCtx.strokeStyle='#8D9991';mCtx.lineWidth=1.5;mCtx.fill();mCtx.stroke();mCtx.beginPath();mCtx.moveTo(cx-W/2-3,cy+H);mCtx.lineTo(cx+W/2+3,cy+H);mCtx.stroke();mCtx.lineWidth=1;for(let i=-W/2-2;i<=W/2+2;i+=6){mCtx.beginPath();mCtx.moveTo(cx+i,cy+H);mCtx.lineTo(cx+i+5,cy+H+6);mCtx.stroke();}}
+function drawPin(cx,cy,r,color,fix){if(fix){mCtx.beginPath();mCtx.arc(cx,cy,r+4,0,TAU);mCtx.fillStyle='#F2F7ED';mCtx.fill();mCtx.strokeStyle='#90A4AE';mCtx.lineWidth=1;mCtx.stroke();}mCtx.beginPath();mCtx.arc(cx,cy,r,0,TAU);mCtx.fillStyle='#fff';mCtx.fill();mCtx.strokeStyle=color;mCtx.lineWidth=2.5;mCtx.stroke();mCtx.beginPath();mCtx.arc(cx,cy,3,0,TAU);mCtx.fillStyle=color;mCtx.fill();}
+function drawLL(x1,y1,x2,y2,text,color,side){const mx=(x1+x2)/2,my=(y1+y2)/2,ang=Math.atan2(y2-y1,x2-x1),off=13*(side===-1?-1:1);mCtx.save();mCtx.translate(mx+Math.cos(ang-PI/2)*off,my+Math.sin(ang-PI/2)*off);mCtx.font='10px system-ui';mCtx.fillStyle=color;mCtx.textAlign='center';mCtx.fillText(text,0,0);mCtx.restore();}
+
+/* ── Chart.js ── */
+const vLinePlugin={id:'vLine',afterDraw(chart){
+  const deg=chart.options.plugins.vLine?.deg;if(deg==null)return;
+  const{ctx:c,chartArea:ca,scales:{x}}=chart;const px=x.getPixelForValue(deg);
+  if(!px||px<ca.left||px>ca.right)return;
+  c.save();c.strokeStyle='rgba(230,81,0,.75)';c.lineWidth=1.5;c.setLineDash([4,3]);
+  c.beginPath();c.moveTo(px,ca.top);c.lineTo(px,ca.bottom);c.stroke();c.restore();
+}};
+Chart.register(vLinePlugin);
+let charts={};
+
+// Annotate ΔE on energy chart
+const deltaEPlugin={id:'deltaE',afterDraw(chart){
+  if(!chart.options.plugins.deltaE?.show)return;
+  const{ctx:c,chartArea:ca,scales:{y}}=chart;
+  const Emin=chart.options.plugins.deltaE.Emin??0;
+  const Emax=chart.options.plugins.deltaE.Emax??0;
+  const yMin=y.getPixelForValue(Emin),yMax=y.getPixelForValue(Emax);
+  c.save();
+  c.fillStyle='rgba(40,53,147,0.08)';
+  c.fillRect(ca.left,yMax,ca.right-ca.left,yMin-yMax);
+  c.strokeStyle='rgba(40,53,147,0.5)';c.lineWidth=1.5;c.setLineDash([4,4]);
+  c.beginPath();c.moveTo(ca.left,yMin);c.lineTo(ca.right,yMin);c.stroke();
+  c.beginPath();c.moveTo(ca.left,yMax);c.lineTo(ca.right,yMax);c.stroke();
+  c.setLineDash([]);
+  // label
+  c.fillStyle='#0A353E';c.font='bold 9px system-ui';c.textAlign='left';
+  c.fillText(`ΔE=${(Emax-Emin).toFixed(4)} J`,ca.left+4,yMax-4);
+  c.restore();
+}};
+Chart.register(deltaEPlugin);
+
+function cOpts(yTitle,extra){
+  return{responsive:true,maintainAspectRatio:true,animation:false,
+    plugins:{legend:{display:false},vLine:{deg:0},deltaE:{show:false},...extra,
+      tooltip:{mode:'index',intersect:false,callbacks:{title:i=>`θ₂=${i[0].parsed.x}°`,label:i=>`${i.dataset.label}: ${i.parsed.y!=null?i.parsed.y.toFixed(4):'—'}`}}},
+    scales:{
+      x:{type:'linear',min:0,max:359,title:{display:true,text:'Crank Angle θ₂ (°)',font:{size:10}},ticks:{stepSize:60,font:{size:9}},grid:{color:'#EEF2F5'}},
+      y:{title:{display:true,text:yTitle,font:{size:10}},ticks:{font:{size:9},maxTicksLimit:6},grid:{color:'#EEF2F5'}}
+    }};
+}
+function mkDS(label,color,fill,dash){return{label,data:[],borderColor:color,backgroundColor:color+(fill?'22':'00'),borderWidth:2,pointRadius:0,fill:!!fill,tension:0.3,spanGaps:false,...(dash?{borderDash:dash}:{})};}
+function toXY(arr){return(arr||[]).map((v,i)=>({x:i,y:v}));}
+
+function initCharts(){
+  charts['ch-t12']   =new Chart(document.getElementById('ch-t12'),   {type:'line',data:{datasets:[mkDS('T₁₂ (N·m)','#2BB673',true)]},options:cOpts('T₁₂ (N·m)')});
+  charts['ch-energy']=new Chart(document.getElementById('ch-energy'), {type:'line',data:{datasets:[mkDS('E (J)','#0A353E',true)]},options:cOpts('Energy E (J)',{deltaE:{show:true,Emin:0,Emax:0}})});
+  charts['ch-omega'] =new Chart(document.getElementById('ch-omega'),  {type:'line',data:{datasets:[mkDS('ω (rad/s)','#733B43',true)]},options:cOpts('ω (rad/s)')});
+  charts['ch-de']    =new Chart(document.getElementById('ch-de'),     {type:'line',data:{datasets:[mkDS('ΔE from min (J)','#A68A58',true)]},options:cOpts('ΔE (J)')});
+}
+
+function updateCharts(){
+  if(!cycleData)return;
+  charts['ch-t12'].data.datasets[0].data   =toXY(cycleData.T12);
+  charts['ch-energy'].data.datasets[0].data=toXY(cycleData.E);
+  charts['ch-omega'].data.datasets[0].data =toXY(cycleData.W);
+  // ΔE from min: running max - current (shows energy returned on downswing)
+  const de=cycleData.E.map(v=>v!=null?v:null);
+  charts['ch-de'].data.datasets[0].data    =toXY(de);
+
+  // Update deltaE annotation on energy chart
+  const validE=cycleData.E.filter(v=>v!=null);
+  charts['ch-energy'].options.plugins.deltaE.Emin=Math.min(...validE);
+  charts['ch-energy'].options.plugins.deltaE.Emax=Math.max(...validE);
+
+  updateChartMarkers();
+  Object.values(charts).forEach(ch=>ch.update('none'));
+}
+
+function updateChartMarkers(){
+  const deg=Math.round(theta2*R2D)%360;
+  Object.values(charts).forEach(ch=>{if(ch.options.plugins.vLine)ch.options.plugins.vLine.deg=deg;ch.update('none');});
+}
+
+/* ── animation ── */
+function animLoop(ts){
+  if(!lastTs)lastTs=ts;
+  const dt=Math.min((ts-lastTs)/1000,0.05);lastTs=ts;
+  let newTh=theta2+omega2*dt*animDir;
+  const ok=positionAnalysis(newTh,links.a,links.b,links.c,links.d,asm);
+  if(!ok){animDir=-animDir;newTh=theta2+omega2*dt*animDir;if(!positionAnalysis(newTh,links.a,links.b,links.c,links.d,asm))newTh=theta2;}
+  theta2=((newTh%TAU)+TAU)%TAU;
+  drawMechanism(theta2);
+  if(isAnim)rafId=requestAnimationFrame(animLoop);
+}
+function toggleAnim(){
+  isAnim=!isAnim;const btn=document.getElementById('anim-btn');
+  if(isAnim){lastTs=null;animDir=1;btn.textContent='⏸ Pause';btn.className='btn btn-r';rafId=requestAnimationFrame(animLoop);}
+  else{btn.textContent='▶ Animate';btn.className='btn btn-p';if(rafId)cancelAnimationFrame(rafId);}
+}
+function resetCrank(){theta2=0;animDir=1;drawMechanism(0);document.getElementById('theta2-range').value=0;document.getElementById('th2-lbl').textContent='0°';}
+function stepCrank(deg){if(isAnim)return;theta2=((theta2+deg*D2R)%TAU+TAU)%TAU;drawMechanism(theta2);}
+
+/* ── presets / helpers ── */
+function setLP(n){const p={cr:{a:2,b:4.5,c:3.5,d:4},dc:{a:3,b:5,c:4.5,d:2}}[n];if(!p)return;['a','b','c','d'].forEach(k=>document.getElementById(`inp-${k}`).value=p[k]);refreshAll();}
+function setCS(v){document.getElementById('cs').value=v;document.getElementById('cs-range').value=v;document.getElementById('cs-lbl').textContent=v.toFixed(3);refreshAll();}
+function onAsmToggle(){asm=document.getElementById('asm-tog').checked?-1:1;document.getElementById('asm-lbl').textContent=asm===1?'Open':'Crossed';refreshAll();}
+
+function readInputs(){
+  const a=parseFloat(document.getElementById('inp-a').value);
+  const b=parseFloat(document.getElementById('inp-b').value);
+  const c=parseFloat(document.getElementById('inp-c').value);
+  const d=parseFloat(document.getElementById('inp-d').value);
+  if(!validateLinkInputs())return false;
+  if([a,b,c,d].some(v=>!isFinite(v)||v<=0))return false;
+  links={a,b,c,d};
+  masses.m2=parseFloat(document.getElementById('m2').value)||0;
+  masses.m3=parseFloat(document.getElementById('m3').value)||0;
+  masses.m4=parseFloat(document.getElementById('m4').value)||0;
+  masses.TL=parseFloat(document.getElementById('tload').value)||0;
+  omega2=(parseFloat(document.getElementById('spd-inp').value)||30)*TAU/60;
+  return true;
+}
+
+function refreshAll(){
+  if(!readInputs())return;
+  // Sync material dropdown → custom row
+  const matSel=document.getElementById('fw-mat').value;
+  document.getElementById('rho-row').style.display=matSel==='custom'?'flex':'none';
+  // Sync ring/disk inner radius row
+  document.getElementById('ri-row').style.display=document.getElementById('fw-type').value==='ring'?'flex':'none';
+  computeCycle();
+  displayGrashof();
+  updateCharts();
+  drawFlywheel(window._fwI||0);
+  drawMechanism(theta2);
+  updateDiagnostics();
+}
+
+function updateDiagnostics(){
+  const el=document.getElementById('diag-list');
+  if(!el||!window._dE) return;
+  const obs=[];
+  const dE=window._dE, Ireq=window._Ireq||0, Ifw=window._fwI||0, Ilinks=window._Ilinks||0;
+  const cs=parseFloat(document.getElementById('cs').value)||0.05;
+  const rpm=parseFloat(document.getElementById('spd-inp').value)||30;
+  const ro=(window._fwRo||0)*1000, ri=(window._fwRi||0)*1000;
+  const mfw=window._fwM||0;
+  const type=document.getElementById('fw-type').value;
+
+  // 1. Energy fluctuation
+  obs.push(`<b>Energy fluctuation ΔE = ${dE.toFixed(3)} J.</b> `
+    +(dE<1?'Very small ΔE — mechanism is nearly torque-balanced. Flywheel may be unnecessary.'
+     :dE<10?'Moderate fluctuation — typical for a lightly loaded 4-bar.'
+     :`Large fluctuation — significant torque variation. Flywheel is important for smooth operation.`));
+
+  // 2. Link inertia contribution
+  const linkPct=(Ilinks/Math.max(1e-12,Ireq)*100).toFixed(1);
+  obs.push(`<b>Link inertia I_links = ${Ilinks.toFixed(5)} kg·m²</b> covers ${linkPct}% of required I_req. `
+    +(Ifw<=0?'✓ Links alone provide enough inertia — no external flywheel needed at this C_s.'
+     :`Remaining I_flywheel = ${Ifw.toFixed(5)} kg·m² must come from the flywheel.`));
+
+  // 3. Sizing result
+  if(Ifw>0 && ro>0){
+    obs.push(`<b>Flywheel sizing (${type}):</b> r_o = ${ro.toFixed(1)} mm`
+      +(type==='ring'?`, r_i = ${ri.toFixed(1)} mm`:'')+`, mass = ${mfw.toFixed(2)} kg. `
+      +(ro>300?'⚠ Large outer radius — consider a wider flywheel (increase t) or denser material to reduce r_o.':'Compact design.'));
+  }
+
+  // 4. Cs sensitivity
+  const csHigh=dE/(Math.pow(rpm*Math.PI/30,2)*0.1);
+  const csLow =dE/(Math.pow(rpm*Math.PI/30,2)*0.02);
+  obs.push(`<b>C_s sensitivity:</b> At C_s=0.02, I_req ≈ ${csLow.toFixed(4)} kg·m²; at C_s=0.10, I_req ≈ ${csHigh.toFixed(4)} kg·m². Halving C_s doubles the required flywheel inertia.`);
+
+  // 5. Speed note
+  obs.push(`<b>At ${rpm} rpm:</b> Flywheel inertia scales as 1/ω². Doubling the speed to ${rpm*2} rpm would reduce the required I by 4× for the same C_s.`);
+
+  el.innerHTML=obs.map((o,i)=>`<div style="padding:4px 0;border-bottom:1px solid #EEF2F5">${i+1}. ${o}</div>`).join('');
+}
+
+/* ── wiring ── */
+['a','b','c','d','m2','m3','m4','tload','cs','fw-t','fw-ri','rho-custom','spd-inp'].forEach(id=>{
+  const el=document.getElementById(id);if(el)el.addEventListener('input',refreshAll);
+});
+document.getElementById('cs-range').addEventListener('input',function(){
+  document.getElementById('cs').value=this.value;
+  document.getElementById('cs-lbl').textContent=(+this.value).toFixed(3);
+  refreshAll();
+});
+document.getElementById('theta2-range').addEventListener('input',function(){
+  if(isAnim)return;theta2=(+this.value)*D2R;
+  document.getElementById('th2-lbl').textContent=`${this.value}°`;
+  drawMechanism(theta2);
+});
+let rt;window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{drawMechanism(theta2);drawFlywheel(window._fwI||0);updateChartMarkers();},120);});
+
+function loadFromM1(){
+  try{
+    const st=JSON.parse(localStorage.getItem('meng364_mechanism')||'null');
+    if(!st) return;
+    document.getElementById('inp-a').value=st.a;
+    document.getElementById('inp-b').value=st.b;
+    document.getElementById('inp-c').value=st.c;
+    document.getElementById('inp-d').value=st.d;
+    if(st.rpm) document.getElementById('spd-inp').value=st.rpm;
+    const tog=document.getElementById('asm-tog');
+    if(tog) tog.checked=(st.assembly===-1);
+    refreshAll();
+  }catch(e){}
+}
+function checkM1Banner(){
+  try{
+    const st=JSON.parse(localStorage.getItem('meng364_mechanism')||'null');
+    const b=document.getElementById('m1-banner');
+    if(!b) return;
+    if(st && st.ts){
+      const mins=Math.round((Date.now()-st.ts)/60000);
+      document.getElementById('m1-banner-text').textContent=
+        `Module 1 saved ${mins<2?'just now':mins+' min ago'} — a=${st.a}, b=${st.b}, c=${st.c}, d=${st.d} cm`;
+      b.style.display='flex';
+    }
+  }catch(e){}
+}
+function pushToM1(){
+  try{const a=parseFloat(document.getElementById('inp-a').value),b=parseFloat(document.getElementById('inp-b').value),c=parseFloat(document.getElementById('inp-c').value),d=parseFloat(document.getElementById('inp-d').value);if([a,b,c,d].some(v=>!isFinite(v)||v<=0)){alert('Fix invalid link values before pushing.');return;}const rpm=parseFloat(document.getElementById('spd-inp').value)||30;const asm=document.getElementById('asm-tog').checked?-1:1;localStorage.setItem('meng364_mechanism',JSON.stringify({a,b,c,d,rpm,assembly:asm,ts:Date.now()}));const btn=event.target;btn.textContent='✓ Pushed!';setTimeout(()=>btn.textContent='↑ Push to Module 1',1800);}catch(e){}
+}
+function validateLinkInputs(){
+  const ids=['a','b','c','d'];let msg='',ok=true;
+  ids.forEach(k=>{const el=document.getElementById(`inp-${k}`);const v=parseFloat(el.value);const good=isFinite(v)&&v>0;el.classList.toggle('invalid',!good);if(!good&&ok){msg=`Link <b>${k}</b> must be a positive number.`;ok=false;}});
+  const err=document.getElementById('link-err');if(err){err.innerHTML=msg;err.classList.toggle('show',!ok);}return ok;
+}
+function addChartExportButtons(){
+  document.querySelectorAll('.plt-card').forEach(card=>{
+    const cv=card.querySelector('canvas');
+    if(!cv||card.querySelector('.plt-dl-btn')) return;
+    const ttl=card.querySelector('.plt-ttl');
+    const name=(ttl?ttl.textContent.replace(/[^a-zA-Z0-9_]/g,'_').slice(0,30):'chart');
+    const btn=document.createElement('button');
+    btn.className='plt-dl-btn'; btn.title='Download chart as PNG'; btn.textContent='⬇ PNG';
+    btn.onclick=()=>{ const a=document.createElement('a'); a.href=cv.toDataURL('image/png'); a.download=name+'.png'; a.click(); };
+    card.appendChild(btn);
+  });
+}
+window.addEventListener('DOMContentLoaded',()=>{
+  checkM1Banner();
+  initCharts();refreshAll();
+  addChartExportButtons();
+});
+</script>
+<script>document.querySelector('.mod-pill.active')?.scrollIntoView({inline:'center',block:'nearest'});</script>
+</body>
+</html>

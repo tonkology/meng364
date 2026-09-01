@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MENG 364 — Module 5: Balancing</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#055934;--blue-dk:#0A353E;--blue-lt:#EEF8F5;
+  --orange:#A68A58;--green:#208D44;--red:#733B43;
+  --amber:#A68A58;--teal:#2BB673;--purple:#0A353E;--brown:#5C6660;
+  --bg:#F2F7ED;--surface:#fff;--border:#C2CCC6;--text:#1D2921;--muted:#5C6660;
+  --c-crank:#055934;--c-coupler:#A68A58;--c-follower:#208D44;--c-ground:#8D9991;
+}
+body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh}
+
+.hdr{background:var(--blue);color:#fff;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.hdr h1{font-size:.97rem;font-weight:700}.hdr p{font-size:.7rem;opacity:.82;margin-top:1px}
+.badge{background:var(--brown);border-radius:20px;padding:4px 14px;font-size:.73rem;font-weight:700;white-space:nowrap}
+.mod-nav{background:var(--blue-dk);display:flex;padding:0 8px;overflow-x:auto;scrollbar-width:none;position:sticky;top:0;z-index:200;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.mod-nav::-webkit-scrollbar{display:none}
+.mod-pill{display:inline-block;padding:8px 13px;color:rgba(255,255,255,.65);font-size:.73rem;font-weight:700;text-decoration:none;border-bottom:3px solid transparent;white-space:nowrap;transition:all .15s}
+.mod-pill:hover{color:#fff;border-bottom-color:rgba(255,255,255,.4)}
+.mod-pill.active{color:#fff;border-bottom-color:#fff}
+.tip{display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;background:var(--blue-lt);color:var(--blue);font-size:.58rem;font-weight:800;cursor:help;flex-shrink:0;position:relative;margin-left:2px;vertical-align:middle;}
+.tip::after{content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 7px);transform:translateX(-50%);background:#1D2921;color:#fff;padding:6px 10px;border-radius:6px;font-size:.71rem;font-weight:500;line-height:1.45;white-space:normal;width:210px;text-align:left;opacity:0;pointer-events:none;transition:opacity .15s;z-index:9999;box-shadow:0 3px 10px rgba(0,0,0,.3);}
+.tip:hover::after{opacity:1;}
+.inum.invalid{border-color:var(--red)!important;background:#FFF5F5!important;}
+.inp-err{display:none;font-size:.7rem;color:var(--red);margin-top:5px;font-weight:600;padding:3px 7px;background:#FFF5F5;border-radius:4px;border-left:3px solid var(--red);}
+.inp-err.show{display:block;}
+.print-btn{background:none;border:1.5px solid rgba(255,255,255,.5);color:#fff;border-radius:6px;padding:4px 11px;font-size:.7rem;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.print-btn:hover{background:rgba(255,255,255,.15);}
+.zoom-bar{display:flex;gap:5px;margin-top:8px;align-items:center;}
+.zoom-btn{padding:3px 9px;border:1.5px solid var(--border);border-radius:5px;background:#fff;font-size:.73rem;font-weight:700;cursor:pointer;color:var(--muted);transition:all .15s;line-height:1.6;}
+.zoom-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-lt);}
+.zoom-lbl{font-size:.7rem;color:var(--muted);min-width:38px;text-align:center;font-weight:600;}
+.push-m1-btn{width:100%;margin-top:8px;padding:5px;border:1.5px solid var(--blue);border-radius:5px;background:var(--blue-lt);color:var(--blue);font-size:.7rem;font-weight:700;cursor:pointer;transition:all .15s;}
+.push-m1-btn:hover{background:var(--blue);color:#fff;}
+@media print{.mod-nav,.btns,.presets,.tog-row,.m1-banner,.zoom-bar,.print-btn,.plt-dl-btn{display:none!important;}.hdr{background:#fff!important;color:#000!important;box-shadow:none!important;border-bottom:2px solid #055934;}.badge{background:#EEF8F5!important;color:#055934!important;}body{background:#fff!important;}.card{box-shadow:none!important;border:1px solid #ddd!important;page-break-inside:avoid;}.layout{display:block!important;}canvas{max-width:100%!important;}}
+
+.layout{display:grid;grid-template-columns:288px 1fr 300px;gap:12px;padding:12px;max-width:1600px;margin:0 auto;align-items:start}
+@media(max-width:1150px){.layout{grid-template-columns:288px 1fr}.right{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:12px}}
+@media(max-width:720px){.layout{grid-template-columns:1fr}.right{grid-template-columns:1fr}}
+
+.card{background:var(--surface);border-radius:10px;box-shadow:0 1px 5px rgba(0,0,0,.09);padding:14px;margin-bottom:12px}
+.card:last-child{margin-bottom:0}
+.card-ttl{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--blue);border-bottom:2px solid var(--blue-lt);padding-bottom:6px;margin-bottom:12px}
+.card-ttl.purple{color:var(--purple);border-bottom-color:#EEF8F5}
+.card-ttl.teal  {color:var(--teal);  border-bottom-color:#E0F2F1}
+.card-ttl.brown {color:var(--brown); border-bottom-color:#EFEBE9}
+.card-ttl.green {color:var(--green); border-bottom-color:#E8F5E9}
+.card-ttl.red   {color:var(--red);   border-bottom-color:#FFEBEE}
+
+.irow{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.ilbl{font-size:.79rem;font-weight:600;color:var(--muted);width:88px;flex-shrink:0}
+.inum{flex:1;min-width:0;width:0;padding:5px 8px;border:1.5px solid var(--border);border-radius:5px;font-size:.87rem;font-weight:700;text-align:right;color:var(--text);background:#FAFAFA;transition:border-color .15s}
+.inum:focus{outline:none;border-color:var(--blue);background:#fff}
+.iunit{font-size:.7rem;color:var(--muted);width:28px;flex-shrink:0}
+
+/* tab system */
+.tabs{display:flex;border-bottom:2px solid var(--border);margin-bottom:12px}
+.tab{flex:1;padding:7px 4px;text-align:center;font-size:.72rem;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .15s}
+.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.tab-panel{display:none}.tab-panel.active{display:block}
+
+/* mass table */
+.mass-table{width:100%;border-collapse:collapse;font-size:.75rem}
+.mass-table th{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);padding:4px 3px;border-bottom:2px solid var(--border);text-align:center}
+.mass-table td{padding:3px 2px;border-bottom:1px solid #EEF2F5;text-align:center}
+.mass-table td input{width:100%;border:1px solid var(--border);border-radius:4px;padding:3px 4px;font-size:.77rem;font-weight:700;text-align:right;background:#FAFAFA}
+.mass-table td input:focus{outline:none;border-color:var(--blue);background:#fff}
+.mass-table .del-btn{background:none;border:none;cursor:pointer;color:var(--red);font-size:.85rem;padding:2px 5px;border-radius:3px}
+.mass-table .del-btn:hover{background:#FFEBEE}
+.add-btn{width:100%;margin-top:6px;padding:6px;border:1.5px dashed var(--border);border-radius:6px;background:#fff;font-size:.73rem;font-weight:700;cursor:pointer;color:var(--muted);transition:all .15s}
+.add-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-lt)}
+
+/* correction plane inputs */
+.plane-row{display:flex;gap:8px;margin-bottom:8px;align-items:center}
+.plane-lbl{font-size:.73rem;font-weight:700;color:var(--muted);width:60px;flex-shrink:0}
+
+/* results */
+.res-row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:1px solid #EEF2F5;font-size:.82rem}
+.res-row:last-child{border:none}
+.res-lbl{color:var(--muted);font-weight:600}
+.res-val{font-family:'Courier New',monospace;font-weight:800}
+.big-res{background:var(--bg);border-radius:8px;padding:10px 14px;margin-top:8px;text-align:center}
+.big-res-n{font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+.big-res-v{font-size:1.1rem;font-weight:800;font-family:'Courier New',monospace;margin-top:3px}
+
+/* toggle */
+.tog-row{display:flex;align-items:center;gap:8px;margin-top:8px}
+.tog-lbl{font-size:.76rem;font-weight:600;color:var(--muted)}
+.toggle{position:relative;display:inline-block;width:38px;height:20px}
+.toggle input{opacity:0;width:0;height:0}
+.tog-sl{position:absolute;inset:0;background:var(--border);border-radius:20px;cursor:pointer;transition:.2s}
+.tog-sl::before{content:'';position:absolute;width:14px;height:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+input:checked+.tog-sl{background:var(--blue)}
+input:checked+.tog-sl::before{transform:translateX(18px)}
+
+/* sliders */
+.sl-lbl{display:flex;justify-content:space-between;font-size:.75rem;font-weight:600;color:var(--muted);margin-bottom:3px}
+input[type=range]{-webkit-appearance:none;width:100%;height:4px;border-radius:2px;background:var(--border);outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--blue);cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+#theta2-range::-webkit-slider-thumb{background:var(--orange)}
+.mt8{margin-top:8px}.mt12{margin-top:12px}
+
+/* buttons */
+.btns{display:flex;gap:7px;margin-top:8px}
+.btn{flex:1;padding:8px 6px;border:none;border-radius:6px;font-size:.76rem;font-weight:700;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:3px}
+.btn-p{background:var(--blue);color:#fff}.btn-p:hover{background:var(--blue-dk)}
+.btn-s{background:#C2CCC6;color:var(--text)}.btn-s:hover{background:#B0BEC5}
+.btn-r{background:var(--red);color:#fff}
+.presets{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap}
+.pre-btn{flex:1;min-width:60px;padding:5px 4px;border:1.5px solid var(--border);border-radius:5px;background:#fff;font-size:.64rem;font-weight:700;cursor:pointer;color:var(--muted);transition:all .15s;text-align:center}
+.pre-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-lt)}
+
+/* grashof */
+.g-box{padding:7px 12px;border-radius:7px;font-size:.78rem;font-weight:700;text-align:center;margin-bottom:8px}
+.g-ok  {background:#E8F5E9;color:var(--green); border:1.5px solid #A5D6A7}
+.g-warn{background:#FFF8E1;color:var(--amber); border:1.5px solid #FFE082}
+.g-fail{background:#FFEBEE;color:var(--red);   border:1.5px solid #FFCDD2}
+.g-det {font-size:.72rem;color:var(--muted);line-height:1.9}
+.sec-div{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:10px 0 6px;border-top:1px solid var(--border);padding-top:8px}
+
+/* canvases */
+.cv-wrap{position:relative}
+#mechCanvas{width:100%;height:auto;display:block;border-radius:6px}
+.cv-stage { position: relative; }
+.cv-badge{position:absolute;top: 10px;right:14px;background:rgba(21,101,192,.9);color:#fff;padding:3px 12px;border-radius:20px;font-size:.78rem;font-weight:700;font-family:monospace;pointer-events:none}
+.cv-info{position:absolute;bottom:10px;left:14px;font-size:.75rem;font-weight:700;pointer-events:none}
+.poly-canvas{width:100%;height:auto;display:block;border-radius:6px;background:#F8FAFB;border:1px solid var(--border)}
+
+/* plots */
+.plots{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:560px){.plots{grid-template-columns:1fr}}
+.plt-card{background:var(--surface);border-radius:10px;box-shadow:0 1px 5px rgba(0,0,0,.09);padding:10px 11px 9px;position:relative}
+.plt-dl-btn{position:absolute;top:6px;right:7px;background:none;border:1px solid var(--border);border-radius:4px;color:var(--muted);font-size:.63rem;padding:2px 5px;cursor:pointer;line-height:1.4;transition:all .15s;z-index:5;}
+.plt-dl-btn:hover{background:var(--blue-lt);color:var(--blue);border-color:var(--blue);}
+.plt-ttl{font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);text-align:center;margin-bottom:4px}
+
+/* legend strip */
+.legend{display:grid;grid-template-columns:1fr 1fr;gap:5px 8px;margin-top:8px}
+.leg-item{display:flex;align-items:center;gap:6px;font-size:.73rem;color:var(--muted)}
+.leg-bar{width:20px;height:4px;border-radius:3px;flex-shrink:0}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body, button, input, select, textarea { font-family:'Alexandria', system-ui, sans-serif !important; }
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div><h1>Machine Dynamics Tool</h1><p>MENG 364 &nbsp;·&nbsp; King Abdulaziz University</p></div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div class="badge">Module 5 — Balancing</div>
+    <button class="print-btn" onclick="window.print()">⎙ Print / PDF</button>
+  </div>
+</header>
+
+<nav class="mod-nav">
+  <a href="index.html"   class="mod-pill">Module 1 — 4-Bar Linkage</a>
+  <a href="module2.html" class="mod-pill">Module 2 — Coupler Point</a>
+  <a href="module3.html" class="mod-pill">Module 3 — Force Analysis</a>
+  <a href="module4.html" class="mod-pill">Module 4 — Flywheel</a>
+  <a href="module5.html" class="mod-pill active">Module 5 — Balancing</a>
+  <a href="module6.html" class="mod-pill">Module 6 — Gear Trains</a>
+  <a href="module7.html" class="mod-pill">Module 7 — Cam Design</a>
+</nav>
+
+<div class="layout">
+
+<!-- ══════════════════════ LEFT PANEL ══════════════════════ -->
+<div class="left">
+
+  <!-- Mode tabs -->
+  <div class="card">
+    <div class="card-ttl">Analysis Mode</div>
+    <div class="tabs">
+      <div class="tab active" id="tab-rotor"  onclick="switchTab('rotor')">Rotor Balancing</div>
+      <div class="tab"        id="tab-linkage" onclick="switchTab('linkage')">4-Bar Balancing</div>
+    </div>
+
+    <!-- ══ ROTOR TAB ══ -->
+    <div class="tab-panel active" id="panel-rotor">
+      <div style="font-size:.71rem;color:var(--muted);margin-bottom:10px;line-height:1.5">
+        Enter unbalance masses. Each has mass <b>m</b> (g), radius <b>r</b> (mm), angle <b>θ</b> (°), and axial position <b>l</b> (mm) from reference plane A.
+      </div>
+
+      <table class="mass-table" id="mass-table">
+        <thead>
+          <tr>
+            <th>#</th><th>m (g)</th><th>r (mm)</th><th>θ (°)</th><th>l (mm)</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="mass-tbody"></tbody>
+      </table>
+      <button class="add-btn" onclick="addMass()">+ Add Mass</button>
+
+      <div class="sec-div">Correction Planes</div>
+      <div class="plane-row">
+        <span class="plane-lbl" style="color:var(--blue)">Plane A</span>
+        <span style="font-size:.72rem;color:var(--muted)">l =</span>
+        <input type="number" class="inum" id="lA" value="0" style="max-width:70px">
+        <span class="iunit">mm</span>
+      </div>
+      <div class="plane-row">
+        <span class="plane-lbl" style="color:var(--green)">Plane B</span>
+        <span style="font-size:.72rem;color:var(--muted)">l =</span>
+        <input type="number" class="inum" id="lB" value="120" style="max-width:70px">
+        <span class="iunit">mm</span>
+      </div>
+      <div style="font-size:.68rem;color:var(--muted);margin-top:4px">Correction masses placed at r = 50 mm</div>
+      <div class="irow" style="margin-top:6px">
+        <span class="ilbl">Corr. radius</span>
+        <input type="number" class="inum" id="r-corr" value="50" min="1" step="5">
+        <span class="iunit">mm</span>
+      </div>
+
+      <div class="presets">
+        <button class="pre-btn" onclick="loadPreset('static')">Static only</button>
+        <button class="pre-btn" onclick="loadPreset('dynamic')">Dynamic (2-plane)</button>
+        <button class="pre-btn" onclick="loadPreset('norton')">Norton Ex.</button>
+      </div>
+    </div>
+
+    <!-- ══ LINKAGE TAB ══ -->
+    <div class="tab-panel" id="panel-linkage">
+      <div class="sec-div" style="margin-top:0;border:none;padding:0">Link Lengths</div>
+      <div class="irow"><div class="dot" style="background:var(--c-crank)"></div><span class="ilbl">a — Crank <span class="tip" data-tip="Driven input link. Must be shortest for Grashof crank-rocker.">?</span></span><input type="number" class="inum" id="la" value="2" min="0.01" step="0.1"><span class="iunit">cm</span></div>
+      <div class="irow"><div class="dot" style="background:var(--c-coupler)"></div><span class="ilbl">b — Coupler <span class="tip" data-tip="Floating link connecting crank pin A to follower pin B.">?</span></span><input type="number" class="inum" id="lb" value="4.5" min="0.01" step="0.1"><span class="iunit">cm</span></div>
+      <div class="irow"><div class="dot" style="background:var(--c-follower)"></div><span class="ilbl">c — Follower <span class="tip" data-tip="Output link pivoted at fixed point O₄.">?</span></span><input type="number" class="inum" id="lc" value="3.5" min="0.01" step="0.1"><span class="iunit">cm</span></div>
+      <div class="irow"><div class="dot" style="background:var(--c-ground)"></div><span class="ilbl">d — Ground <span class="tip" data-tip="Fixed frame link distance between O₂ and O₄.">?</span></span><input type="number" class="inum" id="ld" value="4" min="0.01" step="0.1"><span class="iunit">cm</span></div>
+      <div class="inp-err" id="link-err"></div>
+
+      <div class="sec-div">Link Masses</div>
+      <div class="irow"><span class="ilbl">m₂ — Crank</span>  <input type="number" class="inum" id="lm2" value="0.5"  min="0" step="0.05"><span class="iunit">kg</span></div>
+      <div class="irow"><span class="ilbl">m₃ — Coupler</span><input type="number" class="inum" id="lm3" value="1.0"  min="0" step="0.05"><span class="iunit">kg</span></div>
+      <div class="irow"><span class="ilbl">m₄ — Follower</span><input type="number" class="inum" id="lm4" value="0.75" min="0" step="0.05"><span class="iunit">kg</span></div>
+
+      <div class="sec-div">Crank Counterweight</div>
+      <div style="font-size:.7rem;color:var(--muted);margin-bottom:8px;line-height:1.5">
+        A counterweight on link 2, diametrically opposite to CG, reduces shaking force. Set fraction k (0=none, 1=full static balance of crank).
+      </div>
+      <div class="irow">
+        <span class="ilbl">k — fraction</span>
+        <input type="number" class="inum" id="cw-k" value="1" min="0" max="2" step="0.05">
+        <span class="iunit">—</span>
+      </div>
+      <div class="sl-lbl" style="margin-top:6px"><span>k slider</span><span id="k-lbl">1.00</span></div>
+      <input type="range" id="k-range" min="0" max="2" step="0.05" value="1">
+
+      <div class="irow" style="margin-top:8px">
+        <span class="ilbl">r_cw radius</span>
+        <input type="number" class="inum" id="cw-r" value="1" min="0.01" step="0.1">
+        <span class="iunit">cm</span>
+      </div>
+      <div style="font-size:.68rem;color:var(--muted);margin-top:3px">
+        m_cw = k · m₂ · (a/2) / r_cw &nbsp;(CG of crank assumed at midpoint)
+      </div>
+
+      <div class="sec-div">Speed</div>
+      <div class="irow">
+        <span class="ilbl">ω₂</span>
+        <input type="number" class="inum" id="lspd" value="30" min="1" step="5">
+        <span class="iunit">rpm</span>
+      </div>
+
+      <div class="tog-row">
+        <span class="tog-lbl">Assembly:</span>
+        <label class="toggle"><input type="checkbox" id="asm-tog" onchange="refreshLinkage()"><span class="tog-sl"></span></label>
+        <span class="tog-lbl" id="asm-lbl">Open</span>
+      </div>
+
+      <div style="margin-top:10px">
+        <div class="g-box g-ok" id="g-type">—</div>
+        <div class="g-det" id="g-det"></div>
+      </div>
+
+      <div class="presets">
+        <button class="pre-btn" onclick="setLP('cr')">Crank-Rocker</button>
+        <button class="pre-btn" onclick="setLP('dc')">Double Crank</button>
+      </div>
+      <div id="m1-banner" style="display:none;margin-top:8px;padding:6px 10px;background:#EEF8F5;border:1px solid #90CAF9;border-radius:6px;font-size:.72rem;color:#055934;align-items:center;justify-content:space-between;gap:6px;">
+        <span id="m1-banner-text"></span>
+        <button onclick="loadFromM1()" style="background:#055934;color:#fff;border:none;border-radius:4px;padding:3px 8px;font-size:.7rem;font-weight:700;cursor:pointer;white-space:nowrap;">Load ↓</button>
+      </div>
+      <button class="push-m1-btn" onclick="pushToM1()" title="Save current link lengths to Module 1">↑ Push to Module 1</button>
+    </div>
+
+  </div><!-- /card -->
+
+  <!-- Animation (linkage tab only) -->
+  <div class="card" id="anim-card" style="display:none">
+    <div class="card-ttl">Animation</div>
+    <div class="sl-lbl"><span>Crank angle θ₂</span><span id="th2-lbl">0°</span></div>
+    <input type="range" id="theta2-range" min="0" max="359" value="0" step="1">
+    <div class="btns">
+      <button class="btn btn-p" id="anim-btn" onclick="toggleAnim()">&#9654; Animate</button>
+      <button class="btn btn-s" onclick="resetCrank()">&#8635; Reset</button>
+    </div>
+    <div class="btns">
+      <button class="btn btn-s" onclick="stepCrank(-5)">&#9664; 5°</button>
+      <button class="btn btn-s" onclick="stepCrank(5)">5° &#9654;</button>
+    </div>
+  </div>
+
+</div><!-- /left -->
+
+<!-- ══════════════════════ CENTER PANEL ══════════════════════ -->
+<div class="center">
+
+  <!-- ROTOR: shaft diagram + polar polygon -->
+  <div id="rotor-center">
+    <div class="card">
+      <div class="card-ttl">Shaft Diagram — Axial View</div>
+      <canvas id="shaftCanvas" width="800" height="260" style="width:100%;height:auto;display:block;border-radius:6px"></canvas>
+    </div>
+    <div class="card" style="margin-top:0">
+      <div class="card-ttl purple">Balance Polygon (mR vectors)</div>
+      <canvas id="polarCanvas" width="800" height="300" style="width:100%;height:auto;display:block;border-radius:6px"></canvas>
+    </div>
+  </div>
+
+  <!-- LINKAGE: mechanism canvas + 4 plots -->
+  <div id="linkage-center" style="display:none">
+    <div class="card cv-wrap">
+      <div class="card-ttl" style="display:flex;justify-content:space-between;align-items:center">
+        <span>Mechanism — Shaking Force Vectors</span>
+        <span style="font-size:.65rem;color:var(--muted);font-weight:500">Scroll to zoom · Drag to pan · Double-click to reset</span>
+      </div>
+      <div class="cv-stage">
+  <canvas id="mechCanvas" width="800" height="340" style="cursor:grab;"></canvas>
+      <div class="cv-badge" id="cv-badge">θ₂ = 0°</div>
+      <div class="cv-info"  id="cv-mu"></div>
+      </div>
+      <div class="zoom-bar">
+        <button class="zoom-btn" onclick="zoomStep(1.25)">＋ Zoom</button>
+        <button class="zoom-btn" onclick="zoomStep(1/1.25)">－ Zoom</button>
+        <span class="zoom-lbl" id="zoom-lbl">100%</span>
+        <button class="zoom-btn" onclick="resetView()">⟳ Reset</button>
+      </div>
+    </div>
+    <div class="plots">
+      <div class="plt-card">
+        <div class="plt-ttl">Shaking Force |Fs| vs θ₂</div>
+        <canvas id="ch-fs"  height="145"></canvas>
+      </div>
+      <div class="plt-card">
+        <div class="plt-ttl">Shaking Force — X &amp; Y components</div>
+        <canvas id="ch-fsxy" height="145"></canvas>
+      </div>
+      <div class="plt-card">
+        <div class="plt-ttl">Shaking Torque Ts vs θ₂</div>
+        <canvas id="ch-ts"  height="145"></canvas>
+      </div>
+      <div class="plt-card">
+        <div class="plt-ttl">% Shaking Force Reduction</div>
+        <canvas id="ch-pct" height="145"></canvas>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /center -->
+
+<!-- ══════════════════════ RIGHT PANEL ══════════════════════ -->
+<div class="right">
+
+  <!-- Rotor results -->
+  <div id="rotor-right">
+    <div class="card">
+      <div class="card-ttl brown">Static Balance</div>
+      <div class="res-row"><span class="res-lbl">ΣmR_x (g·mm)</span><span class="res-val" id="rr-smrx">—</span></div>
+      <div class="res-row"><span class="res-lbl">ΣmR_y (g·mm)</span><span class="res-val" id="rr-smry">—</span></div>
+      <div class="res-row"><span class="res-lbl">|ΣmR| (g·mm)</span><span class="res-val" id="rr-smr" style="color:var(--red)">—</span></div>
+      <div class="big-res">
+        <div class="big-res-n">Correction mass @ plane A</div>
+        <div class="big-res-v" id="rr-mcA" style="color:var(--blue)">—</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:3px" id="rr-angA">@ θ = —°</div>
+      </div>
+      <div style="font-size:.68rem;color:var(--muted);margin-top:6px;line-height:1.5">
+        Static balance: single-plane correction that eliminates the centrifugal force resultant. Does not eliminate the couple.
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:0">
+      <div class="card-ttl purple">Dynamic Balance (2-Plane)</div>
+      <div style="font-size:.7rem;color:var(--muted);margin-bottom:8px;line-height:1.5">
+        Correction masses in planes A and B simultaneously eliminate force and couple.
+      </div>
+      <div class="big-res">
+        <div class="big-res-n">Correction @ Plane A</div>
+        <div class="big-res-v" id="rr-dyn-A" style="color:var(--blue)">—</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:3px" id="rr-dyn-Aang">@ θ = —°</div>
+      </div>
+      <div class="big-res" style="margin-top:6px">
+        <div class="big-res-n">Correction @ Plane B</div>
+        <div class="big-res-v" id="rr-dyn-B" style="color:var(--green)">—</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:3px" id="rr-dyn-Bang">@ θ = —°</div>
+      </div>
+      <div class="res-row" style="margin-top:8px"><span class="res-lbl">Residual |ΣmR| after correction</span><span class="res-val" id="rr-resid" style="color:var(--green)">—</span></div>
+    </div>
+  <!-- Rotor diagnostics -->
+  <div id="diag-rotor" class="card" style="margin-top:0">
+    <div class="card-ttl" style="color:var(--teal);border-bottom-color:#EEF8F5">Diagnostics</div>
+    <div id="diag-list-rotor" style="font-size:.78rem;line-height:1.9;color:var(--text)"></div>
+  </div>
+  </div>
+
+  <!-- Linkage results -->
+  <div id="linkage-right" style="display:none">
+    <div class="card">
+      <div class="card-ttl teal">Counterweight Parameters</div>
+      <div class="res-row"><span class="res-lbl">k (fraction)</span>     <span class="res-val" id="lr-k">—</span></div>
+      <div class="res-row"><span class="res-lbl">m_cw</span>              <span class="res-val" id="lr-mcw">— kg</span></div>
+      <div class="res-row"><span class="res-lbl">r_cw</span>              <span class="res-val" id="lr-rcw">— cm</span></div>
+      <div class="res-row" style="border:none"><span class="res-lbl">Location</span><span class="res-val">180° from CG₂</span></div>
+    </div>
+
+    <div class="card" style="margin-top:0">
+      <div class="card-ttl red">Shaking Force Summary</div>
+      <div class="res-row"><span class="res-lbl">Peak |Fs| — Original</span>   <span class="res-val" id="lr-fsorig">— N</span></div>
+      <div class="res-row"><span class="res-lbl">Peak |Fs| — Balanced</span>   <span class="res-val" id="lr-fsbal" style="color:var(--green)">— N</span></div>
+      <div class="res-row"><span class="res-lbl">Peak reduction</span>          <span class="res-val" id="lr-pct" style="color:var(--green)">—%</span></div>
+      <div class="res-row" style="border:none"><span class="res-lbl">RMS |Fs| — Balanced</span><span class="res-val" id="lr-fsrms">— N</span></div>
+    </div>
+
+    <div class="card" style="margin-top:0">
+      <div class="card-ttl green">Shaking Torque Summary</div>
+      <div class="res-row"><span class="res-lbl">Peak |Ts| — Original</span>   <span class="res-val" id="lr-tsorig">— N·m</span></div>
+      <div class="res-row" style="border:none"><span class="res-lbl">Peak |Ts| — Balanced</span>  <span class="res-val" id="lr-tsbal" style="color:var(--amber)">— N·m</span></div>
+      <div style="font-size:.68rem;color:var(--muted);margin-top:6px;line-height:1.5">
+        Note: adding a counterweight to link 2 reduces shaking force but may <i>increase</i> shaking torque — a fundamental trade-off in mechanism balancing.
+      </div>
+    </div>
+
+    <!-- Linkage diagnostics -->
+    <div class="card" style="margin-top:0" id="diag-linkage">
+      <div class="card-ttl" style="color:var(--teal);border-bottom-color:#EEF8F5">Diagnostics</div>
+      <div id="diag-list-linkage" style="font-size:.78rem;line-height:1.9;color:var(--text)"></div>
+    </div>
+  </div>
+
+</div><!-- /right -->
+</div><!-- /layout -->
+
+<script>
+'use strict';
+const PI=Math.PI,TAU=2*PI,D2R=PI/180,R2D=180/PI,CM2M=0.01;
+const NPTS=360;
+
+/* ══════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════ */
+let currentTab='rotor';
+let masses=[];   // rotor masses: {m,r,theta,l}
+let linkState={a:2,b:4.5,c:3.5,d:4,m2:0.5,m3:1.0,m4:0.75,omega2:30*TAU/60,k:1,rcw:1,asm:1};
+let theta2=0,animDir=1,isAnim=false,rafId=null,lastTs=null;
+let cycleData=null;
+
+/* ══════════════════════════════════════════════
+   TAB SWITCHING
+══════════════════════════════════════════════ */
+function switchTab(name){
+  currentTab=name;
+  document.getElementById('tab-rotor').className  ='tab'+(name==='rotor'?' active':'');
+  document.getElementById('tab-linkage').className='tab'+(name==='linkage'?' active':'');
+  document.getElementById('panel-rotor').className  ='tab-panel'+(name==='rotor'?' active':'');
+  document.getElementById('panel-linkage').className='tab-panel'+(name==='linkage'?' active':'');
+  document.getElementById('rotor-center').style.display  =name==='rotor'?'block':'none';
+  document.getElementById('linkage-center').style.display=name==='linkage'?'block':'none';
+  document.getElementById('rotor-right').style.display   =name==='rotor'?'block':'none';
+  document.getElementById('linkage-right').style.display =name==='linkage'?'block':'none';
+  document.getElementById('anim-card').style.display     =name==='linkage'?'block':'none';
+  if(name==='rotor') refreshRotor();
+  else refreshLinkage();
+}
+
+/* ══════════════════════════════════════════════
+   ROTOR MASS TABLE
+══════════════════════════════════════════════ */
+let nextId=1;
+function addMass(m=100,r=50,theta=0,l=0){
+  const id=nextId++;
+  masses.push({id,m,r,theta,l});
+  renderTable();
+}
+function delMass(id){masses=masses.filter(x=>x.id!==id);renderTable();}
+function renderTable(){
+  const tbody=document.getElementById('mass-tbody');
+  tbody.innerHTML='';
+  masses.forEach((ms,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td style="font-weight:700;color:var(--muted)">${i+1}</td>
+      <td><input type="number" value="${ms.m}"     min="0"    step="10"  onchange="updateMass(${ms.id},'m',this.value)"></td>
+      <td><input type="number" value="${ms.r}"     min="0"    step="5"   onchange="updateMass(${ms.id},'r',this.value)"></td>
+      <td><input type="number" value="${ms.theta}" step="5"              onchange="updateMass(${ms.id},'theta',this.value)"></td>
+      <td><input type="number" value="${ms.l}"     step="10"             onchange="updateMass(${ms.id},'l',this.value)"></td>
+      <td><button class="del-btn" onclick="delMass(${ms.id})">✕</button></td>`;
+    tbody.appendChild(tr);
+  });
+  refreshRotor();
+}
+function updateMass(id,key,val){
+  const ms=masses.find(x=>x.id===id);
+  if(ms){ms[key]=parseFloat(val)||0;refreshRotor();}
+}
+
+/* ══════════════════════════════════════════════
+   ROTOR BALANCE MATH
+══════════════════════════════════════════════ */
+function rotorBalance(){
+  const lA=parseFloat(document.getElementById('lA').value)||0;
+  const lB=parseFloat(document.getElementById('lB').value)||120;
+  const rCorr=parseFloat(document.getElementById('r-corr').value)||50;
+
+  // ── Static balance (single plane) ────────────────────
+  let sMRx=0,sMRy=0;
+  masses.forEach(ms=>{
+    const th=ms.theta*D2R;
+    sMRx+=ms.m*ms.r*Math.cos(th);
+    sMRy+=ms.m*ms.r*Math.sin(th);
+  });
+  const sMR=Math.hypot(sMRx,sMRy);
+  // Correction mass in plane A (static): opposite to resultant
+  const mcA_static=sMR/rCorr;
+  const angA_static=(Math.atan2(-sMRy,-sMRx)*R2D+360)%360;
+
+  // ── Dynamic balance (2-plane) ─────────────────────────
+  // Refer all moments to plane A (l_A)
+  // ΣmR at plane B eliminates couple:
+  //   ΣmRl = mR_A*(lA-lA) + ΣmR_i*(l_i-lA) + mR_B*(lB-lA) = 0
+  //   → mR_B*(lB-lA) = -Σ mR_i*(l_i-lA)
+  let sMRLx=0,sMRLy=0;
+  masses.forEach(ms=>{
+    const th=ms.theta*D2R;
+    const arm=ms.l-lA;
+    sMRLx+=ms.m*ms.r*Math.cos(th)*arm;
+    sMRLy+=ms.m*ms.r*Math.sin(th)*arm;
+  });
+  const dL=lB-lA;
+  let mcB=0,angB=0;
+  if(Math.abs(dL)>1e-6){
+    const mRBx=-sMRLx/dL, mRBy=-sMRLy/dL;
+    const mRB=Math.hypot(mRBx,mRBy);
+    mcB=mRB/rCorr;
+    angB=(Math.atan2(-mRBy,-mRBx)*R2D+360)%360;  // correction is opposite
+    // Now static balance: residual after plane B
+    const resX=sMRx+mRBx, resY=sMRy+mRBy;
+    const mRAx=-resX, mRAy=-resY;
+    const mRA=Math.hypot(mRAx,mRAy);
+    const mcA_dyn=mRA/rCorr;
+    const angA_dyn=(Math.atan2(mRAy,mRAx)*R2D+360)%360;
+
+    // Residual after both corrections
+    const totalX=sMRx+mRBx+mRA*Math.cos(angA_dyn*D2R);
+    const totalY=sMRy+mRBy+mRA*Math.sin(angA_dyn*D2R);
+
+    return{sMRx,sMRy,sMR,
+      mcA_static,angA_static,
+      mcA_dyn,angA_dyn,mcB,angB,
+      residual:Math.hypot(totalX,totalY),
+      lA,lB,rCorr};
+  }
+  return{sMRx,sMRy,sMR,mcA_static,angA_static,mcA_dyn:mcA_static,angA_dyn:angA_static,mcB:0,angB:0,residual:0,lA,lB,rCorr};
+}
+
+function refreshRotor(){
+  if(masses.length===0){clearRotorPanel();drawShaftDiagram(null);drawPolarPolygon(null);return;}
+  const res=rotorBalance();
+  updateRotorPanel(res);
+  drawShaftDiagram(res);
+  drawPolarPolygon(res);
+  updateDiagnosticsRotor(res);
+}
+
+function clearRotorPanel(){
+  ['rr-smrx','rr-smry','rr-smr','rr-mcA','rr-dyn-A','rr-dyn-B','rr-resid'].forEach(id=>document.getElementById(id).textContent='—');
+  document.getElementById('rr-angA').textContent='@ θ = —°';
+  document.getElementById('rr-dyn-Aang').textContent='@ θ = —°';
+  document.getElementById('rr-dyn-Bang').textContent='@ θ = —°';
+}
+
+function updateRotorPanel(res){
+  const f=(v,d=2)=>v==null?'—':v.toFixed(d);
+  document.getElementById('rr-smrx').textContent=f(res.sMRx)+' g·mm';
+  document.getElementById('rr-smry').textContent=f(res.sMRy)+' g·mm';
+  document.getElementById('rr-smr').textContent =f(res.sMR)+' g·mm';
+  document.getElementById('rr-mcA').textContent =f(res.mcA_static,3)+' g';
+  document.getElementById('rr-angA').textContent=`@ θ = ${f(res.angA_static,1)}°`;
+  document.getElementById('rr-dyn-A').textContent   =f(res.mcA_dyn,3)+' g';
+  document.getElementById('rr-dyn-Aang').textContent=`@ θ = ${f(res.angA_dyn,1)}°`;
+  document.getElementById('rr-dyn-B').textContent   =f(res.mcB,3)+' g';
+  document.getElementById('rr-dyn-Bang').textContent=`@ θ = ${f(res.angB,1)}°`;
+  document.getElementById('rr-resid').textContent   =res.residual<1e-6?'0.000 g·mm (perfectly balanced)':f(res.residual,4)+' g·mm';
+}
+
+/* ══════════════════════════════════════════════
+   SHAFT DIAGRAM CANVAS
+══════════════════════════════════════════════ */
+function drawShaftDiagram(res){
+  const cv=document.getElementById('shaftCanvas');
+  const ctx=cv.getContext('2d');
+  const dpr=window.devicePixelRatio||1;
+  const logW=Math.max(300,cv.parentElement.clientWidth-28);
+  const logH=Math.round(logW*260/800);
+  cv.style.width=logW+'px';cv.style.height=logH+'px';
+  cv.width=Math.round(logW*dpr);cv.height=Math.round(logH*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const W=logW,H=logH;
+  ctx.fillStyle='#F8FAFB';ctx.fillRect(0,0,W,H);
+
+  if(!res||masses.length===0){
+    ctx.fillStyle='#90A4AE';ctx.font='12px system-ui';ctx.textAlign='center';
+    ctx.fillText('Add masses to see the shaft diagram',W/2,H/2);return;
+  }
+
+  // Compute shaft extent in l-axis
+  const allL=[res.lA,res.lB,...masses.map(m=>m.l)];
+  const lMin=Math.min(...allL),lMax=Math.max(...allL);
+  const span=Math.max(lMax-lMin,1);
+  const pad=40,shaftY=H*0.55;
+  const lScale=(W-2*pad)/span;
+  const toX=l=>(l-lMin)*lScale+pad;
+
+  // Shaft line
+  ctx.strokeStyle='#546E7A';ctx.lineWidth=4;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(pad-10,shaftY);ctx.lineTo(W-pad+10,shaftY);ctx.stroke();
+
+  // Planes A and B
+  const xA=toX(res.lA),xB=toX(res.lB);
+  [[xA,'A','#055934'],[xB,'B','#208D44']].forEach(([x,label,col])=>{
+    ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.setLineDash([5,4]);
+    ctx.beginPath();ctx.moveTo(x,shaftY-45);ctx.lineTo(x,shaftY+20);ctx.stroke();
+    ctx.setLineDash([]);ctx.fillStyle=col;ctx.font='bold 11px system-ui';ctx.textAlign='center';
+    ctx.fillText(`Plane ${label}`,x,shaftY+34);
+    ctx.fillText(`l=${res['l'+label]} mm`,x,shaftY+46);
+  });
+
+  // Colors for masses
+  const COLS=['#A68A58','#0A353E','#2BB673','#733B43','#055934','#A68A58','#5C6660'];
+
+  // Mass arrows (radial view simplified as vectors above shaft)
+  masses.forEach((ms,i)=>{
+    const x=toX(ms.l);
+    const col=COLS[i%COLS.length];
+    const maxR=Math.max(...masses.map(m=>m.r),1);
+    const rPx=Math.min(ms.r/maxR*38,38);
+    const ang=-(ms.theta*D2R); // canvas Y-flip
+    const ex=x+rPx*Math.sin(ms.theta*D2R);
+    const ey=shaftY-rPx*Math.cos(ms.theta*D2R);
+    ctx.strokeStyle=col;ctx.lineWidth=2.5;
+    ctx.beginPath();ctx.moveTo(x,shaftY);ctx.lineTo(ex,ey);ctx.stroke();
+    // arrowhead
+    const a=Math.atan2(ey-shaftY,ex-x);
+    ctx.fillStyle=col;
+    ctx.beginPath();ctx.moveTo(ex,ey);
+    ctx.lineTo(ex-8*Math.cos(a-0.4),ey-8*Math.sin(a-0.4));
+    ctx.lineTo(ex-8*Math.cos(a+0.4),ey-8*Math.sin(a+0.4));
+    ctx.closePath();ctx.fill();
+    // label
+    ctx.fillStyle=col;ctx.font='bold 9px system-ui';ctx.textAlign='center';
+    ctx.fillText(`m${i+1}`,ex+(ex>x?8:-8),ey-4);
+    ctx.font='8px system-ui';ctx.fillStyle='#5C6660';
+    ctx.fillText(`${ms.m}g @${ms.theta}°`,x,shaftY+12);
+  });
+
+  // Bearing pads at shaft ends
+  [pad-10,W-pad+10].forEach(x=>{
+    ctx.fillStyle='#B0BEC5';ctx.strokeStyle='#546E7A';ctx.lineWidth=1;
+    ctx.fillRect(x-6,shaftY-8,12,16);ctx.strokeRect(x-6,shaftY-8,12,16);
+  });
+  ctx.font='bold 10px system-ui';ctx.fillStyle='#37474F';ctx.textAlign='center';
+  ctx.fillText('Reference plane (A)',xA,shaftY-50);
+}
+
+/* ══════════════════════════════════════════════
+   POLAR POLYGON CANVAS
+══════════════════════════════════════════════ */
+function drawPolarPolygon(res){
+  const cv=document.getElementById('polarCanvas');
+  const ctx=cv.getContext('2d');
+  const dpr=window.devicePixelRatio||1;
+  const logW=Math.max(300,cv.parentElement.clientWidth-28);
+  const logH=Math.round(logW*300/800);
+  cv.style.width=logW+'px';cv.style.height=logH+'px';
+  cv.width=Math.round(logW*dpr);cv.height=Math.round(logH*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const W=logW,H=logH;
+  ctx.fillStyle='#F8FAFB';ctx.fillRect(0,0,W,H);
+
+  if(!res||masses.length===0){
+    ctx.fillStyle='#90A4AE';ctx.font='12px system-ui';ctx.textAlign='center';
+    ctx.fillText('No masses — polygon empty',W/2,H/2);return;
+  }
+
+  // Find max mR for scale
+  const maxMR=Math.max(...masses.map(m=>m.m*m.r),res.sMR,1);
+  const cx=W*0.38,cy=H*0.52;
+  const sc=Math.min(W*0.32,H*0.42)/maxMR;
+
+  // Light grid
+  ctx.strokeStyle='#EDF2F5';ctx.lineWidth=1;
+  for(let x=0;x<W;x+=20){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=0;y<H;y+=20){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+
+  // Axes
+  ctx.strokeStyle='rgba(0,0,0,.12)';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+  ctx.beginPath();ctx.moveTo(0,cy);ctx.lineTo(W,cy);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx,0);ctx.lineTo(cx,H);ctx.stroke();
+  ctx.setLineDash([]);
+
+  const COLS=['#A68A58','#0A353E','#2BB673','#733B43','#055934','#A68A58','#5C6660'];
+
+  // mR vectors tip-to-tail
+  let px=cx,py=cy;
+  masses.forEach((ms,i)=>{
+    const col=COLS[i%COLS.length];
+    const th=ms.theta*D2R;
+    const dx=ms.m*ms.r*Math.cos(th)*sc;
+    const dy=-ms.m*ms.r*Math.sin(th)*sc;
+    drawPolArrow(ctx,px,py,px+dx,py+dy,col,2,8);
+    ctx.font='bold 9px system-ui';ctx.fillStyle=col;ctx.textAlign='center';
+    ctx.fillText(`mR${i+1}`,px+dx/2+(dy>0?-12:12),py+dy/2);
+    px+=dx;py+=dy;
+  });
+
+  // Closing vector (correction for static balance)
+  if(res.mcA_static>0.001){
+    const thC=res.angA_static*D2R;
+    const dx=res.mcA_static*res.rCorr*Math.cos(thC)*sc;
+    const dy=-res.mcA_static*res.rCorr*Math.sin(thC)*sc;
+    ctx.setLineDash([6,4]);
+    drawPolArrow(ctx,px,py,cx,cy,'#0A353E',2,10);
+    ctx.setLineDash([]);
+    ctx.font='bold 10px system-ui';ctx.fillStyle='#0A353E';ctx.textAlign='center';
+    ctx.fillText('mR_c',cx+(cx-px)*0.4,cy+(cy-py)*0.4);
+  }
+
+  // Origin dot
+  ctx.beginPath();ctx.arc(cx,cy,5,0,TAU);ctx.fillStyle='#1D2921';ctx.fill();
+  ctx.fillStyle='#1D2921';ctx.font='bold 10px system-ui';ctx.textAlign='right';
+  ctx.fillText('O',cx-7,cy+4);
+
+  // Residual tip dot (should be at origin if balanced)
+  if(res.sMR>0.5){
+    ctx.beginPath();ctx.arc(px,py,5,0,TAU);ctx.fillStyle='var(--red)';ctx.fillStyle='#733B43';ctx.fill();
+    ctx.font='9px system-ui';ctx.fillStyle='#733B43';ctx.textAlign='left';
+    ctx.fillText(`|ΣmR|=${res.sMR.toFixed(1)} g·mm`,px+7,py+4);
+  }
+
+  // Scale bar
+  const barMR=Math.round(maxMR*0.4);
+  const barPx=barMR*sc;
+  ctx.strokeStyle='#5C6660';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(W-12-barPx,H-12);ctx.lineTo(W-12,H-12);ctx.stroke();
+  ctx.font='9px system-ui';ctx.fillStyle='#5C6660';ctx.textAlign='right';
+  ctx.fillText(`${barMR} g·mm`,W-12,H-17);
+
+  // Legend
+  const legX=W*0.62,legY=20;
+  ctx.font='9px system-ui';ctx.textAlign='left';
+  masses.forEach((ms,i)=>{
+    ctx.fillStyle=COLS[i%COLS.length];
+    ctx.fillText(`m${i+1}: ${ms.m}g @ r=${ms.r}mm, θ=${ms.theta}°, l=${ms.l}mm`,legX,legY+i*13);
+  });
+  ctx.fillStyle='#0A353E';
+  ctx.fillText(`Correction (static): ${res.mcA_static.toFixed(2)}g @ ${res.angA_static.toFixed(1)}°`,legX,legY+masses.length*13+4);
+}
+
+function drawPolArrow(ctx,x1,y1,x2,y2,color,lw,hs){
+  if(Math.hypot(x2-x1,y2-y1)<2)return;
+  const a=Math.atan2(y2-y1,x2-x1);
+  ctx.strokeStyle=color;ctx.lineWidth=lw;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+  ctx.fillStyle=color;
+  ctx.beginPath();ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-hs*Math.cos(a-0.38),y2-hs*Math.sin(a-0.38));
+  ctx.lineTo(x2-hs*Math.cos(a+0.38),y2-hs*Math.sin(a+0.38));
+  ctx.closePath();ctx.fill();
+}
+
+/* ══════════════════════════════════════════════
+   PRESETS
+══════════════════════════════════════════════ */
+function loadPreset(name){
+  masses=[];nextId=1;
+  if(name==='static'){
+    // 3 masses, same axial plane → static imbalance only
+    addMass(200,40, 0,  0);
+    addMass(150,60, 120,0);
+    addMass(100,50, 240,0);
+  } else if(name==='dynamic'){
+    // 4 masses at different axial positions → dynamic imbalance
+    addMass(200,40, 0,   20);
+    addMass(150,60, 90,  60);
+    addMass(100,50, 200, 100);
+    addMass(180,45, 300, 140);
+    document.getElementById('lA').value=0;
+    document.getElementById('lB').value=160;
+  } else if(name==='norton'){
+    // Norton textbook Example 17-1 style
+    addMass(1800,0.03*1000, 0,   25);
+    addMass(2400,0.02*1000, 60,  75);
+    addMass(1200,0.04*1000, 135, 125);
+    document.getElementById('lA').value=0;
+    document.getElementById('lB').value=150;
+  }
+  renderTable();
+}
+
+/* ══════════════════════════════════════════════
+   KINEMATICS  (identical to all modules)
+══════════════════════════════════════════════ */
+function positionAnalysis(th2,a,b,c,d,assembly){
+  const K1=d/a,K2=d/c,K3=(a*a-b*b+c*c+d*d)/(2*a*c);
+  const c2=Math.cos(th2),s2=Math.sin(th2);
+  const A=K1+(K2-1)*c2-K3,B=2*s2,C=(K2+1)*c2-K1-K3;
+  const disc=B*B-4*A*C;if(disc<-1e-9)return null;
+  const sq=Math.sqrt(Math.max(0,disc));
+  let t=Math.abs(A)<1e-10?(Math.abs(B)<1e-10?0:-C/B):(-B+assembly*sq)/(2*A);
+  const th4=2*Math.atan(t),bx=d+c*Math.cos(th4)-a*c2,by=c*Math.sin(th4)-a*s2;
+  return{th3:Math.atan2(by,bx),th4};
+}
+function velocityAnalysis(th2,th3,th4,a,b,c,w2){
+  const s3=Math.sin(th3),c3=Math.cos(th3),s4=Math.sin(th4),c4=Math.cos(th4);
+  const M11=-b*s3,M12=c*s4,M21=b*c3,M22=-c*c4;
+  const r1=a*w2*Math.sin(th2),r2=-a*w2*Math.cos(th2),det=M11*M22-M12*M21;
+  if(Math.abs(det)<1e-10)return{w3:0,w4:0};
+  return{w3:(r1*M22-M12*r2)/det,w4:(M11*r2-r1*M21)/det};
+}
+function accelerationAnalysis(th2,th3,th4,a,b,c,w2,w3,w4){
+  const s3=Math.sin(th3),c3=Math.cos(th3),s4=Math.sin(th4),c4=Math.cos(th4);
+  const A1=a*w2*w2*Math.cos(th2)+b*w3*w3*c3-c*w4*w4*c4;
+  const A2=a*w2*w2*Math.sin(th2)+b*w3*w3*s3-c*w4*w4*s4;
+  const M11=-b*s3,M12=c*s4,M21=b*c3,M22=-c*c4,det=M11*M22-M12*M21;
+  if(Math.abs(det)<1e-10)return{a3:0,a4:0};
+  return{a3:(A1*M22-M12*A2)/det,a4:(M11*A2-A1*M21)/det};
+}
+
+/* ══════════════════════════════════════════════
+   SHAKING FORCE COMPUTATION
+   Fs = -(F12 + F14) = -(sum of all ground reactions)
+   Equivalently: Fs = -ΣmᵢAGᵢ  (Newton's 3rd)
+   We use the simpler direct form:
+     Fs = -(m2·aG2 + m3·aG3 + m4·aG4 + m_cw·aG_cw)
+══════════════════════════════════════════════ */
+function computeShaking(th2,a,b,c,d,w2,m2,m3,m4,k,rcw,asm){
+  const am=a*CM2M,bm=b*CM2M,cm=c*CM2M,dm=d*CM2M,rcwm=rcw*CM2M;
+  const pos=positionAnalysis(th2,a,b,c,d,asm);
+  if(!pos)return null;
+  const{th3,th4}=pos;
+  const vel=velocityAnalysis(th2,th3,th4,a,b,c,w2);
+  const acc=accelerationAnalysis(th2,th3,th4,a,b,c,w2,vel.w3,vel.w4);
+  const{w3,w4}=vel,{a3,a4}=acc;
+  const c2=Math.cos(th2),s2=Math.sin(th2);
+  const c3=Math.cos(th3),s3=Math.sin(th3);
+  const c4=Math.cos(th4),s4=Math.sin(th4);
+
+  // CG accelerations (slender rod model, CG at midpoint)
+  const aG2x=-am/2*w2*w2*c2,        aG2y=-am/2*w2*w2*s2;  // crank CG at a/2 from O2
+  const Ax=am*c2,Ay=am*s2;
+  const aAx=-am*w2*w2*c2,aAy=-am*w2*w2*s2;
+  const aBx=aAx-bm*w3*w3*c3-bm*a3*s3, aBy=aAy-bm*w3*w3*s3+bm*a3*c3;
+  const aG3x=(aAx+aBx)/2,aG3y=(aAy+aBy)/2;
+  const aG4x=-cm/2*w4*w4*c4-cm/2*a4*s4, aG4y=-cm/2*w4*w4*s4+cm/2*a4*c4;
+
+  // Counterweight CG: at distance rcw from O2, angle θ2+π
+  const mcw = k*m2*(am/2)/rcwm;    // m_cw·r_cw = k·m2·(a/2)
+  const aGcwx=-rcwm*w2*w2*Math.cos(th2+PI);  // = +rcwm*w2²*cos(th2)
+  const aGcwy=-rcwm*w2*w2*Math.sin(th2+PI);  // = +rcwm*w2²*sin(th2)
+
+  // Shaking force = -Σ mᵢ·aGᵢ
+  const FSx=-(m2*aG2x + m3*aG3x + m4*aG4x + mcw*aGcwx);
+  const FSy=-(m2*aG2y + m3*aG3y + m4*aG4y + mcw*aGcwy);
+
+  // Shaking torque ≈ T12 + Ts_couple (simplified: use T12 from Newton-Euler or approximate)
+  // For teaching purposes: Ts = -Σ(moments of inertia × angular acc) referred to ground
+  // Approximate: Ts = -(IG2·0 + IG3·a3 + IG4·a4)  [α2=0]
+  const IG3=m3*bm*bm/12, IG4=m4*cm*cm/12;
+  const TS=-(IG3*a3+IG4*a4);
+
+  return{FSx,FSy,FSmag:Math.hypot(FSx,FSy),TS,mcw,
+    aG2x,aG2y,aG3x,aG3y,aG4x,aG4y,aGcwx,aGcwy,th3,th4,w3,w4,a3,a4};
+}
+
+/* ══════════════════════════════════════════════
+   FULL CYCLE — LINKAGE
+══════════════════════════════════════════════ */
+function computeLinkageCycle(){
+  const{a,b,c,d,m2,m3,m4,omega2,k,rcw,asm}=linkState;
+  const FSorig=[],FSbal=[],TSorig=[],TSbal=[],FSxy_orig_x=[],FSxy_orig_y=[],FSxy_bal_x=[],FSxy_bal_y=[];
+
+  for(let i=0;i<NPTS;i++){
+    const th2=i*TAU/NPTS;
+    const orig=computeShaking(th2,a,b,c,d,omega2,m2,m3,m4,0,1,asm); // k=0 = no counterweight
+    const bal =computeShaking(th2,a,b,c,d,omega2,m2,m3,m4,k,rcw,asm);
+    if(!orig||!bal){FSorig.push(null);FSbal.push(null);TSorig.push(null);TSbal.push(null);FSxy_orig_x.push(null);FSxy_orig_y.push(null);FSxy_bal_x.push(null);FSxy_bal_y.push(null);continue;}
+    FSorig.push(orig.FSmag);
+    FSbal.push(bal.FSmag);
+    TSorig.push(Math.abs(orig.TS));
+    TSbal.push(Math.abs(bal.TS));
+    FSxy_orig_x.push(orig.FSx);FSxy_orig_y.push(orig.FSy);
+    FSxy_bal_x.push(bal.FSx);  FSxy_bal_y.push(bal.FSy);
+  }
+  cycleData={FSorig,FSbal,TSorig,TSbal,FSxy_orig_x,FSxy_orig_y,FSxy_bal_x,FSxy_bal_y};
+
+  // Summary stats
+  const v=arr=>arr.filter(x=>x!=null);
+  const peak=arr=>Math.max(...v(arr),0);
+  const rms =arr=>{const a=v(arr);return a.length?Math.sqrt(a.reduce((s,x)=>s+x*x,0)/a.length):0;};
+  const pFS_orig=peak(FSorig),pFS_bal=peak(FSbal);
+  const pct=pFS_orig>0?((pFS_orig-pFS_bal)/pFS_orig*100):0;
+  const mcwVal=computeShaking(0,a,b,c,d,omega2,m2,m3,m4,k,rcw,asm);
+
+  document.getElementById('lr-k').textContent=k.toFixed(2);
+  document.getElementById('lr-mcw').textContent=mcwVal?(mcwVal.mcw).toFixed(4)+' kg':'—';
+  document.getElementById('lr-rcw').textContent=rcw.toFixed(2)+' cm';
+  document.getElementById('lr-fsorig').textContent=pFS_orig.toFixed(2)+' N';
+  document.getElementById('lr-fsbal').textContent =pFS_bal.toFixed(2)+' N';
+  document.getElementById('lr-pct').textContent   =pct.toFixed(1)+'%';
+  document.getElementById('lr-fsrms').textContent =rms(FSbal).toFixed(2)+' N';
+  document.getElementById('lr-tsorig').textContent=peak(TSorig).toFixed(4)+' N·m';
+  document.getElementById('lr-tsbal').textContent =peak(TSbal).toFixed(4)+' N·m';
+  // Store for diagnostics
+  window._linkCycle={fsOrig:FSorig,fsBal:FSbal};
+}
+
+/* ══════════════════════════════════════════════
+   GRASHOF
+══════════════════════════════════════════════ */
+function grashofAnalysis(a,b,c,d){
+  const S=Math.min(a,b,c,d),L=Math.max(a,b,c,d),PQ=a+b+c+d-S-L,SL=S+L,eps=1e-9;
+  if(SL>PQ+eps)return{type:'Non-Grashof — Double Rocker',cls:'g-fail',S,L,PQ,SL};
+  if(Math.abs(SL-PQ)<eps)return{type:'Change Point',cls:'g-warn',S,L,PQ,SL};
+  const near=v=>Math.abs(v-S)<eps;
+  const type=near(d)?'Double Crank':near(a)?'Crank-Rocker':near(c)?'Rocker-Crank':'Double Rocker';
+  return{type:`Grashof — ${type}`,cls:'g-ok',S,L,PQ,SL};
+}
+function displayGrashof(){
+  const{a,b,c,d}=linkState,g=grashofAnalysis(a,b,c,d);
+  const el=document.getElementById('g-type');el.className=`g-box ${g.cls}`;el.textContent=g.type;
+  document.getElementById('g-det').innerHTML=`S=${g.S.toFixed(2)} L=${g.L.toFixed(2)}<br>S+L=${g.SL.toFixed(2)} `+(g.SL<=g.PQ+1e-9?`<span style="color:var(--green)">≤ P+Q=${g.PQ.toFixed(2)} ✓</span>`:`<span style="color:var(--red)">&gt; P+Q=${g.PQ.toFixed(2)} ✗</span>`);
+}
+
+/* ══════════════════════════════════════════════
+   MECHANISM CANVAS  (linkage tab)
+══════════════════════════════════════════════ */
+const mechCv=document.getElementById('mechCanvas');
+const mCtx=mechCv.getContext('2d');
+let CW=800,CH=340,O2x,O2y,SCALE;
+let viewZoom=1,panX=0,panY=0,_isPanning=false,_dragX=0,_dragY=0;
+function zoomStep(f){viewZoom=Math.min(8,Math.max(0.2,viewZoom*f));updateZoomLbl();drawMechanism(theta2);}
+function resetView(){viewZoom=1;panX=0;panY=0;updateZoomLbl();drawMechanism(theta2);}
+function updateZoomLbl(){const el=document.getElementById('zoom-lbl');if(el)el.textContent=Math.round(viewZoom*100)+'%';}
+
+function setupMechCanvas(){
+  const dpr=window.devicePixelRatio||1;
+  const logW=Math.max(300,mechCv.parentElement.clientWidth-28);
+  const logH=Math.round(logW*340/800);
+  CW=logW;CH=logH;mechCv.style.width=logW+'px';mechCv.style.height=logH+'px';
+  mechCv.width=Math.round(logW*dpr);mechCv.height=Math.round(logH*dpr);
+  mCtx.setTransform(dpr,0,0,dpr,0,0);
+}
+function w2c(wx,wy){return[O2x+wx*SCALE,O2y-wy*SCALE];}
+function calcTransform(){
+  const{a,b,c,d}=linkState;
+  SCALE=Math.min(CW*0.82/(2*(a+b)),CH*0.72/(2*(a+b)),110);
+  O2x=(CW-d*SCALE)/2;O2y=CH*0.60;
+}
+
+function drawMechanism(t2){
+  const{a,b,c,d,m2,m3,m4,omega2,k,rcw,asm}=linkState;
+  setupMechCanvas();calcTransform();
+  mCtx.clearRect(0,0,CW,CH);
+  mCtx.fillStyle='#F8FAFB';mCtx.fillRect(0,0,CW,CH);
+  mCtx.save();
+  mCtx.translate(CW/2+panX,CH/2+panY);
+  mCtx.scale(viewZoom,viewZoom);
+  mCtx.translate(-CW/2,-CH/2);
+  // grid
+  mCtx.strokeStyle='#E4EBF0';mCtx.lineWidth=1;
+  const gS=SCALE,gOX=((O2x%gS)+gS)%gS,gOY=((O2y%gS)+gS)%gS;
+  for(let x=gOX;x<CW;x+=gS){mCtx.beginPath();mCtx.moveTo(x,0);mCtx.lineTo(x,CW);mCtx.stroke();}
+  for(let y=gOY;y<CH;y+=gS){mCtx.beginPath();mCtx.moveTo(0,y);mCtx.lineTo(CW,y);mCtx.stroke();}
+  const[xO2,yO2]=w2c(0,0),[xO4,yO4]=w2c(d,0);
+  mCtx.setLineDash([4,4]);mCtx.strokeStyle='rgba(21,101,192,0.11)';mCtx.lineWidth=1.5;
+  mCtx.beginPath();mCtx.arc(xO2,yO2,a*SCALE,0,TAU);mCtx.stroke();mCtx.setLineDash([]);
+  drawGrLink(xO2,yO2,xO4,yO4);
+  const pos=positionAnalysis(t2,a,b,c,d,asm);
+  if(!pos){
+    drawGS(xO2,yO2);drawGS(xO4,yO4);drawPin(xO2,yO2,9,'#055934',true);drawPin(xO4,yO4,9,'#208D44',true);
+    mCtx.fillStyle='#733B43';mCtx.font='bold 13px system-ui';mCtx.textAlign='center';
+    mCtx.fillText('⚠ Cannot assemble at this angle',CW/2,CH*0.3);mCtx.textAlign='left';
+    mCtx.restore();return;
+  }
+  const{th3,th4}=pos;
+  const Awx=a*Math.cos(t2),Awy=a*Math.sin(t2);
+  const Bwx=d+c*Math.cos(th4),Bwy=c*Math.sin(th4);
+  const[xA,yA]=w2c(Awx,Awy),[xB,yB]=w2c(Bwx,Bwy);
+
+  // Counterweight on crank (draw opposite side)
+  if(k>0){
+    const rcwm=rcw*CM2M,am=a*CM2M;
+    const mcw=k*m2*(am/2)/rcwm;
+    const cwx=Awx-2*Awx, cwy=Awy-2*Awy; // tip at -r_cw in direction of crank (opposite)
+    const cwScale=rcw*SCALE;
+    const cwEx=-Math.cos(t2)*rcw, cwEy=-Math.sin(t2)*rcw;
+    const[xcw,ycw]=w2c(cwEx,cwEy);
+    mCtx.strokeStyle='#0A353E';mCtx.lineWidth=5;mCtx.lineCap='round';
+    mCtx.beginPath();mCtx.moveTo(xO2,yO2);mCtx.lineTo(xcw,ycw);mCtx.stroke();
+    mCtx.beginPath();mCtx.arc(xcw,ycw,10,0,TAU);
+    mCtx.fillStyle='rgba(40,53,147,0.7)';mCtx.fill();
+    mCtx.strokeStyle='#0A353E';mCtx.lineWidth=1.5;mCtx.stroke();
+    mCtx.fillStyle='#0A353E';mCtx.font='bold 9px system-ui';mCtx.textAlign='center';
+    mCtx.fillText(`cw`,xcw,ycw+3);
+    mCtx.textAlign='left';
+  }
+
+  drawMLink(xO4,yO4,xB,yB,'#208D44',7);
+  drawMLink(xA,yA,xB,yB,'#A68A58',6);
+  drawMLink(xO2,yO2,xA,yA,'#055934',8);
+  drawGS(xO2,yO2);drawGS(xO4,yO4);
+  drawPin(xO2,yO2,9,'#055934',true);drawPin(xO4,yO4,9,'#208D44',true);
+  drawPin(xA,yA,6,'#A68A58',false);drawPin(xB,yB,6,'#FF8F00',false);
+
+  // Shaking force arrows
+  const sh=computeShaking(t2,a,b,c,d,omega2,m2,m3,m4,k,rcw,asm);
+  const shOrig=computeShaking(t2,a,b,c,d,omega2,m2,m3,m4,0,1,asm);
+  if(sh&&shOrig){
+    const maxFS=Math.max(...(cycleData?.FSorig||[0]).filter(v=>v),0.001);
+    const fsc=(CH*0.18)/maxFS;
+    // Original shaking (red dashed)
+    if(shOrig.FSmag>0.01){
+      mCtx.setLineDash([5,4]);
+      drawMArrow(xO2,yO2,xO2+shOrig.FSx*fsc,yO2-shOrig.FSy*fsc,'rgba(198,40,40,0.55)',1.5,9);
+      mCtx.setLineDash([]);
+    }
+    // Balanced shaking (green solid)
+    if(sh.FSmag>0.01){
+      drawMArrow(xO2,yO2,xO2+sh.FSx*fsc,yO2-sh.FSy*fsc,'#208D44',2.5,10);
+      mCtx.fillStyle='#208D44';mCtx.font='bold 9px system-ui';
+      mCtx.fillText('Fs',xO2+sh.FSx*fsc+4,yO2-sh.FSy*fsc-4);
+    }
+  }
+
+  mCtx.font='bold 12px system-ui';mCtx.fillStyle='#37474F';
+  mCtx.fillText('O₂',xO2-17,yO2+5);mCtx.fillText('O₄',xO4+9,yO4+5);
+  mCtx.fillText('A',xA+9,yA-8);mCtx.fillText('B',xB+9,yB-8);
+  mCtx.restore();
+  const mu=Math.acos(Math.min(1,Math.abs(Math.cos(th3-th4))))*R2D;
+  const deg=Math.round(t2*R2D)%360;
+  document.getElementById('cv-badge').textContent=`θ₂ = ${deg}°`;
+  document.getElementById('th2-lbl').textContent=`${deg}°`;
+  document.getElementById('theta2-range').value=deg;
+  const mc=mu<30?'#733B43':mu<45?'#A68A58':'#208D44';
+  document.getElementById('cv-mu').style.color=mc;
+  document.getElementById('cv-mu').textContent=`μ=${mu.toFixed(1)}°`;
+  updateChartMarkers();
+}
+
+function drawMLink(x1,y1,x2,y2,c,lw){mCtx.strokeStyle=c;mCtx.lineWidth=lw;mCtx.lineCap='round';mCtx.beginPath();mCtx.moveTo(x1,y1);mCtx.lineTo(x2,y2);mCtx.stroke();}
+function drawGrLink(x1,y1,x2,y2){mCtx.save();mCtx.strokeStyle='#90A4AE';mCtx.lineWidth=3;mCtx.setLineDash([10,5]);mCtx.beginPath();mCtx.moveTo(x1,y1);mCtx.lineTo(x2,y2);mCtx.stroke();mCtx.restore();}
+function drawGS(cx,cy){const W=16,H=11;mCtx.beginPath();mCtx.moveTo(cx,cy);mCtx.lineTo(cx-W/2,cy+H);mCtx.lineTo(cx+W/2,cy+H);mCtx.closePath();mCtx.fillStyle='#F2F7ED';mCtx.strokeStyle='#8D9991';mCtx.lineWidth=1.5;mCtx.fill();mCtx.stroke();mCtx.beginPath();mCtx.moveTo(cx-W/2-3,cy+H);mCtx.lineTo(cx+W/2+3,cy+H);mCtx.stroke();mCtx.lineWidth=1;for(let i=-W/2-2;i<=W/2+2;i+=6){mCtx.beginPath();mCtx.moveTo(cx+i,cy+H);mCtx.lineTo(cx+i+5,cy+H+6);mCtx.stroke();}}
+function drawPin(cx,cy,r,color,fix){if(fix){mCtx.beginPath();mCtx.arc(cx,cy,r+4,0,TAU);mCtx.fillStyle='#F2F7ED';mCtx.fill();mCtx.strokeStyle='#90A4AE';mCtx.lineWidth=1;mCtx.stroke();}mCtx.beginPath();mCtx.arc(cx,cy,r,0,TAU);mCtx.fillStyle='#fff';mCtx.fill();mCtx.strokeStyle=color;mCtx.lineWidth=2.5;mCtx.stroke();mCtx.beginPath();mCtx.arc(cx,cy,3,0,TAU);mCtx.fillStyle=color;mCtx.fill();}
+function drawMArrow(x1,y1,x2,y2,color,lw,hs){if(Math.hypot(x2-x1,y2-y1)<2)return;const a=Math.atan2(y2-y1,x2-x1);mCtx.strokeStyle=color;mCtx.lineWidth=lw;mCtx.lineCap='round';mCtx.beginPath();mCtx.moveTo(x1,y1);mCtx.lineTo(x2,y2);mCtx.stroke();mCtx.fillStyle=color;mCtx.beginPath();mCtx.moveTo(x2,y2);mCtx.lineTo(x2-hs*Math.cos(a-0.38),y2-hs*Math.sin(a-0.38));mCtx.lineTo(x2-hs*Math.cos(a+0.38),y2-hs*Math.sin(a+0.38));mCtx.closePath();mCtx.fill();}
+
+/* ══════════════════════════════════════════════
+   CHARTS
+══════════════════════════════════════════════ */
+const vLP={id:'vLine',afterDraw(chart){
+  const deg=chart.options.plugins.vLine?.deg;if(deg==null)return;
+  const{ctx:c,chartArea:ca,scales:{x}}=chart;const px=x.getPixelForValue(deg);
+  if(!px||px<ca.left||px>ca.right)return;
+  c.save();c.strokeStyle='rgba(230,81,0,.75)';c.lineWidth=1.5;c.setLineDash([4,3]);
+  c.beginPath();c.moveTo(px,ca.top);c.lineTo(px,ca.bottom);c.stroke();c.restore();
+}};
+Chart.register(vLP);
+let charts={};
+
+function cOpts(yTitle,legend){
+  return{responsive:true,maintainAspectRatio:true,animation:false,
+    plugins:{legend:{display:!!legend,position:'top',labels:{boxWidth:14,font:{size:9}}},vLine:{deg:0},
+      tooltip:{mode:'index',intersect:false,callbacks:{title:i=>`θ₂=${i[0].parsed.x}°`,label:i=>`${i.dataset.label}: ${i.parsed.y!=null?i.parsed.y.toFixed(3):'—'}`}}},
+    scales:{
+      x:{type:'linear',min:0,max:359,title:{display:true,text:'Crank Angle θ₂ (°)',font:{size:10}},ticks:{stepSize:60,font:{size:9}},grid:{color:'#EEF2F5'}},
+      y:{title:{display:true,text:yTitle,font:{size:10}},ticks:{font:{size:9},maxTicksLimit:6},grid:{color:'#EEF2F5'}}
+    }};
+}
+function mkDS(label,color,dash,fill){return{label,data:[],borderColor:color,backgroundColor:color+(fill?'22':'00'),borderWidth:2,pointRadius:0,fill:!!fill,tension:0.3,spanGaps:false,...(dash?{borderDash:dash}:{})};}
+function toXY(arr){return(arr||[]).map((v,i)=>({x:i,y:v}));}
+
+function initCharts(){
+  charts['ch-fs']  =new Chart(document.getElementById('ch-fs'),  {type:'line',data:{datasets:[mkDS('|Fs| Original (N)','rgba(198,40,40,.7)',null,false),mkDS('|Fs| Balanced (N)','#208D44',null,true)]},options:cOpts('|Fs| (N)',true)});
+  charts['ch-fsxy']=new Chart(document.getElementById('ch-fsxy'), {type:'line',data:{datasets:[mkDS('Fs_x balanced','#055934',null,false),mkDS('Fs_y balanced','#A68A58',[5,3],false)]},options:cOpts('Force (N)',true)});
+  charts['ch-ts']  =new Chart(document.getElementById('ch-ts'),   {type:'line',data:{datasets:[mkDS('|Ts| Original','rgba(198,40,40,.7)',null,false),mkDS('|Ts| Balanced','#2BB673',null,true)]},options:cOpts('|Ts| (N·m)',true)});
+  charts['ch-pct'] =new Chart(document.getElementById('ch-pct'),  {type:'line',data:{datasets:[mkDS('Reduction %','#0A353E',null,true)]},options:cOpts('Reduction (%)')});
+}
+
+function updateLinkageCharts(){
+  if(!cycleData)return;
+  charts['ch-fs'].data.datasets[0].data  =toXY(cycleData.FSorig);
+  charts['ch-fs'].data.datasets[1].data  =toXY(cycleData.FSbal);
+  charts['ch-fsxy'].data.datasets[0].data=toXY(cycleData.FSxy_bal_x);
+  charts['ch-fsxy'].data.datasets[1].data=toXY(cycleData.FSxy_bal_y);
+  charts['ch-ts'].data.datasets[0].data  =toXY(cycleData.TSorig);
+  charts['ch-ts'].data.datasets[1].data  =toXY(cycleData.TSbal);
+  // % reduction per angle
+  const pct=cycleData.FSorig.map((v,i)=>{
+    if(v==null||cycleData.FSbal[i]==null||v<0.001)return null;
+    return Math.max(0,(v-cycleData.FSbal[i])/v*100);
+  });
+  charts['ch-pct'].data.datasets[0].data=toXY(pct);
+  updateChartMarkers();
+  Object.values(charts).forEach(ch=>ch.update('none'));
+}
+
+function updateChartMarkers(){
+  const deg=Math.round(theta2*R2D)%360;
+  Object.values(charts).forEach(ch=>{if(ch.options.plugins.vLine)ch.options.plugins.vLine.deg=deg;ch.update('none');});
+}
+
+/* ══════════════════════════════════════════════
+   ANIMATION
+══════════════════════════════════════════════ */
+function animLoop(ts){
+  if(!lastTs)lastTs=ts;
+  const dt=Math.min((ts-lastTs)/1000,0.05);lastTs=ts;
+  let newTh=theta2+linkState.omega2*dt*animDir;
+  if(!positionAnalysis(newTh,linkState.a,linkState.b,linkState.c,linkState.d,linkState.asm)){animDir=-animDir;newTh=theta2+linkState.omega2*dt*animDir;}
+  theta2=((newTh%TAU)+TAU)%TAU;
+  drawMechanism(theta2);
+  if(isAnim)rafId=requestAnimationFrame(animLoop);
+}
+function toggleAnim(){
+  isAnim=!isAnim;const btn=document.getElementById('anim-btn');
+  if(isAnim){lastTs=null;animDir=1;btn.textContent='⏸ Pause';btn.className='btn btn-r';rafId=requestAnimationFrame(animLoop);}
+  else{btn.textContent='▶ Animate';btn.className='btn btn-p';if(rafId)cancelAnimationFrame(rafId);}
+}
+function resetCrank(){theta2=0;animDir=1;drawMechanism(0);document.getElementById('theta2-range').value=0;document.getElementById('th2-lbl').textContent='0°';}
+function stepCrank(deg){if(isAnim)return;theta2=((theta2+deg*D2R)%TAU+TAU)%TAU;drawMechanism(theta2);}
+
+/* ══════════════════════════════════════════════
+   REFRESH FUNCTIONS
+══════════════════════════════════════════════ */
+function refreshRotor(){
+  if(currentTab!=='rotor')return;
+  refreshRotorInternal();
+}
+function refreshRotorInternal(){
+  if(masses.length===0){clearRotorPanel();drawShaftDiagram(null);drawPolarPolygon(null);return;}
+  const res=rotorBalance();
+  updateRotorPanel(res);
+  drawShaftDiagram(res);
+  drawPolarPolygon(res);
+  updateDiagnosticsRotor(res);
+}
+
+function readLinkageInputs(){
+  validateLinkInputs();
+  linkState.a=parseFloat(document.getElementById('la').value)||2;
+  linkState.b=parseFloat(document.getElementById('lb').value)||4.5;
+  linkState.c=parseFloat(document.getElementById('lc').value)||3.5;
+  linkState.d=parseFloat(document.getElementById('ld').value)||4;
+  linkState.m2=parseFloat(document.getElementById('lm2').value)||0.5;
+  linkState.m3=parseFloat(document.getElementById('lm3').value)||1.0;
+  linkState.m4=parseFloat(document.getElementById('lm4').value)||0.75;
+  linkState.k=parseFloat(document.getElementById('cw-k').value)||0;
+  linkState.rcw=parseFloat(document.getElementById('cw-r').value)||1;
+  linkState.omega2=(parseFloat(document.getElementById('lspd').value)||30)*TAU/60;
+  linkState.asm=document.getElementById('asm-tog').checked?-1:1;
+}
+
+function refreshLinkage(){
+  if(currentTab!=='linkage')return;
+  readLinkageInputs();
+  displayGrashof();
+  computeLinkageCycle();
+  updateLinkageCharts();
+  drawMechanism(theta2);
+  updateDiagnosticsLinkage();
+}
+
+function updateDiagnosticsRotor(res){
+  const el=document.getElementById('diag-list-rotor');
+  if(!el||!res) return;
+  const obs=[];
+  obs.push(`<b>Static imbalance |ΣmR| = ${res.sMR.toFixed(3)} g·mm.</b> `
+    +(res.sMR<1?'✓ Nearly balanced — excellent.':res.sMR<10?'Moderate imbalance.':'⚠ Large static imbalance — significant centrifugal force at speed.'));
+  obs.push(`<b>Static correction (plane A):</b> Add ${(res.mcA_static*res.rCorr).toFixed(2)} g·mm at ${res.angA_static.toFixed(1)}°. `
+    +`At r_corr = ${res.rCorr} mm, mass = ${res.mcA_static.toFixed(3)} g.`);
+  if(res.mcB>0){
+    obs.push(`<b>Dynamic balance uses 2 planes.</b> Plane B correction: ${(res.mcB*res.rCorr).toFixed(2)} g·mm at ${res.angB.toFixed(1)}°; Plane A correction: ${(res.mcA_dyn*res.rCorr).toFixed(2)} g·mm at ${res.angA_dyn.toFixed(1)}°.`);
+    obs.push(`<b>Residual after 2-plane correction: ${res.residual.toExponential(2)} g·mm</b> — machine precision. The polar polygon should close exactly.`);
+  } else {
+    obs.push(`<b>All masses in the same axial plane</b> — static balance is sufficient. No rocking couple exists.`);
+  }
+  obs.push(`<b>ISO balance grade note:</b> G6.3 (general machinery) requires eₚ = |ΣmR|/M < 6.3 mm at rated speed. Tighter grades (G2.5, G1) apply to precision spindles and turbines.`);
+  el.innerHTML=obs.map((o,i)=>`<div style="padding:4px 0;border-bottom:1px solid #EEF2F5">${i+1}. ${o}</div>`).join('');
+}
+
+function updateDiagnosticsLinkage(){
+  const el=document.getElementById('diag-list-linkage');
+  if(!el||!window._linkCycle) return;
+  const obs=[];
+  const cyc=window._linkCycle;
+  const k=linkState.k, rcw=linkState.rcw;
+  const fsorig=Math.max(...cyc.fsOrig.map(Math.abs));
+  const fsbal=Math.max(...cyc.fsBal.map(Math.abs));
+  const pct=((fsorig-fsbal)/Math.max(1e-6,fsorig)*100).toFixed(1);
+  obs.push(`<b>Shaking force reduction: ${pct}%</b> with k=${k}, r_cw=${rcw} cm. `
+    +(parseFloat(pct)>60?'Excellent reduction — well-chosen counterweight.':parseFloat(pct)<20?'Small reduction — try increasing k toward 1.0.':'Moderate reduction.'));
+  obs.push(`<b>Trade-off:</b> A counterweight on link 2 only partially balances the mechanism. Link 3 (coupler) and link 4 (follower) inertia forces are not addressed. Full balance requires additional counterweights on links 3 and 4 (not shown here).`);
+  obs.push(`<b>Shaking torque</b> may increase when adding a counterweight — check the |Ts| chart. This is a known trade-off: force balance often worsens torque balance.`);
+  obs.push(`<b>Physical meaning:</b> Shaking force = Newton's 3rd law reaction of link inertia on the frame. Reducing it lowers vibration transmitted to the foundation and extends bearing life.`);
+  el.innerHTML=obs.map((o,i)=>`<div style="padding:4px 0;border-bottom:1px solid #EEF2F5">${i+1}. ${o}</div>`).join('');
+}
+
+function setLP(n){const p={cr:{a:2,b:4.5,c:3.5,d:4},dc:{a:3,b:5,c:4.5,d:2}}[n];if(!p)return;['a','b','c','d'].forEach(k=>{document.getElementById('l'+k).value=p[k];});refreshLinkage();}
+
+function validateLinkInputs(){
+  const ids=['la','lb','lc','ld'];
+  let ok=true;
+  ids.forEach(id=>{const el=document.getElementById(id);const v=parseFloat(el.value);const bad=!isFinite(v)||v<=0;el.classList.toggle('invalid',bad);if(bad)ok=false;});
+  const err=document.getElementById('link-err');
+  if(err){err.textContent=ok?'':'All link lengths must be positive numbers.';err.classList.toggle('show',!ok);}
+  return ok;
+}
+
+function pushToM1(){
+  const a=parseFloat(document.getElementById('la').value);
+  const b=parseFloat(document.getElementById('lb').value);
+  const c=parseFloat(document.getElementById('lc').value);
+  const d=parseFloat(document.getElementById('ld').value);
+  const rpm=parseFloat(document.getElementById('lspd').value)||30;
+  if([a,b,c,d].some(v=>!isFinite(v)||v<=0)){alert('Fix link lengths before pushing to Module 1.');return;}
+  const assembly=document.getElementById('asm-tog').checked?-1:1;
+  localStorage.setItem('meng364_mechanism',JSON.stringify({a,b,c,d,rpm,assembly,ts:Date.now()}));
+  const btn=event.currentTarget;btn.textContent='✓ Pushed!';setTimeout(()=>btn.textContent='↑ Push to Module 1',1500);
+}
+
+/* ══════════════════════════════════════════════
+   WIRING
+══════════════════════════════════════════════ */
+// Rotor inputs
+['lA','lB','r-corr'].forEach(id=>document.getElementById(id)?.addEventListener('input',()=>refreshRotorInternal()));
+
+// Linkage inputs
+['la','lb','lc','ld','lm2','lm3','lm4','cw-k','cw-r','lspd'].forEach(id=>document.getElementById(id)?.addEventListener('input',refreshLinkage));
+
+// k slider sync
+document.getElementById('k-range').addEventListener('input',function(){
+  document.getElementById('cw-k').value=this.value;
+  document.getElementById('k-lbl').textContent=(+this.value).toFixed(2);
+  refreshLinkage();
+});
+document.getElementById('cw-k').addEventListener('input',function(){
+  document.getElementById('k-range').value=this.value;
+  document.getElementById('k-lbl').textContent=(+this.value).toFixed(2);
+});
+
+document.getElementById('theta2-range').addEventListener('input',function(){
+  if(isAnim)return;theta2=(+this.value)*D2R;
+  document.getElementById('th2-lbl').textContent=`${this.value}°`;
+  drawMechanism(theta2);
+});
+
+let rt;window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(currentTab==='rotor')refreshRotorInternal();else{drawMechanism(theta2);updateChartMarkers();}},120);});
+
+function loadFromM1(){
+  try{
+    const st=JSON.parse(localStorage.getItem('meng364_mechanism')||'null');
+    if(!st) return;
+    document.getElementById('la').value=st.a;
+    document.getElementById('lb').value=st.b;
+    document.getElementById('lc').value=st.c;
+    document.getElementById('ld').value=st.d;
+    if(st.rpm) document.getElementById('lspd').value=st.rpm;
+    const tog=document.getElementById('asm-tog');
+    if(tog) tog.checked=(st.assembly===-1);
+    refreshLinkage();
+  }catch(e){}
+}
+function checkM1Banner(){
+  try{
+    const st=JSON.parse(localStorage.getItem('meng364_mechanism')||'null');
+    const b=document.getElementById('m1-banner');
+    if(!b) return;
+    if(st && st.ts){
+      const mins=Math.round((Date.now()-st.ts)/60000);
+      document.getElementById('m1-banner-text').textContent=
+        `Module 1 saved ${mins<2?'just now':mins+' min ago'} — a=${st.a}, b=${st.b}, c=${st.c}, d=${st.d} cm`;
+      b.style.display='flex';
+    }
+  }catch(e){}
+}
+function addChartExportButtons(){
+  document.querySelectorAll('.plt-card').forEach(card=>{
+    const cv=card.querySelector('canvas');
+    if(!cv||card.querySelector('.plt-dl-btn')) return;
+    const ttl=card.querySelector('.plt-ttl');
+    const name=(ttl?ttl.textContent.replace(/[^a-zA-Z0-9_]/g,'_').slice(0,30):'chart');
+    const btn=document.createElement('button');
+    btn.className='plt-dl-btn'; btn.title='Download chart as PNG'; btn.textContent='⬇ PNG';
+    btn.onclick=()=>{ const a=document.createElement('a'); a.href=cv.toDataURL('image/png'); a.download=name+'.png'; a.click(); };
+    card.appendChild(btn);
+  });
+}
+window.addEventListener('DOMContentLoaded',()=>{
+  initCharts();
+  checkM1Banner();
+  loadPreset('dynamic');  // default: show a dynamic imbalance example
+  refreshLinkage();       // pre-compute linkage cycle too
+  switchTab('rotor');     // start on rotor tab
+  addChartExportButtons();
+
+  // Zoom/pan on mechCanvas
+  mechCv.addEventListener('wheel',e=>{
+    e.preventDefault();
+    const rect=mechCv.getBoundingClientRect();
+    const mx=(e.clientX-rect.left)/rect.width*CW;
+    const my=(e.clientY-rect.top)/rect.height*CH;
+    const oldZoom=viewZoom;
+    viewZoom=Math.min(8,Math.max(0.2,viewZoom*(e.deltaY<0?1.12:1/1.12)));
+    const f=viewZoom/oldZoom;
+    panX=(mx-CW/2)-((mx-CW/2)-panX)*f;
+    panY=(my-CH/2)-((my-CH/2)-panY)*f;
+    updateZoomLbl();drawMechanism(theta2);
+  },{passive:false});
+  mechCv.addEventListener('mousedown',e=>{_isPanning=true;_dragX=e.clientX;_dragY=e.clientY;mechCv.style.cursor='grabbing';});
+  window.addEventListener('mousemove',e=>{if(!_isPanning)return;const rect=mechCv.getBoundingClientRect();const scl=CW/rect.width;panX+=(e.clientX-_dragX)*scl;panY+=(e.clientY-_dragY)*scl;_dragX=e.clientX;_dragY=e.clientY;drawMechanism(theta2);});
+  window.addEventListener('mouseup',()=>{_isPanning=false;mechCv.style.cursor='grab';});
+  mechCv.addEventListener('dblclick',resetView);
+});
+</script>
+<script>document.querySelector('.mod-pill.active')?.scrollIntoView({inline:'center',block:'nearest'});</script>
+</body>
+</html>

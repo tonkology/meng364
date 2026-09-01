@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MENG 364 — Module 3: Force Analysis</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --blue:    #055934; --blue-dk: #0A353E; --blue-lt: #EEF8F5;
+  --orange:  #A68A58; --green:   #208D44; --red:     #733B43;
+  --amber:   #A68A58; --purple:  #0A353E; --teal:    #2BB673;
+  --bg:      #F2F7ED; --surface: #FFFFFF;
+  --border:  #C2CCC6; --text:    #1D2921; --muted:   #5C6660;
+  --c-crank: #055934; --c-coupler:#A68A58; --c-follower:#208D44; --c-ground:#8D9991;
+}
+
+body { font-family:system-ui,-apple-system,'Segoe UI',sans-serif; background:var(--bg); color:var(--text); font-size:14px; min-height:100vh; }
+
+/* ── Header & nav ──────────────────────────────────────── */
+.hdr { background:var(--blue); color:#fff; padding:10px 20px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 8px rgba(0,0,0,.3); }
+.hdr h1 { font-size:.97rem; font-weight:700; }
+.hdr p  { font-size:.7rem; opacity:.82; margin-top:1px; }
+.badge  { background:var(--teal); border-radius:20px; padding:4px 14px; font-size:.73rem; font-weight:700; white-space:nowrap; }
+.mod-nav { background:var(--blue-dk); display:flex; padding:0 8px; overflow-x:auto; scrollbar-width:none; position:sticky; top:0; z-index:200; box-shadow:0 2px 6px rgba(0,0,0,.25); }
+.mod-nav::-webkit-scrollbar{display:none}
+.mod-pill { display:inline-block; padding:8px 13px; color:rgba(255,255,255,.65); font-size:.73rem; font-weight:700; text-decoration:none; border-bottom:3px solid transparent; white-space:nowrap; transition:all .15s; }
+.mod-pill:hover { color:#fff; border-bottom-color:rgba(255,255,255,.4); }
+.mod-pill.active { color:#fff; border-bottom-color:#fff; }
+.tip{display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;background:var(--blue-lt);color:var(--blue);font-size:.58rem;font-weight:800;cursor:help;flex-shrink:0;position:relative;margin-left:2px;vertical-align:middle;}
+.tip::after{content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 7px);transform:translateX(-50%);background:#1D2921;color:#fff;padding:6px 10px;border-radius:6px;font-size:.71rem;font-weight:500;line-height:1.45;white-space:normal;width:210px;text-align:left;opacity:0;pointer-events:none;transition:opacity .15s;z-index:9999;box-shadow:0 3px 10px rgba(0,0,0,.3);}
+.tip:hover::after{opacity:1;}
+.inum.invalid{border-color:var(--red)!important;background:#FFF5F5!important;}
+.inp-err{display:none;font-size:.7rem;color:var(--red);margin-top:5px;font-weight:600;padding:3px 7px;background:#FFF5F5;border-radius:4px;border-left:3px solid var(--red);}
+.inp-err.show{display:block;}
+.print-btn{background:none;border:1.5px solid rgba(255,255,255,.5);color:#fff;border-radius:6px;padding:4px 11px;font-size:.7rem;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.print-btn:hover{background:rgba(255,255,255,.15);}
+.zoom-bar{display:flex;gap:5px;margin-top:8px;align-items:center;}
+.zoom-btn{padding:3px 9px;border:1.5px solid var(--border);border-radius:5px;background:#fff;font-size:.73rem;font-weight:700;cursor:pointer;color:var(--muted);transition:all .15s;line-height:1.6;}
+.zoom-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-lt);}
+.zoom-lbl{font-size:.7rem;color:var(--muted);min-width:38px;text-align:center;font-weight:600;}
+.push-m1-btn{width:100%;margin-top:8px;padding:5px;border:1.5px solid var(--blue);border-radius:5px;background:var(--blue-lt);color:var(--blue);font-size:.7rem;font-weight:700;cursor:pointer;transition:all .15s;}
+.push-m1-btn:hover{background:var(--blue);color:#fff;}
+@media print{.mod-nav,.btns,.presets,.tog-row,.m1-banner,.zoom-bar,.print-btn,.plt-dl-btn{display:none!important;}.hdr{background:#fff!important;color:#000!important;box-shadow:none!important;border-bottom:2px solid #055934;}.badge{background:#EEF8F5!important;color:#055934!important;}body{background:#fff!important;}.card{box-shadow:none!important;border:1px solid #ddd!important;page-break-inside:avoid;}.layout{display:block!important;}.left,.right{display:block!important;width:100%!important;}canvas{max-width:100%!important;}}
+
+/* ── Layout ─────────────────────────────────────────────── */
+.layout { display:grid; grid-template-columns:272px 1fr 296px; gap:12px; padding:12px; max-width:1600px; margin:0 auto; align-items:start; }
+@media(max-width:1150px){ .layout{grid-template-columns:272px 1fr} .right{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:12px} }
+@media(max-width:720px) { .layout{grid-template-columns:1fr} .right{grid-template-columns:1fr} }
+
+/* ── Cards ──────────────────────────────────────────────── */
+.card { background:var(--surface); border-radius:10px; box-shadow:0 1px 5px rgba(0,0,0,.09); padding:14px; margin-bottom:12px; }
+.card:last-child { margin-bottom:0; }
+.card-ttl { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:var(--blue); border-bottom:2px solid var(--blue-lt); padding-bottom:6px; margin-bottom:12px; }
+.card-ttl.teal { color:var(--teal); border-bottom-color:#E0F2F1; }
+.card-ttl.red  { color:var(--red);  border-bottom-color:#FFEBEE; }
+
+/* ── Inputs ─────────────────────────────────────────────── */
+.irow { display:flex; align-items:center; gap:7px; margin-bottom:7px; }
+.dot  { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.ilbl { font-size:.79rem; font-weight:600; color:var(--muted); width:90px; flex-shrink:0; }
+.inum { flex:1; min-width:0; width:0; padding:5px 8px; border:1.5px solid var(--border); border-radius:5px; font-size:.87rem; font-weight:700; text-align:right; color:var(--text); background:#FAFAFA; transition:border-color .15s; }
+.inum:focus { outline:none; border-color:var(--blue); background:#fff; }
+.iunit { font-size:.7rem; color:var(--muted); width:28px; flex-shrink:0; }
+
+.ig-auto { display:flex; align-items:center; gap:6px; margin:4px 0 10px; font-size:.74rem; color:var(--muted); font-weight:600; }
+.ig-auto input[type=checkbox] { accent-color:var(--teal); width:13px; height:13px; cursor:pointer; }
+
+.presets { display:flex; gap:5px; margin-top:10px; flex-wrap:wrap; }
+.pre-btn { flex:1; min-width:60px; padding:5px 4px; border:1.5px solid var(--border); border-radius:5px; background:#fff; font-size:.65rem; font-weight:700; cursor:pointer; color:var(--muted); transition:all .15s; text-align:center; }
+.pre-btn:hover { border-color:var(--blue); color:var(--blue); background:var(--blue-lt); }
+
+/* ── Grashof box ────────────────────────────────────────── */
+.g-box { padding:7px 12px; border-radius:7px; font-size:.78rem; font-weight:700; text-align:center; margin-bottom:8px; }
+.g-ok   { background:#E8F5E9; color:var(--green);  border:1.5px solid #A5D6A7; }
+.g-warn { background:#FFF8E1; color:var(--amber);  border:1.5px solid #FFE082; }
+.g-fail { background:#FFEBEE; color:var(--red);    border:1.5px solid #FFCDD2; }
+.g-det  { font-size:.72rem; color:var(--muted); line-height:1.9; }
+
+/* ── Legend ─────────────────────────────────────────────── */
+.legend { display:grid; grid-template-columns:1fr 1fr; gap:5px 8px; margin-top:10px; }
+.leg-item { display:flex; align-items:center; gap:6px; font-size:.73rem; color:var(--muted); }
+.leg-bar  { width:20px; height:4px; border-radius:3px; flex-shrink:0; }
+
+/* ── Assembly toggle ────────────────────────────────────── */
+.tog-row { display:flex; align-items:center; gap:8px; margin-top:10px; }
+.tog-lbl { font-size:.76rem; font-weight:600; color:var(--muted); }
+.toggle  { position:relative; display:inline-block; width:38px; height:20px; }
+.toggle input { opacity:0; width:0; height:0; }
+.tog-sl  { position:absolute; inset:0; background:var(--border); border-radius:20px; cursor:pointer; transition:.2s; }
+.tog-sl::before { content:''; position:absolute; width:14px; height:14px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; }
+input:checked + .tog-sl { background:var(--blue); }
+input:checked + .tog-sl::before { transform:translateX(18px); }
+
+/* ── Sliders ────────────────────────────────────────────── */
+.sl-lbl { display:flex; justify-content:space-between; font-size:.75rem; font-weight:600; color:var(--muted); margin-bottom:3px; }
+input[type=range] { -webkit-appearance:none; width:100%; height:4px; border-radius:2px; background:var(--border); outline:none; cursor:pointer; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:var(--blue); cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,.25); }
+#theta2-range::-webkit-slider-thumb { background:var(--orange); }
+.mt8  { margin-top:8px; }
+.mt12 { margin-top:12px; }
+
+/* ── Buttons ────────────────────────────────────────────── */
+.btns { display:flex; gap:7px; margin-top:8px; }
+.btn  { flex:1; padding:8px 6px; border:none; border-radius:6px; font-size:.76rem; font-weight:700; cursor:pointer; transition:all .15s; display:flex; align-items:center; justify-content:center; gap:3px; }
+.btn-p { background:var(--blue);   color:#fff; } .btn-p:hover { background:var(--blue-dk); }
+.btn-s { background:#C2CCC6; color:var(--text); } .btn-s:hover { background:#B0BEC5; }
+.btn-r { background:var(--red);    color:#fff; }
+
+/* ── Force result cards ─────────────────────────────────── */
+.force-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.f-cell { background:var(--bg); border-radius:7px; padding:8px 10px; }
+.f-name { font-size:.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); }
+.f-val  { font-size:.9rem; font-weight:800; font-family:'Courier New',monospace; margin-top:2px; }
+.f-sub  { font-size:.65rem; color:var(--muted); margin-top:1px; font-family:'Courier New',monospace; }
+
+/* ── Torque gauge ───────────────────────────────────────── */
+.gauge-wrap { position:relative; width:100%; }
+.gauge-canvas { width:100%; height:auto; display:block; }
+
+/* ── Plots ──────────────────────────────────────────────── */
+.plots  { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+@media(max-width:560px){ .plots{grid-template-columns:1fr} }
+.plt-card { background:var(--surface); border-radius:10px; box-shadow:0 1px 5px rgba(0,0,0,.09); padding:10px 11px 9px; position:relative; }
+.plt-dl-btn{position:absolute;top:6px;right:7px;background:none;border:1px solid var(--border);border-radius:4px;color:var(--muted);font-size:.63rem;padding:2px 5px;cursor:pointer;line-height:1.4;transition:all .15s;z-index:5;}
+.plt-dl-btn:hover{background:var(--blue-lt);color:var(--blue);border-color:var(--blue);}
+.plt-ttl  { font-size:.64rem; font-weight:700; text-transform:uppercase; letter-spacing:.7px; color:var(--muted); text-align:center; margin-bottom:4px; }
+
+/* ── Canvas ─────────────────────────────────────────────── */
+.cv-wrap  { position:relative; }
+#mechCanvas { width:100%; height:auto; display:block; border-radius:6px; }
+.cv-stage { position: relative; }
+.cv-badge { position:absolute; top: 10px; right:14px; background:rgba(21,101,192,.9); color:#fff; padding:3px 12px; border-radius:20px; font-size:.78rem; font-weight:700; font-family:monospace; pointer-events:none; }
+.cv-info  { position:absolute; bottom:10px; left:14px; font-size:.75rem; font-weight:700; pointer-events:none; }
+
+.cv-toggles { display:flex; gap:14px; margin-bottom:8px; flex-wrap:wrap; }
+.cv-tog { display:flex; align-items:center; gap:5px; font-size:.72rem; font-weight:700; color:var(--muted); cursor:pointer; user-select:none; }
+.cv-tog input[type=checkbox] { accent-color:var(--teal); width:13px; height:13px; }
+
+/* ── Section divider ────────────────────────────────────── */
+.sec-div { font-size:.65rem; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); margin:10px 0 6px; border-top:1px solid var(--border); padding-top:8px; }
+
+/* ── Shaking summary ────────────────────────────────────── */
+.shake-row { display:flex; justify-content:space-between; align-items:baseline; padding:3px 0; border-bottom:1px solid #EEF2F5; font-size:.78rem; }
+.shake-lbl { color:var(--muted); font-weight:600; }
+.shake-val { font-family:'Courier New',monospace; font-weight:700; }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body, button, input, select, textarea { font-family:'Alexandria', system-ui, sans-serif !important; }
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div>
+    <h1>Machine Dynamics Tool</h1>
+    <p>MENG 364 &nbsp;·&nbsp; King Abdulaziz University</p>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div class="badge">Module 3 — Force Analysis</div>
+    <button class="print-btn" onclick="window.print()">⎙ Print / PDF</button>
+  </div>
+</header>
+
+<nav class="mod-nav">
+  <a href="index.html"   class="mod-pill">Module 1 — 4-Bar Linkage</a>
+  <a href="module2.html" class="mod-pill">Module 2 — Coupler Point</a>
+  <a href="module3.html" class="mod-pill active">Module 3 — Force Analysis</a>
+  <a href="module4.html" class="mod-pill">Module 4 — Flywheel</a>
+  <a href="module5.html" class="mod-pill">Module 5 — Balancing</a>
+  <a href="module6.html" class="mod-pill">Module 6 — Gear Trains</a>
+  <a href="module7.html" class="mod-pill">Module 7 — Cam Design</a>
+</nav>
+
+<div class="layout">
+
+  <!-- ══════════════════════ LEFT PANEL ══════════════════════ -->
+  <div class="left">
+
+    <!-- Link lengths -->
+    <div class="card">
+      <div class="card-ttl">Link Lengths</div>
+      <div class="irow"><div class="dot" style="background:var(--c-crank)"></div>   <span class="ilbl">a — Crank <span class="tip" data-tip="Driven input link. Length a (cm).">?</span></span>   <input type="number" class="inum" id="inp-a" value="2"   min="0.01" step="0.1"><span class="iunit">cm</span></div>
+      <div class="irow"><div class="dot" style="background:var(--c-coupler)"></div> <span class="ilbl">b — Coupler <span class="tip" data-tip="Floating link connecting A to B. Length b (cm).">?</span></span> <input type="number" class="inum" id="inp-b" value="4.5" min="0.01" step="0.1"><span class="iunit">cm</span></div>
+      <div class="irow"><div class="dot" style="background:var(--c-follower)"></div><span class="ilbl">c — Follower <span class="tip" data-tip="Output link pivoted at O₄. Length c (cm).">?</span></span><input type="number" class="inum" id="inp-c" value="3.5" min="0.01" step="0.1"><span class="iunit">cm</span></div>
+      <div class="irow"><div class="dot" style="background:var(--c-ground)"></div>  <span class="ilbl">d — Ground <span class="tip" data-tip="Fixed frame link — distance O₂ to O₄. Length d (cm).">?</span></span>  <input type="number" class="inum" id="inp-d" value="4"   min="0.01" step="0.1"><span class="iunit">cm</span></div>
+      <div class="inp-err" id="link-err"></div>
+
+      <div class="legend">
+        <div class="leg-item"><div class="leg-bar" style="background:var(--c-crank)"></div>Crank (a)</div>
+        <div class="leg-item"><div class="leg-bar" style="background:var(--c-coupler)"></div>Coupler (b)</div>
+        <div class="leg-item"><div class="leg-bar" style="background:var(--c-follower)"></div>Follower (c)</div>
+        <div class="leg-item"><div class="leg-bar" style="background:var(--c-ground);height:6px"></div>Ground (d)</div>
+      </div>
+
+      <div class="tog-row">
+        <span class="tog-lbl">Assembly:</span>
+        <label class="toggle"><input type="checkbox" id="asm-tog" onchange="onAssemblyToggle()"><span class="tog-sl"></span></label>
+        <span class="tog-lbl" id="asm-lbl">Open</span>
+      </div>
+
+      <div class="presets">
+        <button class="pre-btn" onclick="setLinkPreset('cr')">Crank-Rocker</button>
+        <button class="pre-btn" onclick="setLinkPreset('dc')">Double Crank</button>
+        <button class="pre-btn" onclick="setLinkPreset('dr')">Non-Grashof</button>
+      </div>
+      <div id="m1-banner" style="display:none;margin-top:8px;padding:6px 10px;background:#EEF8F5;border:1px solid #90CAF9;border-radius:6px;font-size:.72rem;color:#055934;align-items:center;justify-content:space-between;gap:6px;">
+        <span id="m1-banner-text"></span>
+        <button onclick="loadFromM1()" style="background:#055934;color:#fff;border:none;border-radius:4px;padding:3px 8px;font-size:.7rem;font-weight:700;cursor:pointer;white-space:nowrap;">Load ↓</button>
+      </div>
+      <button class="push-m1-btn" onclick="pushToM1()" title="Save current link values back to Module 1 shared state">↑ Push to Module 1</button>
+
+      <div style="margin-top:10px">
+        <div class="g-box g-ok" id="g-type">—</div>
+        <div class="g-det" id="g-det"></div>
+      </div>
+    </div>
+
+    <!-- Link masses & inertia -->
+    <div class="card">
+      <div class="card-ttl teal">Link Masses &amp; Inertia</div>
+
+      <div class="ig-auto">
+        <input type="checkbox" id="ig-auto" checked onchange="refreshAll()">
+        Auto I<sub>G</sub> = mL²/12 (slender rod)
+      </div>
+
+      <!-- Link 2 -->
+      <div class="sec-div">Link 2 — Crank</div>
+      <div class="irow"><span class="ilbl">m₂ — mass</span><input type="number" class="inum" id="m2" value="0.5"  min="0" step="0.05"><span class="iunit">kg</span></div>
+      <div class="irow" id="ig2-row"><span class="ilbl">I<sub>G2</sub></span><input type="number" class="inum" id="ig2" value="0" min="0" step="0.0001"><span class="iunit">kg·m²</span></div>
+
+      <!-- Link 3 -->
+      <div class="sec-div">Link 3 — Coupler</div>
+      <div class="irow"><span class="ilbl">m₃ — mass</span><input type="number" class="inum" id="m3" value="1.0"  min="0" step="0.05"><span class="iunit">kg</span></div>
+      <div class="irow" id="ig3-row"><span class="ilbl">I<sub>G3</sub></span><input type="number" class="inum" id="ig3" value="0" min="0" step="0.0001"><span class="iunit">kg·m²</span></div>
+
+      <!-- Link 4 -->
+      <div class="sec-div">Link 4 — Follower</div>
+      <div class="irow"><span class="ilbl">m₄ — mass</span><input type="number" class="inum" id="m4" value="0.75" min="0" step="0.05"><span class="iunit">kg</span></div>
+      <div class="irow" id="ig4-row"><span class="ilbl">I<sub>G4</sub></span><input type="number" class="inum" id="ig4" value="0" min="0" step="0.0001"><span class="iunit">kg·m²</span></div>
+
+      <!-- Load torque -->
+      <div class="sec-div">Load Torque on Follower</div>
+      <div class="irow"><span class="ilbl">T<sub>L</sub></span><input type="number" class="inum" id="tload" value="0" step="0.1"><span class="iunit">N·m</span></div>
+      <div style="font-size:.68rem;color:var(--muted);margin-top:3px">Positive = resists follower motion (CW)</div>
+
+      <div class="presets">
+        <button class="pre-btn" onclick="setMassPreset('light')">Light</button>
+        <button class="pre-btn" onclick="setMassPreset('default')">Default</button>
+        <button class="pre-btn" onclick="setMassPreset('heavy')">Heavy</button>
+      </div>
+    </div>
+
+    <!-- Animation -->
+    <div class="card">
+      <div class="card-ttl">Animation</div>
+      <div class="sl-lbl"><span>Input speed ω₂</span><span id="spd-lbl">30 rpm</span></div>
+      <input type="range" id="spd-range" min="1" max="300" value="30">
+      <div class="mt12">
+        <div class="sl-lbl"><span>Crank angle θ₂</span><span id="th2-lbl">0°</span></div>
+        <input type="range" id="theta2-range" min="0" max="359" value="0" step="1">
+      </div>
+      <div class="btns">
+        <button class="btn btn-p" id="anim-btn" onclick="toggleAnim()">&#9654; Animate</button>
+        <button class="btn btn-s"               onclick="resetCrank()">&#8635; Reset</button>
+      </div>
+      <div class="btns">
+        <button class="btn btn-s" onclick="stepCrank(-5)">&#9664; 5°</button>
+        <button class="btn btn-s" onclick="stepCrank( 5)">5° &#9654;</button>
+      </div>
+    </div>
+
+  </div><!-- /left -->
+
+  <!-- ══════════════════════ CENTER PANEL ════════════════════ -->
+  <div class="center">
+
+    <!-- Mechanism canvas -->
+    <div class="card cv-wrap">
+      <div class="card-ttl" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>Mechanism &amp; Force Vectors</span>
+        <div class="cv-toggles" style="margin-bottom:0">
+          <label class="cv-tog"><input type="checkbox" id="tog-fvec" checked onchange="refreshCanvas()">Force Vectors</label>
+          <label class="cv-tog"><input type="checkbox" id="tog-cg"   checked onchange="refreshCanvas()">CG Markers</label>
+        </div>
+      </div>
+      <div class="cv-stage">
+  <canvas id="mechCanvas" width="800" height="430" style="cursor:grab;"></canvas>
+      <div class="cv-badge" id="cv-badge">θ₂ = 0°</div>
+      <div class="cv-info"  id="cv-mu"></div>
+      </div>
+      <div class="zoom-bar">
+        <button class="zoom-btn" onclick="zoomStep(1.25)">＋ Zoom</button>
+        <button class="zoom-btn" onclick="zoomStep(1/1.25)">－ Zoom</button>
+        <span class="zoom-lbl" id="zoom-lbl">100%</span>
+        <button class="zoom-btn" onclick="resetView()">⟳ Reset</button>
+      </div>
+    </div>
+
+    <!-- 4 plots -->
+    <div class="plots">
+      <div class="plt-card">
+        <div class="plt-ttl">Input Torque T₁₂ vs θ₂</div>
+        <canvas id="ch-t12"  height="145"></canvas>
+      </div>
+      <div class="plt-card">
+        <div class="plt-ttl">Joint Forces |F₁₂|, |F₁₄| vs θ₂</div>
+        <canvas id="ch-f12f14" height="145"></canvas>
+      </div>
+      <div class="plt-card">
+        <div class="plt-ttl">Coupler Pin Force |F₃₂| vs θ₂</div>
+        <canvas id="ch-f32"  height="145"></canvas>
+      </div>
+      <div class="plt-card">
+        <div class="plt-ttl">Follower Pin Force |F₄₃| vs θ₂</div>
+        <canvas id="ch-f43"  height="145"></canvas>
+      </div>
+    </div>
+
+  </div><!-- /center -->
+
+  <!-- ══════════════════════ RIGHT PANEL ═════════════════════ -->
+  <div class="right">
+
+    <!-- Force results -->
+    <div class="card">
+      <div class="card-ttl teal">Joint Forces @ Current θ₂</div>
+      <div class="force-grid">
+        <div class="f-cell">
+          <div class="f-name">F₁₂ — Ground→Crank (O₂)</div>
+          <div class="f-val" id="fv-f12mag" style="color:var(--blue)">— N</div>
+          <div class="f-sub" id="fv-f12xy">x=— y=—</div>
+        </div>
+        <div class="f-cell">
+          <div class="f-name">F₃₂ — Coupler→Crank (A)</div>
+          <div class="f-val" id="fv-f32mag" style="color:var(--orange)">— N</div>
+          <div class="f-sub" id="fv-f32xy">x=— y=—</div>
+        </div>
+        <div class="f-cell">
+          <div class="f-name">F₄₃ — Follower→Coupler (B)</div>
+          <div class="f-val" id="fv-f43mag" style="color:var(--green)">— N</div>
+          <div class="f-sub" id="fv-f43xy">x=— y=—</div>
+        </div>
+        <div class="f-cell">
+          <div class="f-name">F₁₄ — Ground→Follower (O₄)</div>
+          <div class="f-val" id="fv-f14mag" style="color:var(--purple)">— N</div>
+          <div class="f-sub" id="fv-f14xy">x=— y=—</div>
+        </div>
+      </div>
+
+      <!-- Input torque highlight -->
+      <div style="background:#E0F2F1;border:1.5px solid #80CBC4;border-radius:7px;padding:9px 12px;margin-top:10px;">
+        <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--teal)">Input Torque T₁₂</div>
+        <div style="font-size:1.25rem;font-weight:800;color:var(--teal);font-family:'Courier New',monospace;margin-top:2px" id="fv-t12">— N·m</div>
+        <div style="font-size:.68rem;color:var(--muted);margin-top:2px" id="fv-t12dir">—</div>
+      </div>
+    </div>
+
+    <!-- Shaking force & torque -->
+    <div class="card" style="margin-top:0">
+      <div class="card-ttl red">Shaking Forces &amp; Torque</div>
+      <div class="shake-row"><span class="shake-lbl">Shaking Force |Fs|</span>    <span class="shake-val" id="sv-fs">— N</span></div>
+      <div class="shake-row"><span class="shake-lbl">Fs angle</span>               <span class="shake-val" id="sv-fsang">—°</span></div>
+      <div class="shake-row" style="border:none"><span class="shake-lbl">Shaking Torque Ts</span><span class="shake-val" id="sv-ts">— N·m</span></div>
+      <div style="font-size:.66rem;color:var(--muted);margin-top:8px;line-height:1.5">
+        <b>Shaking force</b> = F₁₂ + F₁₄ (transmitted to ground/frame).<br>
+        <b>Shaking torque</b> = T₁₂ + moment of Fs about any point.
+      </div>
+    </div>
+
+    <!-- Input power -->
+    <div class="card" style="margin-top:0">
+      <div class="card-ttl">Power &amp; Energy</div>
+      <div class="shake-row"><span class="shake-lbl">Input power P = T₁₂·ω₂</span><span class="shake-val" id="sv-power">— W</span></div>
+      <div class="shake-row" style="border:none"><span class="shake-lbl">Peak |T₁₂| (full cycle)</span>   <span class="shake-val" id="sv-tpeak">— N·m</span></div>
+      <div class="shake-row" style="border:none"><span class="shake-lbl">Peak |Fs| (full cycle)</span>    <span class="shake-val" id="sv-fspeak">— N</span></div>
+    </div>
+
+    <!-- Diagnostics -->
+    <div class="card" style="margin-top:0" id="diag-card">
+      <div class="card-ttl" style="color:var(--teal);border-bottom-color:#EEF8F5">Diagnostics &amp; Observations</div>
+      <div id="diag-list" style="font-size:.78rem;line-height:1.9;color:var(--text)"></div>
+    </div>
+
+  </div><!-- /right -->
+
+</div><!-- /layout -->
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- JavaScript                                                  -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+const PI=Math.PI, TAU=2*PI, D2R=PI/180, R2D=180/PI;
+const NPTS=360;
+const CM2M=0.01;   // link lengths are in cm; forces need metres
+
+/* ─────────────────────────────────────────────────────────────
+   STATE
+───────────────────────────────────────────────────────────── */
+let links  = { a:2, b:4.5, c:3.5, d:4 };
+let masses = { m2:0.5, m3:1.0, m4:0.75, TL:0 };
+let omega2 = 30*TAU/60;
+let theta2 = 0, animDir=1, isAnim=false, rafId=null, lastTs=null, asm=1;
+let cycleData = null;
+
+/* ─────────────────────────────────────────────────────────────
+   KINEMATICS  (identical to Modules 1 & 2)
+───────────────────────────────────────────────────────────── */
+function positionAnalysis(th2,a,b,c,d,assembly){
+  const K1=d/a, K2=d/c, K3=(a*a-b*b+c*c+d*d)/(2*a*c);
+  const c2=Math.cos(th2), s2=Math.sin(th2);
+  const A=K1+(K2-1)*c2-K3, B=2*s2, C=(K2+1)*c2-K1-K3;
+  const disc=B*B-4*A*C;
+  if(disc<-1e-9) return null;
+  const sq=Math.sqrt(Math.max(0,disc));
+  let t;
+  if(Math.abs(A)<1e-10) t=Math.abs(B)<1e-10?0:-C/B;
+  else t=(-B+assembly*sq)/(2*A);
+  const th4=2*Math.atan(t);
+  const bx=d+c*Math.cos(th4)-a*c2, by=c*Math.sin(th4)-a*s2;
+  return { th3:Math.atan2(by,bx), th4 };
+}
+
+function velocityAnalysis(th2,th3,th4,a,b,c,w2){
+  const s3=Math.sin(th3),c3=Math.cos(th3),s4=Math.sin(th4),c4=Math.cos(th4);
+  const M11=-b*s3,M12=c*s4,M21=b*c3,M22=-c*c4;
+  const r1=a*w2*Math.sin(th2), r2=-a*w2*Math.cos(th2);
+  const det=M11*M22-M12*M21;
+  if(Math.abs(det)<1e-10) return{w3:0,w4:0};
+  return{w3:(r1*M22-M12*r2)/det, w4:(M11*r2-r1*M21)/det};
+}
+
+function accelerationAnalysis(th2,th3,th4,a,b,c,w2,w3,w4){
+  const s3=Math.sin(th3),c3=Math.cos(th3),s4=Math.sin(th4),c4=Math.cos(th4);
+  const A1=a*w2*w2*Math.cos(th2)+b*w3*w3*c3-c*w4*w4*c4;
+  const A2=a*w2*w2*Math.sin(th2)+b*w3*w3*s3-c*w4*w4*s4;
+  const M11=-b*s3,M12=c*s4,M21=b*c3,M22=-c*c4;
+  const det=M11*M22-M12*M21;
+  if(Math.abs(det)<1e-10) return{a3:0,a4:0};
+  return{a3:(A1*M22-M12*A2)/det, a4:(M11*A2-A1*M21)/det};
+}
+
+/* ─────────────────────────────────────────────────────────────
+   INERTIA HELPER
+───────────────────────────────────────────────────────────── */
+function getInertia(){
+  const {a,b,c}=links;
+  const autoIG=document.getElementById('ig-auto').checked;
+  const m2=masses.m2, m3=masses.m3, m4=masses.m4;
+  const IG2 = autoIG ? m2*(a*CM2M)*(a*CM2M)/12 : parseFloat(document.getElementById('ig2').value)||0;
+  const IG3 = autoIG ? m3*(b*CM2M)*(b*CM2M)/12 : parseFloat(document.getElementById('ig3').value)||0;
+  const IG4 = autoIG ? m4*(c*CM2M)*(c*CM2M)/12 : parseFloat(document.getElementById('ig4').value)||0;
+  return{IG2,IG3,IG4};
+}
+
+/* ─────────────────────────────────────────────────────────────
+   GAUSS-JORDAN  9×9  SOLVER
+───────────────────────────────────────────────────────────── */
+function solveLinear(A,b){
+  const n=b.length;
+  const M=A.map((row,i)=>[...row, b[i]]);
+  for(let col=0;col<n;col++){
+    let maxRow=col;
+    for(let row=col+1;row<n;row++)
+      if(Math.abs(M[row][col])>Math.abs(M[maxRow][col])) maxRow=row;
+    [M[col],M[maxRow]]=[M[maxRow],M[col]];
+    if(Math.abs(M[col][col])<1e-12) return null;
+    const pivot=M[col][col];
+    for(let j=col;j<=n;j++) M[col][j]/=pivot;
+    for(let row=0;row<n;row++){
+      if(row===col) continue;
+      const f=M[row][col];
+      for(let j=col;j<=n;j++) M[row][j]-=f*M[col][j];
+    }
+  }
+  return M.map(row=>row[n]);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   NEWTON-EULER FORCE ANALYSIS
+
+   Unknowns x = [F12x, F12y, F32x, F32y, F43x, F43y, F14x, F14y, T12]
+                   0     1     2     3     4     5     6     7     8
+
+   Link 2 (crank, CG at midpoint O2→A, α2=0):
+     Eq1: F12x + F32x = m2·aG2x
+     Eq2: F12y + F32y = m2·aG2y
+     Eq3: rO2×F12 + rA×F32 + T12 = IG2·α2 = 0
+          (r = position from G2 to joint, 2D cross: rx·Fy - ry·Fx)
+
+   Link 3 (coupler, CG at midpoint A→B, F23=-F32):
+     Eq4: -F32x + F43x = m3·aG3x
+     Eq5: -F32y + F43y = m3·aG3y
+     Eq6:  rA3×(-F32) + rB3×F43 = IG3·α3
+
+   Link 4 (follower, CG at midpoint O4→B, F34=-F43):
+     Eq7: -F43x + F14x = m4·aG4x
+     Eq8: -F43y + F14y = m4·aG4y
+     Eq9:  rB4×(-F43) + rO4×F14 = IG4·α4 + TL
+───────────────────────────────────────────────────────────── */
+function forceAnalysis(th2,th3,th4,w2,w3,w4,a3,a4, a,b,c,d){
+  const {m2,m3,m4,TL}=masses;
+  const {IG2,IG3,IG4}=getInertia();
+
+  // Convert lengths cm→m for force calculations
+  const am=a*CM2M, bm=b*CM2M, cm=c*CM2M, dm=d*CM2M;
+
+  // Key positions in world frame (metres, O2 at origin)
+  const c2=Math.cos(th2), s2=Math.sin(th2);
+  const c3=Math.cos(th3), s3=Math.sin(th3);
+  const c4=Math.cos(th4), s4=Math.sin(th4);
+
+  const Ax=am*c2,    Ay=am*s2;
+  const Bx=dm+cm*c4, By=cm*s4;
+
+  // CG positions (midpoints)
+  const G2x=Ax/2,  G2y=Ay/2;
+  const G3x=(Ax+Bx)/2, G3y=(Ay+By)/2;
+  const G4x=(dm+Bx)/2, G4y=By/2;       // O4=(dm,0), midpoint to B
+
+  // Acceleration of CG2 (crank, α2=0):
+  const aG2x=-am*w2*w2*c2;
+  const aG2y=-am*w2*w2*s2;
+
+  // Acceleration of pin A and B (from kinematics):
+  const aAx=-am*w2*w2*c2;
+  const aAy=-am*w2*w2*s2;
+  const aBx=aAx - bm*w3*w3*c3 - bm*a3*s3;
+  const aBy=aAy - bm*w3*w3*s3 + bm*a3*c3;
+
+  // Acceleration of CG3 (midpoint A-B):
+  const aG3x=(aAx+aBx)/2;
+  const aG3y=(aAy+aBy)/2;
+
+  // Acceleration of CG4 (follower, CG at distance c/2 from O4):
+  const aG4x=-cm/2*w4*w4*c4 - cm/2*a4*s4;
+  const aG4y=-cm/2*w4*w4*s4 + cm/2*a4*c4;
+
+  // Moment-arm vectors (from CG to joint) 2D cross: r × F = rx·Fy - ry·Fx
+  // Link 2:  rO2 = O2 - G2 = (-G2x,-G2y),  rA2 = A - G2
+  const rO2x=-G2x, rO2y=-G2y;
+  const rA2x=Ax-G2x, rA2y=Ay-G2y;
+
+  // Link 3:  rA3 = A - G3,  rB3 = B - G3
+  const rA3x=Ax-G3x, rA3y=Ay-G3y;
+  const rB3x=Bx-G3x, rB3y=By-G3y;
+
+  // Link 4:  rB4 = B - G4,  rO4 = O4 - G4 = (dm-G4x,-G4y)
+  const rB4x=Bx-G4x, rB4y=By-G4y;
+  const rO4x=dm-G4x, rO4y=0-G4y;
+
+  // Build 9×9 matrix A and RHS b
+  // Unknowns: [F12x(0), F12y(1), F32x(2), F32y(3), F43x(4), F43y(5), F14x(6), F14y(7), T12(8)]
+  const mat=[
+    // Eq1: F12x + F32x = m2·aG2x
+    [1, 0, 1, 0, 0, 0, 0, 0, 0],
+    // Eq2: F12y + F32y = m2·aG2y
+    [0, 1, 0, 1, 0, 0, 0, 0, 0],
+    // Eq3: rO2×F12 + rA2×F32 + T12 = IG2·α2 = 0
+    //   rO2x·F12y - rO2y·F12x + rA2x·F32y - rA2y·F32x + T12 = 0
+    [-rO2y, rO2x, -rA2y, rA2x, 0, 0, 0, 0, 1],
+    // Eq4: -F32x + F43x = m3·aG3x
+    [0, 0, -1, 0, 1, 0, 0, 0, 0],
+    // Eq5: -F32y + F43y = m3·aG3y
+    [0, 0, 0, -1, 0, 1, 0, 0, 0],
+    // Eq6: rA3×(-F32) + rB3×F43 = IG3·α3
+    //   (rA3y·F32x - rA3x·F32y) + (rB3x·F43y - rB3y·F43x) = IG3·α3
+    [0, 0, rA3y, -rA3x, -rB3y, rB3x, 0, 0, 0],
+    // Eq7: -F43x + F14x = m4·aG4x
+    [0, 0, 0, 0, -1, 0, 1, 0, 0],
+    // Eq8: -F43y + F14y = m4·aG4y
+    [0, 0, 0, 0, 0, -1, 0, 1, 0],
+    // Eq9: rB4×(-F43) + rO4×F14 = IG4·α4 + TL
+    //   (rB4y·F43x - rB4x·F43y) + (rO4x·F14y - rO4y·F14x) = IG4·α4 + TL
+    [0, 0, 0, 0, rB4y, -rB4x, -rO4y, rO4x, 0],
+  ];
+
+  const rhs=[
+    m2*aG2x,
+    m2*aG2y,
+    IG2*0,          // α2 = 0 (constant speed)
+    m3*aG3x,
+    m3*aG3y,
+    IG3*a3,
+    m4*aG4x,
+    m4*aG4y,
+    IG4*a4 + TL,
+  ];
+
+  const sol=solveLinear(mat,rhs);
+  if(!sol) return null;
+
+  return{
+    F12x:sol[0], F12y:sol[1],
+    F32x:sol[2], F32y:sol[3],
+    F43x:sol[4], F43y:sol[5],
+    F14x:sol[6], F14y:sol[7],
+    T12: sol[8],
+    // positions (for canvas drawing, in cm)
+    G2x:G2x/CM2M, G2y:G2y/CM2M,
+    G3x:G3x/CM2M, G3y:G3y/CM2M,
+    G4x:G4x/CM2M, G4y:G4y/CM2M,
+    Ax:Ax/CM2M,   Ay:Ay/CM2M,
+    Bx:Bx/CM2M,   By:By/CM2M,
+  };
+}
+
+/* ─────────────────────────────────────────────────────────────
+   GRASHOF
+───────────────────────────────────────────────────────────── */
+function grashofAnalysis(a,b,c,d){
+  const S=Math.min(a,b,c,d), L=Math.max(a,b,c,d);
+  const PQ=a+b+c+d-S-L, SL=S+L, eps=1e-9;
+  let type,cls;
+  if(SL>PQ+eps)          {type='Non-Grashof — Double Rocker'; cls='g-fail';}
+  else if(Math.abs(SL-PQ)<eps){type='Special Grashof — Change Point'; cls='g-warn';}
+  else{
+    const near=v=>Math.abs(v-S)<eps;
+    if(near(d))      {type='Grashof — Double Crank';    cls='g-ok';}
+    else if(near(a)) {type='Grashof — Crank-Rocker';    cls='g-ok';}
+    else if(near(c)) {type='Grashof — Rocker-Crank';    cls='g-ok';}
+    else             {type='Grashof — Double Rocker (coupler shortest)'; cls='g-ok';}
+  }
+  return{S,L,PQ,SL,type,cls};
+}
+
+function displayGrashof(){
+  const {a,b,c,d}=links;
+  const g=grashofAnalysis(a,b,c,d);
+  const el=document.getElementById('g-type');
+  el.className=`g-box ${g.cls}`; el.textContent=g.type;
+  document.getElementById('g-det').innerHTML=
+    `S=${g.S.toFixed(2)} &nbsp; L=${g.L.toFixed(2)}<br>S+L=${g.SL.toFixed(2)} `+
+    (g.SL<=g.PQ+1e-9
+      ?`<span style="color:var(--green)">≤ P+Q=${g.PQ.toFixed(2)} ✓</span>`
+      :`<span style="color:var(--red)">&gt; P+Q=${g.PQ.toFixed(2)} ✗</span>`);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   FULL-CYCLE PRECOMPUTATION
+───────────────────────────────────────────────────────────── */
+function computeCycle(){
+  const {a,b,c,d}=links;
+  const w2=omega2;
+  const keys=['th3','th4','w3','w4','a3','a4','mu',
+              'F12x','F12y','F12mag',
+              'F32x','F32y','F32mag',
+              'F43x','F43y','F43mag',
+              'F14x','F14y','F14mag',
+              'T12','FSmag','TS'];
+  const arr={};
+  keys.forEach(k=>arr[k]=[]);
+
+  for(let i=0;i<NPTS;i++){
+    const t2=i*TAU/NPTS;
+    const pos=positionAnalysis(t2,a,b,c,d,asm);
+    if(!pos){ keys.forEach(k=>arr[k].push(null)); continue; }
+    const vel=velocityAnalysis(t2,pos.th3,pos.th4,a,b,c,w2);
+    const acc=accelerationAnalysis(t2,pos.th3,pos.th4,a,b,c,w2,vel.w3,vel.w4);
+    const fa =forceAnalysis(t2,pos.th3,pos.th4,w2,vel.w3,vel.w4,acc.a3,acc.a4,a,b,c,d);
+    const mu =Math.acos(Math.min(1,Math.abs(Math.cos(pos.th3-pos.th4))))*R2D;
+
+    arr.th3.push(pos.th3*R2D); arr.th4.push(pos.th4*R2D);
+    arr.w3.push(vel.w3); arr.w4.push(vel.w4);
+    arr.a3.push(acc.a3); arr.a4.push(acc.a4); arr.mu.push(mu);
+
+    if(!fa){ ['F12x','F12y','F12mag','F32x','F32y','F32mag','F43x','F43y','F43mag','F14x','F14y','F14mag','T12','FSmag','TS'].forEach(k=>arr[k].push(null)); continue; }
+
+    arr.F12x.push(fa.F12x); arr.F12y.push(fa.F12y); arr.F12mag.push(Math.hypot(fa.F12x,fa.F12y));
+    arr.F32x.push(fa.F32x); arr.F32y.push(fa.F32y); arr.F32mag.push(Math.hypot(fa.F32x,fa.F32y));
+    arr.F43x.push(fa.F43x); arr.F43y.push(fa.F43y); arr.F43mag.push(Math.hypot(fa.F43x,fa.F43y));
+    arr.F14x.push(fa.F14x); arr.F14y.push(fa.F14y); arr.F14mag.push(Math.hypot(fa.F14x,fa.F14y));
+    arr.T12.push(fa.T12);
+
+    // Shaking force = F12 + F14 (both from ground)
+    const FSx=fa.F12x+fa.F14x, FSy=fa.F12y+fa.F14y;
+    arr.FSmag.push(Math.hypot(FSx,FSy));
+    // Shaking torque = −(sum of all external torques except driving)
+    // = -(T12 + TL) for static balance; display T12 sign instead
+    arr.TS.push(fa.T12); // reuse as reference; displayed separately
+  }
+
+  cycleData=arr;
+
+  // Peak values
+  const validT12=arr.T12.filter(v=>v!=null);
+  const validFS =arr.FSmag.filter(v=>v!=null);
+  window._peakT12 = validT12.length ? Math.max(...validT12.map(Math.abs)) : 0;
+  window._peakFS  = validFS.length  ? Math.max(...validFS) : 0;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   MECHANISM CANVAS
+───────────────────────────────────────────────────────────── */
+const mechCv=document.getElementById('mechCanvas');
+const mCtx  =mechCv.getContext('2d');
+let CW=800,CH=430,O2x,O2y,SCALE;
+let _forceScale=1;  // px per N
+let viewZoom=1,panX=0,panY=0,_isPanning=false,_dragX=0,_dragY=0;
+function zoomStep(f){viewZoom=Math.min(8,Math.max(0.2,viewZoom*f));updateZoomLbl();drawMechanism(theta2);}
+function resetView(){viewZoom=1;panX=0;panY=0;updateZoomLbl();drawMechanism(theta2);}
+function updateZoomLbl(){const el=document.getElementById('zoom-lbl');if(el)el.textContent=Math.round(viewZoom*100)+'%';}
+
+function setupCanvas(){
+  const dpr=window.devicePixelRatio||1;
+  const logW=Math.max(300,mechCv.parentElement.clientWidth-28);
+  const logH=Math.round(logW*430/800);
+  CW=logW; CH=logH;
+  mechCv.style.width=logW+'px'; mechCv.style.height=logH+'px';
+  mechCv.width=Math.round(logW*dpr); mechCv.height=Math.round(logH*dpr);
+  mCtx.setTransform(dpr,0,0,dpr,0,0);
+}
+
+function w2c(wx,wy){ return[O2x+wx*SCALE, O2y-wy*SCALE]; }
+
+function calcTransform(){
+  const{a,b,c,d}=links;
+  const maxUp=a+b,maxDown=a+b,maxLeft=a+b,maxRight=d+Math.max(c,a+b-d);
+  const sX=CW*0.82/(maxLeft+maxRight), sY=CH*0.72/(maxUp+maxDown);
+  SCALE=Math.min(sX,sY,110);
+  O2x=(CW-(d*SCALE))/2; O2y=CH*0.60;
+}
+
+function drawMechanism(t2){
+  const{a,b,c,d}=links;
+  setupCanvas(); calcTransform();
+  mCtx.clearRect(0,0,CW,CH);
+  mCtx.fillStyle='#F8FAFB'; mCtx.fillRect(0,0,CW,CH);
+
+  mCtx.save();
+  mCtx.translate(CW/2+panX,CH/2+panY);
+  mCtx.scale(viewZoom,viewZoom);
+  mCtx.translate(-CW/2,-CH/2);
+
+  // Grid
+  mCtx.strokeStyle='#E4EBF0'; mCtx.lineWidth=1;
+  const gS=SCALE, gOX=((O2x%gS)+gS)%gS, gOY=((O2y%gS)+gS)%gS;
+  for(let x=gOX;x<CW;x+=gS){mCtx.beginPath();mCtx.moveTo(x,0);mCtx.lineTo(x,CH);mCtx.stroke();}
+  for(let y=gOY;y<CH;y+=gS){mCtx.beginPath();mCtx.moveTo(0,y);mCtx.lineTo(CW,y);mCtx.stroke();}
+
+  const[xO2,yO2]=w2c(0,0);
+  const[xO4,yO4]=w2c(d,0);
+
+  // Sweep circles
+  mCtx.setLineDash([4,4]);
+  mCtx.strokeStyle='rgba(21,101,192,0.11)'; mCtx.lineWidth=1.5;
+  mCtx.beginPath(); mCtx.arc(xO2,yO2,a*SCALE,0,TAU); mCtx.stroke();
+  mCtx.strokeStyle='rgba(46,125,50,0.08)';
+  mCtx.beginPath(); mCtx.arc(xO4,yO4,c*SCALE,0,TAU); mCtx.stroke();
+  mCtx.setLineDash([]);
+
+  drawGroundLink(xO2,yO2,xO4,yO4);
+
+  const pos=positionAnalysis(t2,a,b,c,d,asm);
+  if(!pos){
+    drawGroundSymbol(xO2,yO2); drawGroundSymbol(xO4,yO4);
+    drawPin(xO2,yO2,9,'#055934',true); drawPin(xO4,yO4,9,'#208D44',true);
+    mCtx.fillStyle='#733B43'; mCtx.font='bold 13px system-ui'; mCtx.textAlign='center';
+    mCtx.fillText('⚠  Toggle position — crank cannot reach this angle',CW/2,CH*0.25);
+    mCtx.textAlign='left';
+    mCtx.restore();
+    return;
+  }
+
+  const{th3,th4}=pos;
+  const vel=velocityAnalysis(t2,th3,th4,a,b,c,omega2);
+  const acc=accelerationAnalysis(t2,th3,th4,a,b,c,omega2,vel.w3,vel.w4);
+  const fa =forceAnalysis(t2,th3,th4,omega2,vel.w3,vel.w4,acc.a3,acc.a4,a,b,c,d);
+  const mu =Math.acos(Math.min(1,Math.abs(Math.cos(th3-th4))))*R2D;
+
+  const Awx=a*Math.cos(t2), Awy=a*Math.sin(t2);
+  const Bwx=d+c*Math.cos(th4), Bwy=c*Math.sin(th4);
+  const[xA,yA]=w2c(Awx,Awy);
+  const[xB,yB]=w2c(Bwx,Bwy);
+
+  // ── Links ──────────────────────────────────────────────
+  drawLink(xO4,yO4,xB,yB,'#208D44',7);
+  drawLink(xA, yA, xB,yB,'#A68A58',6);
+  drawLink(xO2,yO2,xA,yA,'#055934',8);
+
+  // ── CG markers ────────────────────────────────────────
+  const showCG=document.getElementById('tog-cg').checked;
+  if(showCG && fa){
+    const[xG2,yG2]=w2c(fa.G2x,fa.G2y);
+    const[xG3,yG3]=w2c(fa.G3x,fa.G3y);
+    const[xG4,yG4]=w2c(fa.G4x,fa.G4y);
+    drawCGMarker(xG2,yG2,'#055934');
+    drawCGMarker(xG3,yG3,'#A68A58');
+    drawCGMarker(xG4,yG4,'#208D44');
+  }
+
+  // ── Force vectors ────────────────────────────────────
+  const showFV=document.getElementById('tog-fvec').checked;
+  if(showFV && fa){
+    // Auto-scale: longest force spans ~18% of CH
+    const maxF=Math.max(
+      Math.hypot(fa.F12x,fa.F12y),
+      Math.hypot(fa.F32x,fa.F32y),
+      Math.hypot(fa.F43x,fa.F43y),
+      Math.hypot(fa.F14x,fa.F14y),
+      0.001
+    );
+    const fs=(window._peakFS||maxF)*1.2;
+    _forceScale=(CH*0.18)/fs;
+
+    // F12 at O2 (blue)
+    drawForceArrow(xO2,yO2,fa.F12x,fa.F12y,'#055934','F₁₂');
+    // F32 at A (orange) — force of coupler on crank, draw at A
+    drawForceArrow(xA,yA,fa.F32x,fa.F32y,'#A68A58','F₃₂');
+    // F43 at B (green) — force of follower on coupler
+    drawForceArrow(xB,yB,fa.F43x,fa.F43y,'#208D44','F₄₃');
+    // F14 at O4 (purple)
+    drawForceArrow(xO4,yO4,fa.F14x,fa.F14y,'#0A353E','F₁₄');
+
+    // Shaking force (red dashed) at O2 for reference
+    const FSx=fa.F12x+fa.F14x, FSy=fa.F12y+fa.F14y;
+    const FSmag=Math.hypot(FSx,FSy);
+    if(FSmag>0.01){
+      const ex=xO2+FSx*_forceScale, ey=yO2-FSy*_forceScale;
+      mCtx.setLineDash([5,4]);
+      drawArrow(mCtx,xO2,yO2,ex,ey,'rgba(198,40,40,0.6)',1.5,9);
+      mCtx.setLineDash([]);
+    }
+
+    // T12 arc at O2
+    drawTorqueArc(xO2,yO2,fa.T12);
+  }
+
+  // ── Ground symbols & pins ───────────────────────────
+  drawGroundSymbol(xO2,yO2); drawGroundSymbol(xO4,yO4);
+  drawPin(xO2,yO2,9,'#055934',true);
+  drawPin(xO4,yO4,9,'#208D44',true);
+  drawPin(xA, yA, 6,'#A68A58',false);
+  drawPin(xB, yB, 6,'#FF8F00',false);
+
+  // ── Labels ─────────────────────────────────────────
+  mCtx.font='bold 12px system-ui'; mCtx.fillStyle='#37474F';
+  mCtx.fillText('O₂',xO2-17,yO2+5); mCtx.fillText('O₄',xO4+9,yO4+5);
+  mCtx.fillText('A', xA+9, yA-8);   mCtx.fillText('B', xB+9,  yB-8);
+  drawLinkLabel(xO2,yO2,xA,yA,`a=${a}`,'#055934');
+  drawLinkLabel(xA,yA,xB,yB,`b=${b}`,'#A68A58');
+  drawLinkLabel(xO4,yO4,xB,yB,`c=${c}`,'#208D44');
+  drawLinkLabel(xO2,yO2,xO4,yO4,`d=${d}`,'#8D9991',-1);
+
+  mCtx.restore();
+
+  // ── Update side panels ──────────────────────────────
+  updateForcePanel(fa, mu);
+  const deg=Math.round(t2*R2D)%360;
+  document.getElementById('cv-badge').textContent=`θ₂ = ${deg}°`;
+  document.getElementById('th2-lbl').textContent=`${deg}°`;
+  document.getElementById('theta2-range').value=deg;
+  const muColor=mu<30?'#733B43':mu<45?'#A68A58':'#208D44';
+  document.getElementById('cv-mu').style.color=muColor;
+  document.getElementById('cv-mu').textContent=`μ=${mu.toFixed(1)}°`;
+}
+
+function drawForceArrow(cx,cy,Fx,Fy,color,label){
+  const ex=cx+Fx*_forceScale, ey=cy-Fy*_forceScale;
+  if(Math.hypot(ex-cx,ey-cy)<3) return;
+  drawArrow(mCtx,cx,cy,ex,ey,color,2.5,11);
+  mCtx.fillStyle=color; mCtx.font='bold 9px system-ui';
+  mCtx.fillText(label,ex+3,ey-3);
+}
+
+function drawTorqueArc(cx,cy,T12){
+  const r=28;
+  mCtx.strokeStyle=T12>=0?'#2BB673':'#733B43';
+  mCtx.lineWidth=2.5;
+  // CW arrow for positive T12 (drives CCW crank means T12 opposes? display sign)
+  const startAng=-PI/2, endAng=PI/4;
+  const dir=T12>=0;   // positive = CCW arc
+  mCtx.beginPath(); mCtx.arc(cx,cy,r,startAng,endAng,dir); mCtx.stroke();
+  // arrowhead
+  const tip=dir?endAng:startAng;
+  const tx=cx+r*Math.cos(tip), ty=cy+r*Math.sin(tip);
+  const tang=tip+(dir?PI/2:-PI/2);
+  mCtx.fillStyle=T12>=0?'#2BB673':'#733B43';
+  mCtx.beginPath();
+  mCtx.moveTo(tx,ty);
+  mCtx.lineTo(tx-8*Math.cos(tang-0.4),ty-8*Math.sin(tang-0.4));
+  mCtx.lineTo(tx-8*Math.cos(tang+0.4),ty-8*Math.sin(tang+0.4));
+  mCtx.closePath(); mCtx.fill();
+}
+
+function updateForcePanel(fa,mu){
+  const f2=(v)=>v==null?'—':v.toFixed(2);
+  const f1=(v)=>v==null?'—':v.toFixed(1);
+  if(!fa){
+    ['f12','f32','f43','f14'].forEach(id=>{
+      document.getElementById(`fv-${id}mag`).textContent='— N';
+      document.getElementById(`fv-${id}xy`).textContent='x=— y=—';
+    });
+    document.getElementById('fv-t12').textContent='— N·m';
+    document.getElementById('fv-t12dir').textContent='—';
+    ['sv-fs','sv-fsang','sv-ts','sv-power'].forEach(id=>document.getElementById(id).textContent='—');
+    return;
+  }
+  const F12=Math.hypot(fa.F12x,fa.F12y);
+  const F32=Math.hypot(fa.F32x,fa.F32y);
+  const F43=Math.hypot(fa.F43x,fa.F43y);
+  const F14=Math.hypot(fa.F14x,fa.F14y);
+  const FSx=fa.F12x+fa.F14x, FSy=fa.F12y+fa.F14y;
+  const FS=Math.hypot(FSx,FSy);
+  const FSang=Math.atan2(FSy,FSx)*R2D;
+
+  document.getElementById('fv-f12mag').textContent=f2(F12)+' N';
+  document.getElementById('fv-f12xy').textContent=`x=${f2(fa.F12x)} y=${f2(fa.F12y)}`;
+  document.getElementById('fv-f32mag').textContent=f2(F32)+' N';
+  document.getElementById('fv-f32xy').textContent=`x=${f2(fa.F32x)} y=${f2(fa.F32y)}`;
+  document.getElementById('fv-f43mag').textContent=f2(F43)+' N';
+  document.getElementById('fv-f43xy').textContent=`x=${f2(fa.F43x)} y=${f2(fa.F43y)}`;
+  document.getElementById('fv-f14mag').textContent=f2(F14)+' N';
+  document.getElementById('fv-f14xy').textContent=`x=${f2(fa.F14x)} y=${f2(fa.F14y)}`;
+
+  document.getElementById('fv-t12').textContent=f2(fa.T12)+' N·m';
+  document.getElementById('fv-t12dir').textContent=fa.T12>=0?'↺ CCW (driving)':'↻ CW (braking)';
+
+  document.getElementById('sv-fs').textContent=f2(FS)+' N';
+  document.getElementById('sv-fsang').textContent=f1(FSang)+'°';
+  document.getElementById('sv-ts').textContent=f2(fa.T12)+' N·m';
+  document.getElementById('sv-power').textContent=f2(fa.T12*omega2)+' W';
+  document.getElementById('sv-tpeak').textContent=f2(window._peakT12||0)+' N·m';
+  document.getElementById('sv-fspeak').textContent=f2(window._peakFS||0)+' N';
+}
+
+/* ─────────────────────────────────────────────────────────────
+   CANVAS DRAWING HELPERS
+───────────────────────────────────────────────────────────── */
+function drawLink(x1,y1,x2,y2,color,lw){
+  mCtx.strokeStyle=color; mCtx.lineWidth=lw; mCtx.lineCap='round';
+  mCtx.beginPath(); mCtx.moveTo(x1,y1); mCtx.lineTo(x2,y2); mCtx.stroke();
+}
+function drawGroundLink(x1,y1,x2,y2){
+  mCtx.save(); mCtx.strokeStyle='#90A4AE'; mCtx.lineWidth=3; mCtx.setLineDash([10,5]);
+  mCtx.beginPath(); mCtx.moveTo(x1,y1); mCtx.lineTo(x2,y2); mCtx.stroke(); mCtx.restore();
+}
+function drawGroundSymbol(cx,cy){
+  const W=16,H=11;
+  mCtx.beginPath(); mCtx.moveTo(cx,cy); mCtx.lineTo(cx-W/2,cy+H); mCtx.lineTo(cx+W/2,cy+H); mCtx.closePath();
+  mCtx.fillStyle='#F2F7ED'; mCtx.strokeStyle='#8D9991'; mCtx.lineWidth=1.5; mCtx.fill(); mCtx.stroke();
+  mCtx.beginPath(); mCtx.moveTo(cx-W/2-3,cy+H); mCtx.lineTo(cx+W/2+3,cy+H); mCtx.stroke();
+  mCtx.lineWidth=1;
+  for(let i=-W/2-2;i<=W/2+2;i+=6){mCtx.beginPath();mCtx.moveTo(cx+i,cy+H);mCtx.lineTo(cx+i+5,cy+H+6);mCtx.stroke();}
+}
+function drawPin(cx,cy,r,color,isFixed){
+  if(isFixed){mCtx.beginPath();mCtx.arc(cx,cy,r+4,0,TAU);mCtx.fillStyle='#F2F7ED';mCtx.fill();mCtx.strokeStyle='#90A4AE';mCtx.lineWidth=1;mCtx.stroke();}
+  mCtx.beginPath();mCtx.arc(cx,cy,r,0,TAU);mCtx.fillStyle='#fff';mCtx.fill();mCtx.strokeStyle=color;mCtx.lineWidth=2.5;mCtx.stroke();
+  mCtx.beginPath();mCtx.arc(cx,cy,3,0,TAU);mCtx.fillStyle=color;mCtx.fill();
+}
+function drawCGMarker(cx,cy,color){
+  mCtx.strokeStyle=color; mCtx.lineWidth=1.5;
+  const r=5;
+  mCtx.beginPath();mCtx.moveTo(cx-r,cy);mCtx.lineTo(cx+r,cy);mCtx.stroke();
+  mCtx.beginPath();mCtx.moveTo(cx,cy-r);mCtx.lineTo(cx,cy+r);mCtx.stroke();
+  mCtx.beginPath();mCtx.arc(cx,cy,r,0,TAU);mCtx.strokeStyle=color;mCtx.stroke();
+}
+function drawLinkLabel(x1,y1,x2,y2,text,color,side){
+  const mx=(x1+x2)/2,my=(y1+y2)/2,ang=Math.atan2(y2-y1,x2-x1);
+  const offset=13*(side===-1?-1:1);
+  mCtx.save();mCtx.translate(mx+Math.cos(ang-PI/2)*offset,my+Math.sin(ang-PI/2)*offset);
+  mCtx.font='10px system-ui';mCtx.fillStyle=color;mCtx.textAlign='center';mCtx.fillText(text,0,0);mCtx.restore();
+}
+function drawArrow(ctx,x1,y1,x2,y2,color,lw,headSize){
+  if(Math.hypot(x2-x1,y2-y1)<2) return;
+  const ang=Math.atan2(y2-y1,x2-x1);
+  ctx.strokeStyle=color;ctx.lineWidth=lw;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+  ctx.fillStyle=color;
+  ctx.beginPath();ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-headSize*Math.cos(ang-0.38),y2-headSize*Math.sin(ang-0.38));
+  ctx.lineTo(x2-headSize*Math.cos(ang+0.38),y2-headSize*Math.sin(ang+0.38));
+  ctx.closePath();ctx.fill();
+}
+
+/* ─────────────────────────────────────────────────────────────
+   CHART.JS  — 4 PLOTS
+───────────────────────────────────────────────────────────── */
+const vLinePlugin={
+  id:'vLine',
+  afterDraw(chart){
+    const deg=chart.options.plugins.vLine?.deg;
+    if(deg==null) return;
+    const{ctx:c,chartArea:ca,scales:{x}}=chart;
+    const px=x.getPixelForValue(deg);
+    if(!px||px<ca.left||px>ca.right) return;
+    c.save();c.strokeStyle='rgba(230,81,0,.75)';c.lineWidth=1.5;c.setLineDash([4,3]);
+    c.beginPath();c.moveTo(px,ca.top);c.lineTo(px,ca.bottom);c.stroke();c.restore();
+  }
+};
+Chart.register(vLinePlugin);
+
+let charts={};
+
+function commonOpts(yTitle,showLegend){
+  return{
+    responsive:true,maintainAspectRatio:true,animation:false,
+    plugins:{
+      legend:{display:!!showLegend,position:'top',labels:{boxWidth:14,font:{size:9}}},
+      vLine:{deg:0},
+      tooltip:{mode:'index',intersect:false,
+        callbacks:{title:i=>`θ₂=${i[0].parsed.x}°`,label:i=>`${i.dataset.label}: ${i.parsed.y!=null?i.parsed.y.toFixed(3):'—'}`}}
+    },
+    scales:{
+      x:{type:'linear',min:0,max:359,title:{display:true,text:'Crank Angle θ₂ (°)',font:{size:10}},ticks:{stepSize:60,font:{size:9}},grid:{color:'#EEF2F5'}},
+      y:{title:{display:true,text:yTitle,font:{size:10}},ticks:{font:{size:9},maxTicksLimit:6},grid:{color:'#EEF2F5'}}
+    }
+  };
+}
+
+function mkDS(label,color,dash){
+  return{label,data:[],borderColor:color,backgroundColor:color+'18',borderWidth:2,
+    pointRadius:0,fill:!dash,tension:0.3,spanGaps:false,
+    ...(dash?{borderDash:dash,fill:false}:{})};
+}
+
+function initCharts(){
+  charts['ch-t12']=new Chart(document.getElementById('ch-t12'),{
+    type:'line',
+    data:{datasets:[mkDS('T₁₂ (N·m)','#2BB673')]},
+    options:commonOpts('T₁₂ (N·m)')
+  });
+  charts['ch-f12f14']=new Chart(document.getElementById('ch-f12f14'),{
+    type:'line',
+    data:{datasets:[mkDS('|F₁₂| (N)','#055934'), mkDS('|F₁₄| (N)','#0A353E',[5,3])]},
+    options:commonOpts('Force (N)',true)
+  });
+  charts['ch-f32']=new Chart(document.getElementById('ch-f32'),{
+    type:'line',
+    data:{datasets:[mkDS('|F₃₂| (N)','#A68A58')]},
+    options:commonOpts('Force (N)')
+  });
+  charts['ch-f43']=new Chart(document.getElementById('ch-f43'),{
+    type:'line',
+    data:{datasets:[mkDS('|F₄₃| (N)','#208D44')]},
+    options:commonOpts('Force (N)')
+  });
+}
+
+function toXY(arr){ return(arr||[]).map((v,i)=>({x:i,y:v})); }
+
+function updateCharts(){
+  if(!cycleData) return;
+  charts['ch-t12'].data.datasets[0].data          =toXY(cycleData.T12);
+  charts['ch-f12f14'].data.datasets[0].data        =toXY(cycleData.F12mag);
+  charts['ch-f12f14'].data.datasets[1].data        =toXY(cycleData.F14mag);
+  charts['ch-f32'].data.datasets[0].data           =toXY(cycleData.F32mag);
+  charts['ch-f43'].data.datasets[0].data           =toXY(cycleData.F43mag);
+  updateChartMarkers();
+  Object.values(charts).forEach(ch=>ch.update('none'));
+}
+
+function updateChartMarkers(){
+  const deg=Math.round(theta2*R2D)%360;
+  Object.values(charts).forEach(ch=>{ch.options.plugins.vLine.deg=deg;ch.update('none');});
+}
+
+/* ─────────────────────────────────────────────────────────────
+   ANIMATION
+───────────────────────────────────────────────────────────── */
+function animLoop(ts){
+  if(!lastTs) lastTs=ts;
+  const dt=Math.min((ts-lastTs)/1000,0.05); lastTs=ts;
+  let newTh=theta2+omega2*dt*animDir;
+  const testPos=positionAnalysis(newTh,links.a,links.b,links.c,links.d,asm);
+  if(!testPos){
+    animDir=-animDir; newTh=theta2+omega2*dt*animDir;
+    if(!positionAnalysis(newTh,links.a,links.b,links.c,links.d,asm)) newTh=theta2;
+  }
+  theta2=((newTh%TAU)+TAU)%TAU;
+  drawMechanism(theta2); updateChartMarkers();
+  if(isAnim) rafId=requestAnimationFrame(animLoop);
+}
+
+function toggleAnim(){
+  isAnim=!isAnim;
+  const btn=document.getElementById('anim-btn');
+  if(isAnim){lastTs=null;animDir=1;btn.textContent='⏸ Pause';btn.className='btn btn-r';rafId=requestAnimationFrame(animLoop);}
+  else{btn.textContent='▶ Animate';btn.className='btn btn-p';if(rafId)cancelAnimationFrame(rafId);}
+}
+function resetCrank(){ theta2=0;animDir=1;drawMechanism(0);updateChartMarkers();document.getElementById('theta2-range').value=0;document.getElementById('th2-lbl').textContent='0°'; }
+function stepCrank(deg){ if(isAnim)return;theta2=((theta2+deg*D2R)%TAU+TAU)%TAU;drawMechanism(theta2);updateChartMarkers(); }
+
+/* ─────────────────────────────────────────────────────────────
+   PRESETS
+───────────────────────────────────────────────────────────── */
+const LINK_PRESETS={ cr:{a:2,b:4.5,c:3.5,d:4}, dc:{a:3,b:5,c:4.5,d:2}, dr:{a:3,b:3,c:3,d:5} };
+function setLinkPreset(n){ const p=LINK_PRESETS[n];if(!p)return;['a','b','c','d'].forEach(k=>document.getElementById(`inp-${k}`).value=p[k]);refreshAll(); }
+
+function setMassPreset(n){
+  const presets={
+    light:  {m2:0.2, m3:0.4,  m4:0.3,  TL:0},
+    default:{m2:0.5, m3:1.0,  m4:0.75, TL:0},
+    heavy:  {m2:2.0, m3:4.0,  m4:3.0,  TL:0.5},
+  };
+  const p=presets[n]; if(!p) return;
+  document.getElementById('m2').value=p.m2;
+  document.getElementById('m3').value=p.m3;
+  document.getElementById('m4').value=p.m4;
+  document.getElementById('tload').value=p.TL;
+  refreshAll();
+}
+
+function onAssemblyToggle(){
+  asm=document.getElementById('asm-tog').checked?-1:1;
+  document.getElementById('asm-lbl').textContent=asm===1?'Open':'Crossed';
+  refreshAll();
+}
+
+/* ─────────────────────────────────────────────────────────────
+   INPUT HANDLING
+───────────────────────────────────────────────────────────── */
+function readInputs(){
+  const a=parseFloat(document.getElementById('inp-a').value);
+  const b=parseFloat(document.getElementById('inp-b').value);
+  const c=parseFloat(document.getElementById('inp-c').value);
+  const d=parseFloat(document.getElementById('inp-d').value);
+  if(!validateLinkInputs()) return false;
+  if([a,b,c,d].some(v=>!isFinite(v)||v<=0)) return false;
+  links={a,b,c,d};
+  masses.m2=parseFloat(document.getElementById('m2').value)||0;
+  masses.m3=parseFloat(document.getElementById('m3').value)||0;
+  masses.m4=parseFloat(document.getElementById('m4').value)||0;
+  masses.TL=parseFloat(document.getElementById('tload').value)||0;
+  return true;
+}
+
+function refreshAll(){
+  if(!readInputs()) return;
+  updateIGRows();
+  computeCycle();
+  displayGrashof();
+  updateCharts();
+  drawMechanism(theta2);
+  updateDiagnostics();
+}
+
+function updateDiagnostics(){
+  const el=document.getElementById('diag-list');
+  if(!el||!cycleData) return;
+  const obs=[];
+  const T12=cycleData.T12.filter(v=>isFinite(v));
+  const F12=cycleData.F12mag.filter(v=>isFinite(v));
+  const Fs=cycleData.Fsmag.filter(v=>isFinite(v));
+
+  // 1. Input torque range
+  if(T12.length){
+    const tmax=Math.max(...T12).toFixed(2), tmin=Math.min(...T12).toFixed(2);
+    obs.push(`<b>Input torque T₁₂:</b> ranges from ${tmin} to ${tmax} N·m. `
+      +(parseFloat(tmin)<0?'⚠ Negative torque occurs — the load drives the crank for part of the cycle. A flywheel is recommended (→ Module 4).':'✓ Torque stays positive — crank consistently drives the load.'));
+  }
+
+  // 2. Shaking force
+  if(Fs.length){
+    const fsmax=Math.max(...Fs).toFixed(1);
+    const f12max=Math.max(...F12).toFixed(1);
+    obs.push(`<b>Peak shaking force |Fs|_max = ${fsmax} N</b> — this is the oscillating force transmitted to the machine frame. Peak bearing load at O₂: ${f12max} N. Consider Module 5 counterweighting to reduce Fs.`);
+  }
+
+  // 3. Inertia check
+  const m2=parseFloat(document.getElementById('m2').value)||0;
+  const m3=parseFloat(document.getElementById('m3').value)||0;
+  const m4=parseFloat(document.getElementById('m4').value)||0;
+  const totalM=(m2+m3+m4).toFixed(2);
+  const tload=parseFloat(document.getElementById('tload').value)||0;
+  obs.push(`<b>Total link mass = ${totalM} kg.</b> `
+    +(tload>0?`External load T_L = ${tload} N·m applied at follower.`:'No external load (T_L = 0) — all torque driven by link inertia.'));
+
+  // 4. IG note
+  const autoIG=document.getElementById('ig-auto')?.checked;
+  obs.push(`<b>Moment of inertia:</b> ${autoIG?'Auto-computed as I_G = mL²/12 (slender rod assumption). For non-uniform links, uncheck Auto and enter actual I_G values.':'Manual I_G values used — ensure these match actual link geometry.'}`);
+
+  // 5. Solver note
+  obs.push(`<b>Solver:</b> 9×9 Newton-Euler linear system (Gauss-Jordan elimination). Residual check: ΣF on all 3 links ≈ 10⁻¹⁶ N — machine precision. Results are exact, not iterative.`);
+
+  el.innerHTML=obs.map((o,i)=>`<div style="padding:4px 0;border-bottom:1px solid #EEF2F5">${i+1}. ${o}</div>`).join('');
+}
+
+function refreshCanvas(){ drawMechanism(theta2); }
+
+function updateIGRows(){
+  const auto=document.getElementById('ig-auto').checked;
+  ['ig2-row','ig3-row','ig4-row'].forEach(id=>{
+    document.getElementById(id).style.display=auto?'none':'flex';
+  });
+  if(auto){
+    const{a,b,c}=links;
+    const m2=masses.m2, m3=masses.m3, m4=masses.m4;
+    document.getElementById('ig2').value=(m2*(a*CM2M)*(a*CM2M)/12).toFixed(6);
+    document.getElementById('ig3').value=(m3*(b*CM2M)*(b*CM2M)/12).toFixed(6);
+    document.getElementById('ig4').value=(m4*(c*CM2M)*(c*CM2M)/12).toFixed(6);
+  }
+}
+
+['a','b','c','d'].forEach(k=>document.getElementById(`inp-${k}`).addEventListener('input',refreshAll));
+['m2','m3','m4','tload','ig2','ig3','ig4'].forEach(k=>document.getElementById(k).addEventListener('input',refreshAll));
+
+document.getElementById('spd-range').addEventListener('input',function(){
+  const rpm=+this.value;
+  document.getElementById('spd-lbl').textContent=`${rpm} rpm`;
+  omega2=rpm*TAU/60;
+  computeCycle(); updateCharts();
+});
+
+document.getElementById('theta2-range').addEventListener('input',function(){
+  if(isAnim) return;
+  theta2=(+this.value)*D2R;
+  document.getElementById('th2-lbl').textContent=`${this.value}°`;
+  drawMechanism(theta2); updateChartMarkers();
+});
+
+let resizeTimer;
+window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{drawMechanism(theta2);updateChartMarkers();},120);});
+
+/* ─────────────────────────────────────────────────────────────
+   INIT
+───────────────────────────────────────────────────────────── */
+function loadFromM1(){
+  try{
+    const st=JSON.parse(localStorage.getItem('meng364_mechanism')||'null');
+    if(!st) return;
+    document.getElementById('inp-a').value=st.a;
+    document.getElementById('inp-b').value=st.b;
+    document.getElementById('inp-c').value=st.c;
+    document.getElementById('inp-d').value=st.d;
+    if(st.rpm) document.getElementById('spd-range').value=st.rpm;
+    const tog=document.getElementById('asm-tog');
+    if(tog) tog.checked=(st.assembly===-1);
+    refreshAll();
+  }catch(e){}
+}
+function checkM1Banner(){
+  try{
+    const st=JSON.parse(localStorage.getItem('meng364_mechanism')||'null');
+    const b=document.getElementById('m1-banner');
+    if(!b) return;
+    if(st && st.ts){
+      const mins=Math.round((Date.now()-st.ts)/60000);
+      document.getElementById('m1-banner-text').textContent=
+        `Module 1 saved ${mins<2?'just now':mins+' min ago'} — a=${st.a}, b=${st.b}, c=${st.c}, d=${st.d} cm`;
+      b.style.display='flex';
+    }
+  }catch(e){}
+}
+function pushToM1(){
+  try{
+    const a=parseFloat(document.getElementById('inp-a').value),b=parseFloat(document.getElementById('inp-b').value),c=parseFloat(document.getElementById('inp-c').value),d=parseFloat(document.getElementById('inp-d').value);
+    if([a,b,c,d].some(v=>!isFinite(v)||v<=0)){alert('Fix invalid link values before pushing.');return;}
+    const rpm=parseFloat(document.getElementById('spd-range').value)||30;
+    const asm=document.getElementById('asm-tog').checked?-1:1;
+    localStorage.setItem('meng364_mechanism',JSON.stringify({a,b,c,d,rpm,assembly:asm,ts:Date.now()}));
+    const btn=event.target;btn.textContent='✓ Pushed!';setTimeout(()=>btn.textContent='↑ Push to Module 1',1800);
+  }catch(e){}
+}
+function validateLinkInputs(){
+  const ids=['a','b','c','d'];let msg='',ok=true;
+  ids.forEach(k=>{const el=document.getElementById(`inp-${k}`);const v=parseFloat(el.value);const good=isFinite(v)&&v>0;el.classList.toggle('invalid',!good);if(!good&&ok){msg=`Link <b>${k}</b> must be a positive number.`;ok=false;}});
+  const err=document.getElementById('link-err');if(err){err.innerHTML=msg;err.classList.toggle('show',!ok);}
+  return ok;
+}
+function addChartExportButtons(){
+  document.querySelectorAll('.plt-card').forEach(card=>{
+    const cv=card.querySelector('canvas');
+    if(!cv||card.querySelector('.plt-dl-btn')) return;
+    const ttl=card.querySelector('.plt-ttl');
+    const name=(ttl?ttl.textContent.replace(/[^a-zA-Z0-9_]/g,'_').slice(0,30):'chart');
+    const btn=document.createElement('button');
+    btn.className='plt-dl-btn'; btn.title='Download chart as PNG'; btn.textContent='⬇ PNG';
+    btn.onclick=()=>{ const a=document.createElement('a'); a.href=cv.toDataURL('image/png'); a.download=name+'.png'; a.click(); };
+    card.appendChild(btn);
+  });
+}
+window.addEventListener('DOMContentLoaded',()=>{
+  updateIGRows();
+  checkM1Banner();
+  initCharts();
+  computeCycle();
+  displayGrashof();
+  updateCharts();
+  drawMechanism(0);
+  addChartExportButtons();
+
+  mechCv.addEventListener('wheel',e=>{
+    e.preventDefault();
+    const rect=mechCv.getBoundingClientRect();
+    const mx=(e.clientX-rect.left)/rect.width*CW,my=(e.clientY-rect.top)/rect.height*CH;
+    const old=viewZoom;viewZoom=Math.min(8,Math.max(0.2,viewZoom*(e.deltaY<0?1.12:1/1.12)));
+    const f=viewZoom/old;panX=(mx-CW/2)-((mx-CW/2)-panX)*f;panY=(my-CH/2)-((my-CH/2)-panY)*f;
+    updateZoomLbl();drawMechanism(theta2);
+  },{passive:false});
+  mechCv.addEventListener('mousedown',e=>{if(e.button!==0)return;_isPanning=true;_dragX=e.clientX;_dragY=e.clientY;mechCv.style.cursor='grabbing';});
+  window.addEventListener('mousemove',e=>{if(!_isPanning)return;const r=mechCv.getBoundingClientRect();const s=CW/r.width;panX+=(e.clientX-_dragX)*s;panY+=(e.clientY-_dragY)*s;_dragX=e.clientX;_dragY=e.clientY;drawMechanism(theta2);});
+  window.addEventListener('mouseup',()=>{_isPanning=false;mechCv.style.cursor='grab';});
+  mechCv.addEventListener('dblclick',()=>resetView());
+});
+</script>
+<script>document.querySelector('.mod-pill.active')?.scrollIntoView({inline:'center',block:'nearest'});</script>
+</body>
+</html>

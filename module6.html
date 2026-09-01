@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MENG 364 — Module 6: Gear Trains</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#055934;--blue-dk:#0A353E;--blue-lt:#EEF8F5;
+  --orange:#A68A58;--green:#208D44;--red:#733B43;
+  --amber:#A68A58;--teal:#2BB673;--purple:#0A353E;
+  --cyan:#2BB673;--pink:#733B43;
+  --bg:#F2F7ED;--surface:#fff;--border:#C2CCC6;--text:#1D2921;--muted:#5C6660;
+}
+body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh}
+
+.hdr{background:var(--blue);color:#fff;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.hdr h1{font-size:.97rem;font-weight:700}.hdr p{font-size:.7rem;opacity:.82;margin-top:1px}
+.badge{background:var(--cyan);border-radius:20px;padding:4px 14px;font-size:.73rem;font-weight:700;white-space:nowrap}
+.mod-nav{background:var(--blue-dk);display:flex;padding:0 8px;overflow-x:auto;scrollbar-width:none;position:sticky;top:0;z-index:200;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.mod-nav::-webkit-scrollbar{display:none}
+.mod-pill{display:inline-block;padding:8px 13px;color:rgba(255,255,255,.65);font-size:.73rem;font-weight:700;text-decoration:none;border-bottom:3px solid transparent;white-space:nowrap;transition:all .15s}
+.mod-pill:hover{color:#fff;border-bottom-color:rgba(255,255,255,.4)}
+.mod-pill.active{color:#fff;border-bottom-color:#fff}
+.tip{display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;background:var(--blue-lt);color:var(--blue);font-size:.58rem;font-weight:800;cursor:help;flex-shrink:0;position:relative;margin-left:2px;vertical-align:middle;}
+.tip::after{content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 7px);transform:translateX(-50%);background:#1D2921;color:#fff;padding:6px 10px;border-radius:6px;font-size:.71rem;font-weight:500;line-height:1.45;white-space:normal;width:210px;text-align:left;opacity:0;pointer-events:none;transition:opacity .15s;z-index:9999;box-shadow:0 3px 10px rgba(0,0,0,.3);}
+.tip:hover::after{opacity:1;}
+.print-btn{background:none;border:1.5px solid rgba(255,255,255,.5);color:#fff;border-radius:6px;padding:4px 11px;font-size:.7rem;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.print-btn:hover{background:rgba(255,255,255,.15);}
+.zoom-bar{display:flex;gap:5px;margin-top:8px;align-items:center;}
+.zoom-btn{padding:3px 9px;border:1.5px solid var(--border);border-radius:5px;background:#fff;font-size:.73rem;font-weight:700;cursor:pointer;color:var(--muted);transition:all .15s;line-height:1.6;}
+.zoom-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-lt);}
+.zoom-lbl{font-size:.7rem;color:var(--muted);min-width:38px;text-align:center;font-weight:600;}
+@media print{.mod-nav,.btns,.presets,.zoom-bar,.print-btn,.plt-dl-btn,.add-btn{display:none!important;}.hdr{background:#fff!important;color:#000!important;box-shadow:none!important;border-bottom:2px solid #055934;}.badge{background:#EEF8F5!important;color:#2BB673!important;}body{background:#fff!important;}.card{box-shadow:none!important;border:1px solid #ddd!important;page-break-inside:avoid;}.layout{display:block!important;}canvas{max-width:100%!important;}}
+
+.layout{display:grid;grid-template-columns:280px 1fr 290px;gap:12px;padding:12px;max-width:1600px;margin:0 auto;align-items:start}
+@media(max-width:1150px){.layout{grid-template-columns:280px 1fr}.right{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:12px}}
+@media(max-width:720px){.layout{grid-template-columns:1fr}.right{grid-template-columns:1fr}}
+
+.card{background:var(--surface);border-radius:10px;box-shadow:0 1px 5px rgba(0,0,0,.09);padding:14px;margin-bottom:12px}
+.card:last-child{margin-bottom:0}
+.card-ttl{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--blue);border-bottom:2px solid var(--blue-lt);padding-bottom:6px;margin-bottom:12px}
+.card-ttl.cyan  {color:var(--cyan);  border-bottom-color:#EEF8F5}
+.card-ttl.purple{color:var(--purple);border-bottom-color:#EEF8F5}
+.card-ttl.green {color:var(--green); border-bottom-color:#E8F5E9}
+.card-ttl.orange{color:var(--orange);border-bottom-color:#FBE9E7}
+.card-ttl.pink  {color:var(--pink);  border-bottom-color:#FCE4EC}
+
+/* tabs */
+.tabs{display:flex;border-bottom:2px solid var(--border);margin-bottom:14px}
+.tab{flex:1;padding:7px 2px;text-align:center;font-size:.71rem;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .15s;white-space:nowrap}
+.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.tab-panel{display:none}.tab-panel.active{display:block}
+
+/* inputs */
+.irow{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.ilbl{font-size:.79rem;font-weight:600;color:var(--muted);width:96px;flex-shrink:0}
+.inum{flex:1;min-width:0;width:0;padding:5px 8px;border:1.5px solid var(--border);border-radius:5px;font-size:.87rem;font-weight:700;text-align:right;color:var(--text);background:#FAFAFA;transition:border-color .15s}
+.inum:focus{outline:none;border-color:var(--blue);background:#fff}
+.iunit{font-size:.7rem;color:var(--muted);width:28px;flex-shrink:0}
+.isel{flex:1;min-width:0;padding:5px 6px;border:1.5px solid var(--border);border-radius:5px;font-size:.82rem;font-weight:700;color:var(--text);background:#FAFAFA;cursor:pointer}
+
+.sec-div{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:10px 0 6px;border-top:1px solid var(--border);padding-top:8px}
+
+/* gear table */
+.gear-table{width:100%;border-collapse:collapse;font-size:.75rem;margin-bottom:6px}
+.gear-table th{font-size:.61rem;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);padding:4px 3px;border-bottom:2px solid var(--border);text-align:center}
+.gear-table td{padding:3px 2px;border-bottom:1px solid #EEF2F5;text-align:center;vertical-align:middle}
+.gear-table td input{width:100%;border:1px solid var(--border);border-radius:4px;padding:3px 4px;font-size:.77rem;font-weight:700;text-align:right;background:#FAFAFA}
+.gear-table td input:focus{outline:none;border-color:var(--blue);background:#fff}
+.gear-table .del-btn{background:none;border:none;cursor:pointer;color:var(--red);font-size:.85rem;padding:2px 5px;border-radius:3px}
+.gear-table .del-btn:hover{background:#FFEBEE}
+.color-dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.add-btn{width:100%;padding:6px;border:1.5px dashed var(--border);border-radius:6px;background:#fff;font-size:.73rem;font-weight:700;cursor:pointer;color:var(--muted);transition:all .15s}
+.add-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-lt)}
+
+/* results */
+.res-row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:1px solid #EEF2F5;font-size:.82rem}
+.res-row:last-child{border:none}
+.res-lbl{color:var(--muted);font-weight:600}
+.res-val{font-family:'Courier New',monospace;font-weight:800}
+.big-res{background:var(--bg);border-radius:8px;padding:10px 14px;margin-top:8px;text-align:center}
+.big-res-n{font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+.big-res-v{font-size:1.25rem;font-weight:800;font-family:'Courier New',monospace;margin-top:3px}
+
+/* presets */
+.presets{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap}
+.pre-btn{flex:1;min-width:60px;padding:5px 4px;border:1.5px solid var(--border);border-radius:5px;background:#fff;font-size:.64rem;font-weight:700;cursor:pointer;color:var(--muted);transition:all .15s;text-align:center}
+.pre-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-lt)}
+
+/* canvases */
+#gearCanvas{width:100%;height:auto;display:block;border-radius:6px;background:#F4F7F9;border:1px solid var(--border)}
+.cv-badge{position:absolute;top:40px;right:14px;background:rgba(21,101,192,.9);color:#fff;padding:3px 12px;border-radius:20px;font-size:.78rem;font-weight:700;font-family:monospace;pointer-events:none}
+.cv-wrap{position:relative}
+
+/* sliders */
+.sl-lbl{display:flex;justify-content:space-between;font-size:.75rem;font-weight:600;color:var(--muted);margin-bottom:3px}
+input[type=range]{-webkit-appearance:none;width:100%;height:4px;border-radius:2px;background:var(--border);outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--blue);cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+.mt8{margin-top:8px}.mt12{margin-top:12px}
+
+.btns{display:flex;gap:7px;margin-top:8px}
+.btn{flex:1;padding:8px 6px;border:none;border-radius:6px;font-size:.76rem;font-weight:700;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:3px}
+.btn-p{background:var(--blue);color:#fff}.btn-p:hover{background:var(--blue-dk)}
+.btn-s{background:#C2CCC6;color:var(--text)}.btn-s:hover{background:#B0BEC5}
+.btn-r{background:var(--red);color:#fff}
+
+/* epicyclic table */
+.epi-grid{display:grid;grid-template-columns:auto 1fr 1fr 1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:6px;overflow:hidden;font-size:.76rem;margin-top:8px}
+.epi-cell{background:var(--surface);padding:6px 8px}
+.epi-hdr{background:#EEF2F5;font-weight:700;font-size:.65rem;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+.epi-row-lbl{font-weight:700;color:var(--muted);font-size:.72rem}
+.epi-val{font-family:'Courier New',monospace;font-weight:800;color:var(--blue)}
+
+/* plots */
+.plt-card{background:var(--surface);border-radius:10px;box-shadow:0 1px 5px rgba(0,0,0,.09);padding:10px 11px 9px;margin-top:12px;position:relative}
+.plt-ttl{font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);text-align:center;margin-bottom:4px}
+.plt-dl-btn{position:absolute;top:6px;right:7px;background:none;border:1px solid var(--border);border-radius:4px;color:var(--muted);font-size:.63rem;padding:2px 5px;cursor:pointer;line-height:1.4;transition:all .15s;z-index:5;}
+.plt-dl-btn:hover{background:var(--blue-lt);color:var(--blue);border-color:var(--blue);}
+
+/* direction badge */
+.dir-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:.69rem;font-weight:700}
+.dir-same{background:#E8F5E9;color:var(--green)}
+.dir-opp {background:#FFEBEE;color:var(--red)}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body, button, input, select, textarea { font-family:'Alexandria', system-ui, sans-serif !important; }
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div><h1>Machine Dynamics Tool</h1><p>MENG 364 &nbsp;·&nbsp; King Abdulaziz University</p></div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div class="badge">Module 6 — Gear Trains</div>
+    <button class="print-btn" onclick="window.print()">⎙ Print / PDF</button>
+  </div>
+</header>
+
+<nav class="mod-nav">
+  <a href="index.html"   class="mod-pill">Module 1 — 4-Bar Linkage</a>
+  <a href="module2.html" class="mod-pill">Module 2 — Coupler Point</a>
+  <a href="module3.html" class="mod-pill">Module 3 — Force Analysis</a>
+  <a href="module4.html" class="mod-pill">Module 4 — Flywheel</a>
+  <a href="module5.html" class="mod-pill">Module 5 — Balancing</a>
+  <a href="module6.html" class="mod-pill active">Module 6 — Gear Trains</a>
+  <a href="module7.html" class="mod-pill">Module 7 — Cam Design</a>
+</nav>
+
+<div class="layout">
+
+<!-- ══════════════ LEFT PANEL ══════════════ -->
+<div class="left">
+  <div class="card">
+    <div class="card-ttl">Gear Train Type</div>
+    <div class="tabs">
+      <div class="tab active" id="tab-simple"   onclick="switchTab('simple')">Simple</div>
+      <div class="tab"        id="tab-compound" onclick="switchTab('compound')">Compound</div>
+      <div class="tab"        id="tab-epi"      onclick="switchTab('epi')">Epicyclic</div>
+    </div>
+
+    <!-- ══ SIMPLE TAB ══ -->
+    <div class="tab-panel active" id="panel-simple">
+      <div style="font-size:.71rem;color:var(--muted);margin-bottom:10px;line-height:1.5">
+        A simple gear train has one gear per shaft. Each meshing pair reverses rotation direction.
+      </div>
+      <table class="gear-table" id="simple-table">
+        <thead><tr><th></th><th>#</th><th>Teeth N</th><th>Role</th><th></th></tr></thead>
+        <tbody id="simple-tbody"></tbody>
+      </table>
+      <button class="add-btn" onclick="addSimpleGear()">+ Add Gear</button>
+
+      <div class="sec-div">Input</div>
+      <div class="irow">
+        <span class="ilbl">ω_in <span class="tip" data-tip="Input shaft angular speed of the driver gear.">?</span></span>
+        <input type="number" class="inum" id="s-win" value="1000" step="50">
+        <span class="iunit">rpm</span>
+      </div>
+      <div class="irow">
+        <span class="ilbl">T_in <span class="tip" data-tip="Input torque applied to the driver gear shaft.">?</span></span>
+        <input type="number" class="inum" id="s-tin" value="10" step="1">
+        <span class="iunit">N·m</span>
+      </div>
+      <div class="irow">
+        <span class="ilbl">Efficiency η <span class="tip" data-tip="Mesh efficiency per stage (0–1). Accounts for friction losses at each gear pair.">?</span></span>
+        <input type="number" class="inum" id="s-eta" value="0.98" min="0.1" max="1" step="0.01">
+        <span class="iunit">—</span>
+      </div>
+      <div class="presets">
+        <button class="pre-btn" onclick="loadSimplePreset('reducer')">Speed Reducer</button>
+        <button class="pre-btn" onclick="loadSimplePreset('increaser')">Speed Increaser</button>
+        <button class="pre-btn" onclick="loadSimplePreset('idler')">3-Gear (Idler)</button>
+      </div>
+    </div>
+
+    <!-- ══ COMPOUND TAB ══ -->
+    <div class="tab-panel" id="panel-compound">
+      <div style="font-size:.71rem;color:var(--muted);margin-bottom:10px;line-height:1.5">
+        A compound train has two or more gears on the same shaft (keyed together). Allows large ratios in a small package.
+      </div>
+      <div style="font-size:.69rem;font-weight:700;color:var(--muted);margin-bottom:4px">Stages (each stage = driver / driven pair on a shaft):</div>
+      <table class="gear-table" id="compound-table">
+        <thead><tr><th></th><th>Stage</th><th>Driver N</th><th>Driven N</th><th></th></tr></thead>
+        <tbody id="compound-tbody"></tbody>
+      </table>
+      <button class="add-btn" onclick="addCompoundStage()">+ Add Stage</button>
+
+      <div class="sec-div">Input</div>
+      <div class="irow"><span class="ilbl">ω_in <span class="tip" data-tip="Input shaft angular speed of the first driver gear.">?</span></span><input type="number" class="inum" id="c-win" value="1500" step="50"><span class="iunit">rpm</span></div>
+      <div class="irow"><span class="ilbl">T_in <span class="tip" data-tip="Input torque at the first shaft.">?</span></span><input type="number" class="inum" id="c-tin" value="5" step="1"><span class="iunit">N·m</span></div>
+      <div class="irow"><span class="ilbl">η/stage <span class="tip" data-tip="Mesh efficiency per stage. Overall efficiency = η^(number of stages).">?</span></span><input type="number" class="inum" id="c-eta" value="0.98" min="0.1" max="1" step="0.01"><span class="iunit">—</span></div>
+      <div class="presets">
+        <button class="pre-btn" onclick="loadCompoundPreset('two')">2-Stage</button>
+        <button class="pre-btn" onclick="loadCompoundPreset('three')">3-Stage</button>
+        <button class="pre-btn" onclick="loadCompoundPreset('back')">Back-drive</button>
+      </div>
+    </div>
+
+    <!-- ══ EPICYCLIC TAB ══ -->
+    <div class="tab-panel" id="panel-epi">
+      <div style="font-size:.71rem;color:var(--muted);margin-bottom:10px;line-height:1.5">
+        Epicyclic (planetary) gear train: sun (S), planet (P), ring (R), and arm/carrier (C). Use the tabular method.
+      </div>
+      <div class="irow"><span class="ilbl">N_S — Sun <span class="tip" data-tip="Number of teeth on the sun gear (central gear). Must satisfy N_R = N_S + 2·N_P.">?</span></span><input type="number" class="inum" id="e-ns" value="20" min="6" step="1"><span class="iunit">—</span></div>
+      <div class="irow"><span class="ilbl">N_P — Planet <span class="tip" data-tip="Number of teeth on each planet gear. Three equally-spaced planets assumed.">?</span></span><input type="number" class="inum" id="e-np" value="30" min="6" step="1"><span class="iunit">—</span></div>
+      <div class="irow"><span class="ilbl">N_R — Ring <span class="tip" data-tip="Auto-computed: N_R = N_S + 2·N_P. The annular ring gear meshes with all planet gears.">?</span></span><input type="number" class="inum" id="e-nr" value="80" min="6" step="1"><span class="iunit">auto</span></div>
+      <div style="font-size:.68rem;color:var(--muted);margin-bottom:8px">N_R = N_S + 2·N_P (mesh condition). Auto-computed.</div>
+
+      <div class="sec-div">Boundary Conditions</div>
+      <div class="irow"><span class="ilbl">Input member</span>
+        <select class="isel" id="e-input-mem" onchange="refreshEpi()">
+          <option value="S">Sun (S)</option>
+          <option value="C">Arm/Carrier (C)</option>
+          <option value="R">Ring (R)</option>
+        </select>
+      </div>
+      <div class="irow"><span class="ilbl">Fixed member</span>
+        <select class="isel" id="e-fixed-mem" onchange="refreshEpi()">
+          <option value="R">Ring (R) — fixed</option>
+          <option value="C">Arm (C) — fixed</option>
+          <option value="S">Sun (S) — fixed</option>
+        </select>
+      </div>
+      <div class="irow"><span class="ilbl">ω_input <span class="tip" data-tip="Speed of the selected input member (sun, arm, or ring).">?</span></span><input type="number" class="inum" id="e-win" value="1000" step="50"><span class="iunit">rpm</span></div>
+      <div class="irow"><span class="ilbl">T_input <span class="tip" data-tip="Torque applied to the input member.">?</span></span><input type="number" class="inum" id="e-tin" value="20" step="1"><span class="iunit">N·m</span></div>
+      <div class="irow"><span class="ilbl">Efficiency η <span class="tip" data-tip="Overall transmission efficiency (0–1). Typical epicyclics achieve 0.95–0.99.">?</span></span><input type="number" class="inum" id="e-eta" value="0.97" min="0.1" max="1" step="0.01"><span class="iunit">—</span></div>
+
+      <div class="presets">
+        <button class="pre-btn" onclick="loadEpiPreset('reduction')">Reduction</button>
+        <button class="pre-btn" onclick="loadEpiPreset('overdrive')">Overdrive</button>
+        <button class="pre-btn" onclick="loadEpiPreset('compound')">Compound Epi</button>
+      </div>
+    </div>
+  </div><!-- /card -->
+</div><!-- /left -->
+
+<!-- ══════════════ CENTER PANEL ══════════════ -->
+<div class="center">
+  <div class="card cv-wrap">
+    <div class="card-ttl" style="display:flex;justify-content:space-between;align-items:center">
+      <span id="canvas-ttl">Gear Train Diagram</span>
+      <span style="font-size:.65rem;color:var(--muted);font-weight:500">Scroll to zoom · Drag to pan · Double-click to reset</span>
+    </div>
+    <canvas id="gearCanvas" width="820" height="460" style="cursor:grab;"></canvas>
+    <div class="cv-badge" id="cv-badge">e = —</div>
+    <div class="zoom-bar">
+      <button class="zoom-btn" onclick="zoomStep(1.25)">＋ Zoom</button>
+      <button class="zoom-btn" onclick="zoomStep(1/1.25)">－ Zoom</button>
+      <span class="zoom-lbl" id="zoom-lbl">100%</span>
+      <button class="zoom-btn" onclick="resetView()">⟳ Reset</button>
+    </div>
+  </div>
+
+  <!-- Speed/torque flow chart -->
+  <div class="plt-card">
+    <div class="plt-ttl">Speed &amp; Torque at Each Shaft</div>
+    <canvas id="ch-flow" height="130"></canvas>
+  </div>
+</div><!-- /center -->
+
+<!-- ══════════════ RIGHT PANEL ══════════════ -->
+<div class="right">
+
+  <!-- Simple / compound results -->
+  <div id="res-simple-compound">
+    <div class="card">
+      <div class="card-ttl cyan">Overall Gear Ratio</div>
+      <div class="big-res">
+        <div class="big-res-n">e = ω_out / ω_in</div>
+        <div class="big-res-v" id="rv-e" style="color:var(--cyan)">—</div>
+      </div>
+      <div class="res-row" style="margin-top:8px"><span class="res-lbl">ω_out</span><span class="res-val" id="rv-wout">— rpm</span></div>
+      <div class="res-row"><span class="res-lbl">T_out</span><span class="res-val" id="rv-tout">— N·m</span></div>
+      <div class="res-row"><span class="res-lbl">P_out</span><span class="res-val" id="rv-pout">— W</span></div>
+      <div class="res-row"><span class="res-lbl">P_loss</span><span class="res-val" id="rv-ploss" style="color:var(--red)">— W</span></div>
+      <div class="res-row"><span class="res-lbl">Direction</span><span class="res-val" id="rv-dir">—</span></div>
+    </div>
+
+    <div class="card" style="margin-top:0">
+      <div class="card-ttl cyan">Per-Shaft Summary</div>
+      <div id="shaft-summary" style="font-size:.75rem"></div>
+    </div>
+  </div>
+
+  <!-- Epicyclic results -->
+  <div id="res-epi" style="display:none">
+    <div class="card">
+      <div class="card-ttl pink">Tabular Method</div>
+      <div style="font-size:.69rem;color:var(--muted);margin-bottom:8px;line-height:1.4">
+        Three rows: (1) Arm locked, input 1 rev; (2) add x rev to all; (3) set fixed member = 0.
+      </div>
+      <div class="epi-grid" id="epi-table">
+        <div class="epi-cell epi-hdr">Step</div>
+        <div class="epi-cell epi-hdr">Sun (S)</div>
+        <div class="epi-cell epi-hdr">Planet (P)</div>
+        <div class="epi-cell epi-hdr">Ring (R)</div>
+        <div class="epi-cell epi-hdr">Arm (C)</div>
+        <!-- filled by JS -->
+      </div>
+    </div>
+    <div class="card" style="margin-top:0">
+      <div class="card-ttl pink">Results</div>
+      <div class="res-row"><span class="res-lbl">N_S / N_P / N_R</span><span class="res-val" id="e-teeth">—</span></div>
+      <div class="res-row"><span class="res-lbl">Overall ratio e</span><span class="res-val" id="e-ratio" style="color:var(--pink)">—</span></div>
+      <div class="res-row"><span class="res-lbl">ω_out</span>        <span class="res-val" id="e-wout">— rpm</span></div>
+      <div class="res-row"><span class="res-lbl">T_out</span>        <span class="res-val" id="e-tout">— N·m</span></div>
+      <div class="res-row"><span class="res-lbl">Direction</span>    <span class="res-val" id="e-dir">—</span></div>
+      <div class="big-res">
+        <div class="big-res-n">Output speed</div>
+        <div class="big-res-v" id="e-wout-big" style="color:var(--pink)">—</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /right -->
+</div><!-- /layout -->
+
+<script>
+'use strict';
+const PI=Math.PI,TAU=2*PI;
+let currentTab='simple';
+
+/* ═══════════════════════════════════════════
+   GEAR COLORS
+═══════════════════════════════════════════ */
+const GCOLS=['#055934','#A68A58','#208D44','#0A353E','#2BB673','#733B43','#A68A58','#2BB673','#733B43','#5C6660'];
+
+/* ═══════════════════════════════════════════
+   TAB SWITCHING
+═══════════════════════════════════════════ */
+function switchTab(name){
+  currentTab=name;
+  ['simple','compound','epi'].forEach(t=>{
+    document.getElementById(`tab-${t}`).className='tab'+(t===name?' active':'');
+    document.getElementById(`panel-${t}`).className='tab-panel'+(t===name?' active':'');
+  });
+  document.getElementById('res-simple-compound').style.display=name==='epi'?'none':'block';
+  document.getElementById('res-epi').style.display=name==='epi'?'block':'none';
+  if(name==='simple')   refreshSimple();
+  else if(name==='compound') refreshCompound();
+  else                   refreshEpi();
+}
+
+/* ═══════════════════════════════════════════
+   SIMPLE GEAR TRAIN
+═══════════════════════════════════════════ */
+let simpleGears=[];
+let simpleNextId=1;
+
+function addSimpleGear(N=20,role='gear'){
+  const id=simpleNextId++;
+  simpleGears.push({id,N,role});
+  renderSimpleTable();
+}
+
+function delSimpleGear(id){
+  simpleGears=simpleGears.filter(g=>g.id!==id);
+  renderSimpleTable();
+}
+
+function renderSimpleTable(){
+  const tbody=document.getElementById('simple-tbody');
+  tbody.innerHTML='';
+  simpleGears.forEach((g,i)=>{
+    const col=GCOLS[i%GCOLS.length];
+    const roles=i===0?['driver']:i===simpleGears.length-1?['driven']:['gear','idler'];
+    const roleOpts=roles.map(r=>`<option value="${r}" ${g.role===r?'selected':''}>${r}</option>`).join('');
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td><span class="color-dot" style="background:${col}"></span></td>
+      <td style="font-weight:700;color:var(--muted)">${i+1}</td>
+      <td><input type="number" value="${g.N}" min="6" step="1" onchange="updateSimpleGear(${g.id},'N',this.value)"></td>
+      <td style="font-size:.7rem;color:var(--muted)">${i===0?'Driver':i===simpleGears.length-1?'Driven':'Idler'}</td>
+      <td><button class="del-btn" onclick="delSimpleGear(${g.id})" ${simpleGears.length<=2?'disabled':''}>✕</button></td>`;
+    tbody.appendChild(tr);
+  });
+  refreshSimple();
+}
+
+function updateSimpleGear(id,key,val){
+  const g=simpleGears.find(x=>x.id===id);
+  if(g){g[key]=parseInt(val)||12;refreshSimple();}
+}
+
+function simpleRatio(){
+  // e = ω_out/ω_in = (±) N_driver / N_last
+  // For a chain: e = N_1 / N_last × direction
+  // Each mesh reverses: total sign = (-1)^(n_gears-1) for external gears
+  if(simpleGears.length<2) return{e:1,dir:1};
+  const n=simpleGears.length;
+  // product of teeth ratios for each mesh: driver/driven
+  let e=1;
+  for(let i=0;i<n-1;i++) e*=simpleGears[i].N/simpleGears[i+1].N;
+  const dir=Math.pow(-1,n-1);   // external gears alternate direction
+  return{e:e*dir, eMag:e, dir};
+}
+
+function refreshSimple(){
+  if(currentTab!=='simple')return;
+  const{e,eMag,dir}=simpleRatio();
+  const win=parseFloat(document.getElementById('s-win').value)||0;
+  const tin=parseFloat(document.getElementById('s-tin').value)||0;
+  const eta=parseFloat(document.getElementById('s-eta').value)||1;
+  const n=simpleGears.length;
+  const wout=win*e;
+  const tout=(tin/eMag)*eta;
+  const pin=tin*(win*PI/30);
+  const pout=tout*(Math.abs(wout)*PI/30);
+
+  document.getElementById('rv-e').textContent    =e.toFixed(5);
+  document.getElementById('rv-wout').textContent =(wout).toFixed(2)+' rpm';
+  document.getElementById('rv-tout').textContent =tout.toFixed(4)+' N·m';
+  document.getElementById('rv-pout').textContent =(pout).toFixed(3)+' W';
+  document.getElementById('rv-ploss').textContent=(pin-pout).toFixed(3)+' W';
+  const dirEl=document.getElementById('rv-dir');
+  dirEl.innerHTML=dir>0?'<span class="dir-badge dir-same">Same as input</span>':'<span class="dir-badge dir-opp">Opposite to input</span>';
+  document.getElementById('cv-badge').textContent=`e = ${e.toFixed(4)}`;
+
+  // Per-shaft summary
+  let html='<table style="width:100%;font-size:.73rem;border-collapse:collapse">';
+  html+='<tr><th style="text-align:left;color:var(--muted);font-size:.62rem;padding:2px 4px">Gear</th><th style="color:var(--muted);font-size:.62rem;padding:2px 4px">N</th><th style="color:var(--muted);font-size:.62rem;padding:2px 4px">ω (rpm)</th></tr>';
+  let w=win;
+  simpleGears.forEach((g,i)=>{
+    const col=GCOLS[i%GCOLS.length];
+    if(i>0) w*=-(simpleGears[i-1].N/g.N);
+    html+=`<tr><td style="padding:2px 4px"><span class="color-dot" style="background:${col}"></span> ${i+1}</td><td style="padding:2px 4px;font-family:monospace;font-weight:700">${g.N}</td><td style="padding:2px 4px;font-family:monospace;font-weight:700;color:${col}">${w.toFixed(1)}</td></tr>`;
+  });
+  html+='</table>';
+  document.getElementById('shaft-summary').innerHTML=html;
+
+  drawSimpleGears(win,wout,eta);
+  updateFlowChart('simple');
+}
+
+function loadSimplePreset(name){
+  simpleGears=[];simpleNextId=1;
+  if(name==='reducer')   {addSimpleGear(16);addSimpleGear(48);}
+  else if(name==='increaser'){addSimpleGear(48);addSimpleGear(16);}
+  else if(name==='idler') {addSimpleGear(20);addSimpleGear(20);addSimpleGear(40);}
+  else renderSimpleTable();
+}
+
+/* ═══════════════════════════════════════════
+   COMPOUND GEAR TRAIN
+═══════════════════════════════════════════ */
+let compStages=[];
+let compNextId=1;
+
+function addCompoundStage(Nd=20,Nn=60){
+  const id=compNextId++;
+  compStages.push({id,Nd,Nn});
+  renderCompoundTable();
+}
+
+function delCompoundStage(id){
+  if(compStages.length<=1)return;
+  compStages=compStages.filter(s=>s.id!==id);
+  renderCompoundTable();
+}
+
+function renderCompoundTable(){
+  const tbody=document.getElementById('compound-tbody');
+  tbody.innerHTML='';
+  compStages.forEach((s,i)=>{
+    const col=GCOLS[(i*2)%GCOLS.length];
+    const col2=GCOLS[(i*2+1)%GCOLS.length];
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td><span class="color-dot" style="background:${col}"></span><span class="color-dot" style="background:${col2}"></span></td>
+      <td style="font-weight:700;color:var(--muted)">${i+1}</td>
+      <td><input type="number" value="${s.Nd}" min="6" step="1" onchange="updateCompStage(${s.id},'Nd',this.value)"></td>
+      <td><input type="number" value="${s.Nn}" min="6" step="1" onchange="updateCompStage(${s.id},'Nn',this.value)"></td>
+      <td><button class="del-btn" onclick="delCompoundStage(${s.id})">✕</button></td>`;
+    tbody.appendChild(tr);
+  });
+  refreshCompound();
+}
+
+function updateCompStage(id,key,val){
+  const s=compStages.find(x=>x.id===id);
+  if(s){s[key]=parseInt(val)||12;refreshCompound();}
+}
+
+function compoundRatio(){
+  // e = Π(N_driver_i / N_driven_i) for each stage, sign = (-1)^n_stages
+  let eMag=1;
+  compStages.forEach(s=>eMag*=s.Nd/s.Nn);
+  const dir=Math.pow(-1,compStages.length);
+  return{e:eMag*dir, eMag, dir};
+}
+
+function refreshCompound(){
+  if(currentTab!=='compound')return;
+  const{e,eMag,dir}=compoundRatio();
+  const win=parseFloat(document.getElementById('c-win').value)||0;
+  const tin=parseFloat(document.getElementById('c-tin').value)||0;
+  const eta=parseFloat(document.getElementById('c-eta').value)||1;
+  const etaTot=Math.pow(eta,compStages.length);
+  const wout=win*e;
+  const tout=(tin/eMag)*etaTot;
+  const pin=tin*(win*PI/30);
+  const pout=tout*(Math.abs(wout)*PI/30);
+
+  document.getElementById('rv-e').textContent    =e.toFixed(5);
+  document.getElementById('rv-wout').textContent =(wout).toFixed(2)+' rpm';
+  document.getElementById('rv-tout').textContent =tout.toFixed(4)+' N·m';
+  document.getElementById('rv-pout').textContent =(pout).toFixed(3)+' W';
+  document.getElementById('rv-ploss').textContent=(pin-pout).toFixed(3)+' W';
+  const dirEl=document.getElementById('rv-dir');
+  dirEl.innerHTML=dir>0?'<span class="dir-badge dir-same">Same as input</span>':'<span class="dir-badge dir-opp">Opposite to input</span>';
+  document.getElementById('cv-badge').textContent=`e = ${e.toFixed(4)}`;
+
+  // Per-shaft
+  let html='<table style="width:100%;font-size:.73rem;border-collapse:collapse">';
+  html+='<tr><th style="text-align:left;color:var(--muted);font-size:.62rem;padding:2px 4px">Shaft</th><th style="color:var(--muted);font-size:.62rem;padding:2px 4px">Driver N</th><th style="color:var(--muted);font-size:.62rem;padding:2px 4px">Driven N</th><th style="color:var(--muted);font-size:.62rem;padding:2px 4px">ω (rpm)</th></tr>';
+  let w=win;
+  compStages.forEach((s,i)=>{
+    const wOut=w*(s.Nd/s.Nn);
+    html+=`<tr><td style="padding:2px 4px">Stage ${i+1}</td><td style="padding:2px 4px;font-family:monospace;font-weight:700">${s.Nd}</td><td style="padding:2px 4px;font-family:monospace;font-weight:700">${s.Nn}</td><td style="padding:2px 4px;font-family:monospace;font-weight:700;color:var(--blue)">${wOut.toFixed(1)}</td></tr>`;
+    w=-wOut; // next stage driver has negative (opposite) speed due to meshing
+  });
+  html+='</table>';
+  document.getElementById('shaft-summary').innerHTML=html;
+
+  drawCompoundGears(win,wout,eta);
+  updateFlowChart('compound');
+}
+
+function loadCompoundPreset(name){
+  compStages=[];compNextId=1;
+  if(name==='two')   {addCompoundStage(20,80);addCompoundStage(20,60);}
+  else if(name==='three'){addCompoundStage(20,80);addCompoundStage(16,64);addCompoundStage(18,54);}
+  else if(name==='back'){addCompoundStage(60,20);addCompoundStage(60,20);}
+  else renderCompoundTable();
+}
+
+/* ═══════════════════════════════════════════
+   EPICYCLIC GEAR TRAIN — TABULAR METHOD
+
+   Velocity ratio: N_R = N_S + 2*N_P  (mesh condition)
+   e_arm_locked = ω_S/ω_R when arm fixed = -N_R/N_S
+
+   Tabular method:
+   Step 1: Lock arm (ω_C = 0). Give sun +1 rev.
+     ω_S = +1,  ω_P = -N_S/N_P,  ω_R = -N_S/N_R,  ω_C = 0
+   Step 2: Add x revs to everything:
+     ω_S = 1+x, ω_P = -N_S/N_P+x, ω_R = -N_S/N_R+x, ω_C = x
+   Step 3: Apply boundary (fixed member = 0) → solve x
+   Step 4: Output = required member speed × ω_input
+═══════════════════════════════════════════ */
+function epicyclicAnalysis(){
+  const NS=parseInt(document.getElementById('e-ns').value)||20;
+  const NP=parseInt(document.getElementById('e-np').value)||30;
+  const NR=NS+2*NP;
+  // Update NR display
+  document.getElementById('e-nr').value=NR;
+
+  const inputMem=document.getElementById('e-input-mem').value;  // 'S','C','R'
+  const fixedMem=document.getElementById('e-fixed-mem').value;  // 'R','C','S'
+  const win_rpm=parseFloat(document.getElementById('e-win').value)||1000;
+  const tin=parseFloat(document.getElementById('e-tin').value)||20;
+  const eta=parseFloat(document.getElementById('e-eta').value)||0.97;
+
+  // Prevent same input and fixed
+  if(inputMem===fixedMem) return null;
+
+  // Tabular rows (in terms of x, with 1 rev given to sun when arm locked)
+  // Step 1 (arm locked, sun = +1 rev):
+  //   S=1, P=-NS/NP (from mesh S-P), R=-NS/NR (from mesh S-R), C=0
+  const S1=1, P1=-(NS/NP), R1=-(NS/NR), C1=0;
+  // Step 2: add x to all → S=1+x, P=P1+x, R=R1+x, C=x
+  // Express as: member = coeff_x * x + const
+  // S: 1*x + 1
+  // P: 1*x + P1
+  // R: 1*x + R1
+  // C: 1*x + 0
+
+  const coeff={S:[1,S1], P:[1,P1], R:[1,R1], C:[1,C1]};
+  // coeff[m] = [x_coeff, const]  → value = x_coeff*x + const
+
+  // Step 3: fixed member = 0 → x_coeff*x + const = 0 → x = -const/x_coeff
+  const [fxc,fcon]=coeff[fixedMem];
+  const x=Math.abs(fxc)>1e-10 ? -fcon/fxc : 0;
+
+  // Step 4: all member speeds in "table units" (normalised to 1 rev input)
+  const speeds={};
+  ['S','P','R','C'].forEach(m=>{
+    speeds[m]=coeff[m][0]*x+coeff[m][1];
+  });
+
+  // Input member speed in rpm
+  const w_in_table=speeds[inputMem];
+  // Scale factor: 1 table unit = win_rpm / w_in_table rpm
+  const scale = Math.abs(w_in_table)>1e-10 ? win_rpm/w_in_table : 0;
+
+  // Output member = first of S, R, C that is neither input nor fixed
+  // Planet (P) is never used as the practical output of an epicyclic train
+  const outputMem=['S','R','C'].filter(m=>m!==inputMem&&m!==fixedMem)[0]||'C';
+  const w_out_table=speeds[outputMem];
+  const w_out_rpm=w_out_table*scale;
+
+  const eMag=Math.abs(w_out_rpm/win_rpm);
+  const dir=Math.sign(w_out_rpm)*Math.sign(win_rpm)>0?1:-1;
+
+  const tout=(Math.abs(win_rpm)>1e-6)?tin/eMag*eta:0;
+
+  return{NS,NP,NR,inputMem,fixedMem,outputMem,
+    x,speeds,scale,
+    w_in_rpm:win_rpm,w_out_rpm,
+    e:w_out_rpm/win_rpm, eMag, dir,
+    tin,tout,eta,
+    S1,P1,R1};
+}
+
+function refreshEpi(){
+  if(currentTab!=='epi')return;
+  const res=epicyclicAnalysis();
+  if(!res){
+    document.getElementById('e-ratio').textContent='Invalid (input = fixed)';
+    return;
+  }
+  const{NS,NP,NR,e,eMag,dir,w_in_rpm,w_out_rpm,tout,speeds,scale,inputMem,fixedMem,outputMem,x,S1,P1,R1}=res;
+
+  document.getElementById('e-teeth').textContent=`${NS} / ${NP} / ${NR}`;
+  document.getElementById('e-ratio').textContent=e.toFixed(5);
+  document.getElementById('e-wout').textContent =w_out_rpm.toFixed(2)+' rpm';
+  document.getElementById('e-tout').textContent =tout.toFixed(4)+' N·m';
+  document.getElementById('e-dir').innerHTML    =dir>0?'<span class="dir-badge dir-same">Same as input</span>':'<span class="dir-badge dir-opp">Opposite to input</span>';
+  document.getElementById('e-wout-big').textContent=w_out_rpm.toFixed(2)+' rpm';
+  document.getElementById('cv-badge').textContent=`e = ${e.toFixed(4)}`;
+
+  // Tabular method display
+  const tEl=document.getElementById('epi-table');
+  const f=(v)=>v.toFixed(4);
+  // Helper: highlight the input/fixed/output members
+  const badge=(m,val)=>{
+    const isInput=m===inputMem, isFixed=m===fixedMem, isOut=m===outputMem;
+    const style=isFixed?'color:var(--red);font-weight:800':isInput?'color:var(--green);font-weight:800':isOut?'color:var(--pink);font-weight:800':'';
+    const tag=isFixed?' ★':isInput?' ▶':isOut?' ◀':'';
+    return `<div class="epi-cell epi-val" style="${style}">${val}${tag}</div>`;
+  };
+  tEl.innerHTML=`
+    <div class="epi-cell epi-hdr">Step</div>
+    <div class="epi-cell epi-hdr">Sun (S)</div>
+    <div class="epi-cell epi-hdr">Planet (P)</div>
+    <div class="epi-cell epi-hdr">Ring (R)</div>
+    <div class="epi-cell epi-hdr">Arm (C)</div>
+    <div class="epi-cell epi-row-lbl">1. Arm locked, S=+1</div>
+    <div class="epi-cell">${f(S1)}</div>
+    <div class="epi-cell">${f(P1)}</div>
+    <div class="epi-cell">${f(R1)}</div>
+    <div class="epi-cell">${f(C1)}</div>
+    <div class="epi-cell epi-row-lbl">2. Add x = ${f(x)}</div>
+    <div class="epi-cell">${f(x)}</div>
+    <div class="epi-cell">${f(x)}</div>
+    <div class="epi-cell">${f(x)}</div>
+    <div class="epi-cell">${f(x)}</div>
+    <div class="epi-cell epi-row-lbl">3. Total (norm.)</div>
+    ${badge('S',f(speeds.S))}
+    <div class="epi-cell epi-val">${f(speeds.P)}</div>
+    ${badge('R',f(speeds.R))}
+    ${badge('C',f(speeds.C))}
+    <div class="epi-cell epi-row-lbl">4. Actual (rpm)</div>
+    ${badge('S',(speeds.S*scale).toFixed(2))}
+    <div class="epi-cell epi-val">${(speeds.P*scale).toFixed(2)}</div>
+    ${badge('R',(speeds.R*scale).toFixed(2))}
+    ${badge('C',(speeds.C*scale).toFixed(2))}
+  `;
+
+  drawEpicyclicGears(res);
+  updateFlowChart('epi',res);
+}
+
+function loadEpiPreset(name){
+  if(name==='reduction'){
+    document.getElementById('e-ns').value=20;
+    document.getElementById('e-np').value=30;
+    document.getElementById('e-input-mem').value='S';
+    document.getElementById('e-fixed-mem').value='R';
+    document.getElementById('e-win').value=1000;
+  } else if(name==='overdrive'){
+    document.getElementById('e-ns').value=40;
+    document.getElementById('e-np').value=20;
+    document.getElementById('e-input-mem').value='C';
+    document.getElementById('e-fixed-mem').value='R';
+    document.getElementById('e-win').value=1000;
+  } else if(name==='compound'){
+    document.getElementById('e-ns').value=30;
+    document.getElementById('e-np').value=20;
+    document.getElementById('e-input-mem').value='S';
+    document.getElementById('e-fixed-mem').value='C';
+    document.getElementById('e-win').value=500;
+  }
+  refreshEpi();
+}
+
+/* ═══════════════════════════════════════════
+   DRAWING — SIMPLE GEAR TRAIN
+═══════════════════════════════════════════ */
+const cv=document.getElementById('gearCanvas');
+const ctx=cv.getContext('2d');
+let viewZoom=1,panX=0,panY=0,_isPanning=false,_dragX=0,_dragY=0;
+function zoomStep(f){viewZoom=Math.min(8,Math.max(0.2,viewZoom*f));updateZoomLbl();}
+function resetView(){viewZoom=1;panX=0;panY=0;updateZoomLbl();}
+function updateZoomLbl(){const el=document.getElementById('zoom-lbl');if(el)el.textContent=Math.round(viewZoom*100)+'%';}
+
+function setupCanvas(aspect){
+  const dpr=window.devicePixelRatio||1;
+  const logW=Math.max(300,cv.parentElement.clientWidth-28);
+  const logH=Math.round(logW*aspect);
+  cv.style.width=logW+'px';cv.style.height=logH+'px';
+  cv.width=Math.round(logW*dpr);cv.height=Math.round(logH*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return{W:logW,H:logH};
+}
+
+// Canvas y grows downward, so a positive ctx.rotate() reads as CLOCKWISE on screen.
+// Negate it here so a positive ω (counter-clockwise by convention) animates
+// counter-clockwise, matching the direction arrows drawn by rotArrow().
+function spinAngle(w_rpm,k){ return -(Date.now()/1000)*(w_rpm/60)*TAU*k%TAU; }
+
+function drawGear(cx,cy,r,N,angle,color,label,omega,lineW){
+  const teeth=N,tr=r+r*0.15,ir=r*0.82;
+  ctx.save();ctx.translate(cx,cy);ctx.rotate(angle);
+  // Tooth profile (simplified trapezoid)
+  ctx.beginPath();
+  for(let i=0;i<teeth;i++){
+    const a0=(i/teeth)*TAU, a1=((i+0.3)/teeth)*TAU, a2=((i+0.7)/teeth)*TAU, a3=((i+1)/teeth)*TAU;
+    if(i===0)ctx.moveTo(ir*Math.cos(a0),ir*Math.sin(a0));
+    ctx.lineTo(ir*Math.cos(a0),ir*Math.sin(a0));
+    ctx.lineTo(tr*Math.cos(a1),tr*Math.sin(a1));
+    ctx.lineTo(tr*Math.cos(a2),tr*Math.sin(a2));
+    ctx.lineTo(ir*Math.cos(a3),ir*Math.sin(a3));
+  }
+  ctx.closePath();
+  ctx.fillStyle=color+'22';ctx.fill();
+  ctx.strokeStyle=color;ctx.lineWidth=lineW||2;ctx.stroke();
+
+  // Pitch circle (dashed)
+  ctx.setLineDash([4,4]);ctx.strokeStyle=color+'88';ctx.lineWidth=1;
+  ctx.beginPath();ctx.arc(0,0,r,0,TAU);ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Hub
+  ctx.beginPath();ctx.arc(0,0,r*0.12,0,TAU);
+  ctx.fillStyle=color;ctx.fill();
+
+  // Spoke
+  ctx.strokeStyle=color;ctx.lineWidth=1.5;
+  for(let i=0;i<3;i++){
+    const a=i*TAU/3;
+    ctx.beginPath();ctx.moveTo(r*0.12*Math.cos(a),r*0.12*Math.sin(a));ctx.lineTo(r*0.55*Math.cos(a),r*0.55*Math.sin(a));ctx.stroke();
+  }
+  ctx.restore();
+
+  // Labels — stacked outside the tooth tips (tr = r*1.15 = outer addendum).
+  // Baselines are set explicitly and gaps scale with the font: these sizes grow
+  // with r, so a fixed pixel gap would let a big gear's text ride back up over
+  // the rim.
+  const tipR=r*1.18;
+  const clamp=(lo,v,hi)=>Math.min(hi,Math.max(lo,v));
+  const fsN=clamp(9,r*0.22,15), fsW=clamp(8,r*0.17,12), fsL=clamp(8,r*0.2,13);
+  const GAP=6;
+  ctx.textAlign='center';
+
+  // Below the gear: N=…, then rpm underneath it
+  ctx.textBaseline='top';
+  let yBelow=cy+tipR+GAP;
+  ctx.fillStyle=color;ctx.font=`bold ${fsN}px system-ui`;
+  ctx.fillText(`N=${N}`,cx,yBelow);
+  yBelow+=fsN+3;
+  if(omega!=null){
+    ctx.font=`${fsW}px system-ui`;ctx.fillStyle=color;
+    ctx.fillText(`${omega.toFixed(0)} rpm`,cx,yBelow);
+  }
+
+  // Above the gear: role label
+  if(label){
+    ctx.textBaseline='bottom';
+    ctx.font=`bold ${fsL}px system-ui`;ctx.fillStyle='#37474F';
+    ctx.fillText(label,cx,cy-tipR-GAP);
+  }
+  ctx.textBaseline='alphabetic';
+}
+
+function drawMeshLine(x1,y1,x2,y2){
+  ctx.strokeStyle='rgba(0,0,0,0.15)';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+  ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.setLineDash([]);
+}
+
+function drawShaft(x,y1,y2,col){
+  ctx.strokeStyle=col||'#546E7A';ctx.lineWidth=4;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(x,y1);ctx.lineTo(x,y2);ctx.stroke();
+}
+
+function rotArrow(cx,cy,r,cw,color){
+  const startA=cw?-PI*0.7:PI*0.7;
+  const endA  =cw? PI*0.7:-PI*0.7;
+  ctx.strokeStyle=color;ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(cx,cy,r,startA,endA,!cw);ctx.stroke();
+  // arrowhead
+  const a=cw?endA:endA;
+  const tx=cx+r*Math.cos(a),ty=cy+r*Math.sin(a);
+  const tang=a+(cw?PI/2:-PI/2);
+  ctx.fillStyle=color;
+  ctx.beginPath();ctx.moveTo(tx,ty);
+  ctx.lineTo(tx-8*Math.cos(tang-0.4),ty-8*Math.sin(tang-0.4));
+  ctx.lineTo(tx-8*Math.cos(tang+0.4),ty-8*Math.sin(tang+0.4));
+  ctx.closePath();ctx.fill();
+}
+
+function drawSimpleGears(win,wout,eta){
+  const n=simpleGears.length;
+  if(n<2){clearCanvas();return;}
+  const{W,H}=setupCanvas(0.56);
+  ctx.fillStyle='#F4F7F9';ctx.fillRect(0,0,W,H);
+  ctx.save();ctx.translate(W/2+panX,H/2+panY);ctx.scale(viewZoom,viewZoom);ctx.translate(-W/2,-H/2);
+
+  // Scale gear radii by teeth count
+  const maxN=Math.max(...simpleGears.map(g=>g.N));
+  const maxR=Math.min(H*0.32,W/(n*2.8));
+  const radii=simpleGears.map(g=>Math.max(18,(g.N/maxN)*maxR));
+
+  // Lay gears left-to-right, meshing
+  let x=radii[0]+20;const cy=H*0.47;   // nudged up to leave room for the N= / rpm labels below
+  const centres=[];
+  simpleGears.forEach((g,i)=>{
+    centres.push({x,y:cy});
+    if(i<n-1){
+      const gap=2;
+      x+=radii[i]+radii[i+1]+gap;
+    }
+  });
+
+  // Shafts
+  simpleGears.forEach((g,i)=>{
+    const col=GCOLS[i%GCOLS.length];
+    drawShaft(centres[i].x,centres[i].y-radii[i]-10,centres[i].y+radii[i]+10,col);
+  });
+
+  // Mesh lines
+  for(let i=0;i<n-1;i++){
+    const mx=(centres[i].x+centres[i+1].x)/2;
+    drawMeshLine(mx,cy-Math.min(radii[i],radii[i+1])*0.5,mx,cy+Math.min(radii[i],radii[i+1])*0.5);
+  }
+
+  // Gears
+  let w=win;
+  simpleGears.forEach((g,i)=>{
+    const col=GCOLS[i%GCOLS.length];
+    const ang=spinAngle(w,0.3); // animated angle
+    drawGear(centres[i].x,centres[i].y,radii[i],g.N,ang,col,i===0?'Driver':i===n-1?'Driven':'Idler',w,2);
+    rotArrow(centres[i].x,centres[i].y,radii[i]*0.55,w<0,'#5C6660');
+    if(i<n-1)w*=-(g.N/simpleGears[i+1].N);
+  });
+  ctx.restore();
+}
+
+function drawCompoundGears(win,wout,eta){
+  const n=compStages.length;
+  if(n<1){clearCanvas();return;}
+  const{W,H}=setupCanvas(0.60);
+  ctx.fillStyle='#F4F7F9';ctx.fillRect(0,0,W,H);
+  ctx.save();ctx.translate(W/2+panX,H/2+panY);ctx.scale(viewZoom,viewZoom);ctx.translate(-W/2,-H/2);
+
+  const allN=compStages.flatMap(s=>[s.Nd,s.Nn]);
+  const maxN=Math.max(...allN);
+  const baseR=Math.min(H*0.26,W/((n+1)*3.4));
+  const rScale=N=>Math.max(14,(N/maxN)*baseR);
+
+  // Compute gear radii for each stage
+  const rD=compStages.map(s=>rScale(s.Nd));
+  const rN=compStages.map(s=>rScale(s.Nn));
+
+  // Shaft x-positions: each shaft is positioned so adjacent gears mesh exactly
+  // shaft[i+1] = shaft[i] + rD[i] + rN[i] + 6 (6px gap between pitch circles)
+  const shaftX=[rD[0]+22];
+  for(let i=0;i<n;i++) shaftX.push(shaftX[i]+rD[i]+rN[i]+6);
+
+  // Center horizontally
+  const totalW=shaftX[n]+rN[n-1]+22;
+  const xOff=Math.max(0,(W-totalW)/2);
+  const sx=shaftX.map(x=>x+xOff);
+
+  const cy=H*0.47;   // nudged up to leave room for the N= / rpm labels below
+  const t=Date.now()/1000;
+
+  // Compute angular speed at each shaft
+  let w=win;
+  const spd=[w];
+  for(let i=0;i<n;i++){w=-w*(compStages[i].Nd/compStages[i].Nn);spd.push(w);}
+
+  // Helper: gear angle based on speed (animated)
+  const ang=i=>spinAngle(spd[i],0.25);
+
+  // 1. Draw shaft lines first (background)
+  for(let shaft=0;shaft<=n;shaft++){
+    const maxR=shaft===0?rD[0]:shaft===n?rN[n-1]:Math.max(rN[shaft-1],rD[shaft]);
+    drawShaft(sx[shaft],cy-maxR-14,cy+maxR+14,GCOLS[(shaft*2)%GCOLS.length]+'55');
+  }
+
+  // 2. Draw mesh lines (between adjacent shaft pitch circles)
+  for(let i=0;i<n;i++){
+    const meshX=(sx[i]+rD[i]+sx[i+1]-rN[i])/2; // midpoint of gap
+    drawMeshLine(meshX,cy-8,meshX,cy+8);
+  }
+
+  // 3. Draw gears shaft by shaft
+  for(let shaft=0;shaft<=n;shaft++){
+    const x=sx[shaft];
+    if(shaft===0){
+      // Input shaft: only driver gear of stage 0
+      const col=GCOLS[0];
+      drawGear(x,cy,rD[0],compStages[0].Nd,ang(0),col,'Input',spd[0],2.5);
+      rotArrow(x,cy,rD[0]*0.48,spd[0]<0,col);
+    } else if(shaft===n){
+      // Output shaft: only driven gear of last stage
+      const col=GCOLS[((n-1)*2+1)%GCOLS.length];
+      drawGear(x,cy,rN[n-1],compStages[n-1].Nn,ang(n),col,'Output',spd[n],2.5);
+      rotArrow(x,cy,rN[n-1]*0.48,spd[n]<0,col);
+    } else {
+      // Compound shaft: driven of stage (shaft-1) + driver of stage (shaft), keyed together
+      const gN=compStages[shaft-1].Nn, gD=compStages[shaft].Nd;
+      const rGN=rN[shaft-1], rGD=rD[shaft];
+      const colN=GCOLS[((shaft-1)*2+1)%GCOLS.length];
+      const colD=GCOLS[(shaft*2)%GCOLS.length];
+      const a=ang(shaft);
+      // Draw larger gear first (background), smaller on top
+      if(rGN>=rGD){
+        drawGear(x,cy,rGN,gN,a,colN,'',null,2);
+        drawGear(x,cy,rGD,gD,a,colD,'',null,2);
+      } else {
+        drawGear(x,cy,rGD,gD,a,colD,'',null,2);
+        drawGear(x,cy,rGN,gN,a,colN,'',null,2);
+      }
+      // "KEYED" bracket around compound pair
+      const rMax=Math.max(rGN,rGD)+6;
+      ctx.strokeStyle='#8D9991';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);
+      ctx.beginPath();ctx.arc(x,cy,rMax,0,TAU);ctx.stroke();ctx.setLineDash([]);
+      // Labels
+      ctx.textAlign='center';
+      ctx.fillStyle='#546E7A';ctx.font='bold 9px system-ui';
+      ctx.fillText(`N=${gN} & N=${gD}`,x,cy+rMax+13);
+      ctx.font='8px system-ui';
+      ctx.fillText('KEYED',x,cy+rMax+24);
+      ctx.fillText(`${Math.abs(spd[shaft]).toFixed(0)} rpm`,x,cy-rMax-6);
+      rotArrow(x,cy,Math.min(rGN,rGD)*0.45,spd[shaft]<0,'#546E7A');
+    }
+  }
+  ctx.restore();
+}
+
+function drawEpicyclicGears(res){
+  const{W,H}=setupCanvas(0.62);
+  ctx.fillStyle='#F4F7F9';ctx.fillRect(0,0,W,H);
+  ctx.save();ctx.translate(W/2+panX,H/2+panY);ctx.scale(viewZoom,viewZoom);ctx.translate(-W/2,-H/2);
+  const{NS,NP,NR,speeds,scale,inputMem,fixedMem,outputMem}=res;
+
+  // ── Geometry ──────────────────────────────────────────────────
+  // rR = ring PITCH circle. Ring body drawn from rR to rR*1.18 (addendum outward).
+  // Planet tips reach rS + rP*2.15. With rR/1.22 this stays inside rR*1.18.
+  const cx=W/2, cy=H*0.50;
+  const maxR=Math.min(W,H)*0.42;
+  const rR   = maxR/1.22;          // ring pitch circle
+  const rOuter = rR*1.18;          // ring outer drawn boundary
+  const rInner = rR*0.86;          // ring root circle (tooth bases on inner face)
+  const rS   = rR*(NS/NR);         // sun pitch circle
+  const rP   = (rR-rS)/2;          // planet pitch circle
+  const armLen = rS+rP;            // arm length = distance from centre to planet centre
+
+  const wR=(speeds.R*scale), wS=(speeds.S*scale), wC=(speeds.C*scale), wP=(speeds.P*scale);
+
+  // ── Animation angles ──────────────────────────────────────────
+  // Every member animates from its own solved absolute speed on a shared time
+  // scale, so the carrier, sun, planets and ring stay kinematically consistent
+  // with each other and with the rpm values reported in the results panel.
+  const SPIN_K = 0.5;
+  const armAng  = spinAngle(wC, SPIN_K);   // carrier / arm
+  const sunAng  = spinAngle(wS, SPIN_K);   // sun spin
+  const planAng = spinAngle(wP, SPIN_K);   // planet spin (absolute frame)
+  const ringAng = spinAngle(wR, SPIN_K);   // ring spin
+
+  // ── Ring gear body ─────────────────────────────────────────────
+  // Annular fill (ring material)
+  ctx.beginPath();
+  ctx.arc(cx,cy,rOuter,0,TAU); ctx.arc(cx,cy,rInner,0,TAU,true);
+  ctx.fillStyle='rgba(84,110,122,0.12)'; ctx.fill('evenodd');
+
+  // Outer edge
+  ctx.beginPath(); ctx.arc(cx,cy,rOuter,0,TAU);
+  ctx.strokeStyle='#546E7A'; ctx.lineWidth=3; ctx.stroke();
+
+  // Inner root circle
+  ctx.beginPath(); ctx.arc(cx,cy,rInner,0,TAU);
+  ctx.strokeStyle='#8D9991'; ctx.lineWidth=1.5; ctx.stroke();
+
+  // Ring pitch circle (dashed, at rR)
+  ctx.beginPath(); ctx.arc(cx,cy,rR,0,TAU);
+  ctx.strokeStyle='rgba(84,110,122,0.4)'; ctx.lineWidth=1;
+  ctx.setLineDash([3,4]); ctx.stroke(); ctx.setLineDash([]);
+
+  // Inner teeth — radial marks from rInner outward toward rR
+  const toothLen = rR - rInner;
+  for(let i=0;i<NR;i++){
+    const a=i/NR*TAU+ringAng;
+    ctx.beginPath();
+    ctx.moveTo(cx+rInner*Math.cos(a), cy+rInner*Math.sin(a));
+    ctx.lineTo(cx+(rInner+toothLen*0.7)*Math.cos(a), cy+(rInner+toothLen*0.7)*Math.sin(a));
+    ctx.strokeStyle='#546E7A'; ctx.lineWidth=1; ctx.stroke();
+  }
+
+  // ── Ring gear label (bottom, outside the ring body) ───────────
+  ctx.textAlign='center';
+  const lblY = cy + rOuter + 16;
+  ctx.fillStyle='#546E7A'; ctx.font='bold 11px system-ui';
+  ctx.fillText(`Ring  N_R = ${NR}`, cx, lblY);
+  ctx.font='10px system-ui';
+  ctx.fillText(`${wR.toFixed(1)} rpm`, cx, lblY+14);
+  if(fixedMem==='R'){
+    ctx.fillStyle='#733B43'; ctx.font='bold 10px system-ui';
+    ctx.fillText('⬛ FIXED', cx, lblY+28);
+  } else if(inputMem==='R'){
+    ctx.fillStyle='#208D44'; ctx.font='bold 10px system-ui';
+    ctx.fillText('▶ INPUT', cx, lblY+28);
+  } else if(outputMem==='R'){
+    ctx.fillStyle='#733B43'; ctx.font='bold 10px system-ui';
+    ctx.fillText('◀ OUTPUT', cx, lblY+28);
+  }
+
+
+  // ── Arm lines (draw before planets so planets appear on top) ───
+  for(let i=0;i<3;i++){
+    const pAng=armAng+i*TAU/3;
+    const px=cx+armLen*Math.cos(pAng), py=cy+armLen*Math.sin(pAng);
+    ctx.strokeStyle='#90A4AE'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(px,py); ctx.stroke();
+  }
+
+  // ── Arm hub ─────────────────────────────────────────────────────
+  ctx.beginPath(); ctx.arc(cx,cy,rS*0.45,0,TAU);
+  ctx.fillStyle='rgba(120,144,156,0.25)'; ctx.fill();
+  ctx.strokeStyle='#90A4AE'; ctx.lineWidth=2; ctx.stroke();
+
+  // ── Planet gears ────────────────────────────────────────────────
+  for(let i=0;i<3;i++){
+    const pAng=armAng+i*TAU/3;
+    const px=cx+armLen*Math.cos(pAng), py=cy+armLen*Math.sin(pAng);
+    const col=GCOLS[(i+2)%GCOLS.length];
+    const showLabel=(i===0);
+    drawGear(px,py,rP,NP,planAng,col,
+             showLabel?`P  N=${NP}`:'',
+             showLabel?wP:null, 1.5);
+  }
+
+  // ── Sun gear (on top) ─────────────────────────────────────────
+  const sunColor='#055934';
+  drawGear(cx,cy,rS,NS,sunAng,sunColor,`Sun  N=${NS}`,wS,2.5);
+
+  // ── Sun label: role badge (INPUT/OUTPUT/FIXED) above sun ──────
+  ctx.textAlign='center';
+  const sunLblY=cy-rS*1.18-20;
+  ctx.fillStyle=sunColor; ctx.font='bold 10px system-ui';
+  ctx.fillText(`${wS.toFixed(1)} rpm`, cx, sunLblY);
+  if(inputMem==='S'){  ctx.fillStyle='#208D44'; ctx.font='bold 10px system-ui'; ctx.fillText('▶ INPUT',  cx, sunLblY-14);}
+  if(outputMem==='S'){ ctx.fillStyle='#733B43'; ctx.font='bold 10px system-ui'; ctx.fillText('◀ OUTPUT', cx, sunLblY-14);}
+  if(fixedMem==='S'){  ctx.fillStyle='#733B43'; ctx.font='bold 10px system-ui'; ctx.fillText('⬛ FIXED', cx, sunLblY-14);}
+
+  // ── Arm / Carrier label (top-right corner, static) ───────────
+  const armX=cx+rOuter*0.72, armY=cy-rOuter*0.72;
+  ctx.fillStyle='#546E7A'; ctx.textAlign='left';
+  ctx.font='bold 10px system-ui'; ctx.fillText('Arm / Carrier (C)', armX-30, armY);
+  ctx.font='10px system-ui';      ctx.fillText(`${wC.toFixed(1)} rpm`, armX-30, armY+14);
+  if(inputMem==='C'){  ctx.fillStyle='#208D44'; ctx.font='bold 10px system-ui'; ctx.fillText('▶ INPUT',  armX-30, armY+28);}
+  if(outputMem==='C'){ ctx.fillStyle='#733B43'; ctx.font='bold 10px system-ui'; ctx.fillText('◀ OUTPUT', armX-30, armY+28);}
+  if(fixedMem==='C'){  ctx.fillStyle='#733B43'; ctx.font='bold 10px system-ui'; ctx.fillText('⬛ FIXED', armX-30, armY+28);}
+  ctx.restore();
+}
+
+function clearCanvas(){
+  const{W,H}=setupCanvas(0.56);
+  ctx.fillStyle='#F4F7F9';ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#90A4AE';ctx.font='13px system-ui';ctx.textAlign='center';
+  ctx.fillText('Add at least 2 gears to see the diagram',W/2,H/2);
+}
+
+/* ═══════════════════════════════════════════
+   FLOW CHART (speed & torque at each shaft)
+═══════════════════════════════════════════ */
+let flowChart=null;
+
+function updateFlowChart(type,epiRes){
+  const labels=[], wData=[], tData=[];
+
+  if(type==='simple'){
+    let w=parseFloat(document.getElementById('s-win').value)||0;
+    const tin=parseFloat(document.getElementById('s-tin').value)||0;
+    const eta=parseFloat(document.getElementById('s-eta').value)||1;
+    simpleGears.forEach((g,i)=>{
+      labels.push(`Gear ${i+1}\n(N=${g.N})`);
+      wData.push(Math.abs(w));
+      const t=i===0?tin:(tin/(simpleGears[0].N/g.N))*eta;
+      tData.push(Math.abs(t));
+      if(i<simpleGears.length-1)w*=-(g.N/simpleGears[i+1].N);
+    });
+  } else if(type==='compound'){
+    let w=parseFloat(document.getElementById('c-win').value)||0;
+    const tin=parseFloat(document.getElementById('c-tin').value)||0;
+    const eta=parseFloat(document.getElementById('c-eta').value)||1;
+    labels.push('Input');wData.push(Math.abs(w));tData.push(tin);
+    let cumulE=1;
+    compStages.forEach((s,i)=>{
+      const wOut=w*(s.Nd/s.Nn);
+      cumulE*=(s.Nd/s.Nn);
+      labels.push(`Shaft ${i+1}`);
+      wData.push(Math.abs(wOut));
+      tData.push(tin/Math.abs(cumulE)*Math.pow(eta,i+1));
+      w=-wOut;
+    });
+  } else if(type==='epi'&&epiRes){
+    const{speeds,scale,NS,NP,NR,tin}=epiRes;
+    const eta=epiRes.eta;
+    labels.push('Sun (S)','Planet (P)','Arm (C)','Ring (R)');
+    wData.push(Math.abs(speeds.S*scale),Math.abs(speeds.P*scale),Math.abs(speeds.C*scale),Math.abs(speeds.R*scale));
+    tData.push(tin,0,0,0); // simplified
+  }
+
+  if(!flowChart){
+    flowChart=new Chart(document.getElementById('ch-flow'),{
+      data:{
+        labels,
+        datasets:[
+          {type:'bar',label:'|ω| (rpm)',data:wData,backgroundColor:'rgba(21,101,192,0.7)',yAxisID:'y'},
+          {type:'line',label:'|T| (N·m)',data:tData,borderColor:'#A68A58',backgroundColor:'rgba(230,81,0,0.1)',borderWidth:2,pointRadius:4,yAxisID:'y2'},
+        ]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:true,animation:false,
+        plugins:{legend:{display:true,position:'top',labels:{boxWidth:14,font:{size:9}}},tooltip:{mode:'index',intersect:false}},
+        scales:{
+          x:{ticks:{font:{size:9}},grid:{color:'#EEF2F5'}},
+          y:{position:'left',title:{display:true,text:'Speed (rpm)',font:{size:10}},ticks:{font:{size:9}}},
+          y2:{position:'right',title:{display:true,text:'Torque (N·m)',font:{size:10}},ticks:{font:{size:9}},grid:{drawOnChartArea:false}},
+        }
+      }
+    });
+  } else {
+    flowChart.data.labels=labels;
+    flowChart.data.datasets[0].data=wData;
+    flowChart.data.datasets[1].data=tData;
+    flowChart.update('none');
+  }
+}
+
+/* ═══════════════════════════════════════════
+   ANIMATION LOOP for gear rotation
+═══════════════════════════════════════════ */
+let animRunning=true;
+function animLoop(){
+  if(!animRunning)return;
+  if(currentTab==='simple'&&simpleGears.length>=2){
+    const win=parseFloat(document.getElementById('s-win').value)||0;
+    const{e}=simpleRatio();
+    drawSimpleGears(win,win*e,1);
+  } else if(currentTab==='compound'&&compStages.length>=1){
+    const win=parseFloat(document.getElementById('c-win').value)||0;
+    const eta=parseFloat(document.getElementById('c-eta').value)||1;
+    const{e}=compoundRatio();
+    drawCompoundGears(win,win*e,eta);
+  } else if(currentTab==='epi'){
+    const res=epicyclicAnalysis();
+    if(res)drawEpicyclicGears(res);
+  }
+  requestAnimationFrame(animLoop);
+}
+
+/* ═══════════════════════════════════════════
+   WIRING
+═══════════════════════════════════════════ */
+['s-win','s-tin','s-eta'].forEach(id=>document.getElementById(id).addEventListener('input',refreshSimple));
+['c-win','c-tin','c-eta'].forEach(id=>document.getElementById(id).addEventListener('input',refreshCompound));
+['e-ns','e-np','e-win','e-tin','e-eta'].forEach(id=>document.getElementById(id).addEventListener('input',refreshEpi));
+
+let rt;window.addEventListener('resize',()=>{
+  clearTimeout(rt);rt=setTimeout(()=>{
+    if(currentTab==='simple')refreshSimple();
+    else if(currentTab==='compound')refreshCompound();
+    else refreshEpi();
+  },120);
+});
+
+function addChartExportButtons(){
+  document.querySelectorAll('.plt-card').forEach(card=>{
+    const cv=card.querySelector('canvas');
+    if(!cv||card.querySelector('.plt-dl-btn')) return;
+    const ttl=card.querySelector('.plt-ttl');
+    const name=(ttl?ttl.textContent.replace(/[^a-zA-Z0-9_]/g,'_').slice(0,30):'chart');
+    const btn=document.createElement('button');
+    btn.className='plt-dl-btn'; btn.title='Download chart as PNG'; btn.textContent='⬇ PNG';
+    btn.onclick=()=>{ const a=document.createElement('a'); a.href=cv.toDataURL('image/png'); a.download=name+'.png'; a.click(); };
+    card.appendChild(btn);
+  });
+}
+window.addEventListener('DOMContentLoaded',()=>{
+  // Load defaults
+  loadSimplePreset('reducer');
+  loadCompoundPreset('two');
+  loadEpiPreset('reduction');
+  switchTab('simple');
+  animLoop();
+  addChartExportButtons();
+
+  // Zoom/pan on gearCanvas
+  cv.addEventListener('wheel',e=>{
+    e.preventDefault();
+    const rect=cv.getBoundingClientRect();
+    const{W,H}={W:cv.clientWidth,H:cv.clientHeight};
+    const mx=(e.clientX-rect.left)/rect.width*W;
+    const my=(e.clientY-rect.top)/rect.height*H;
+    const oldZoom=viewZoom;
+    viewZoom=Math.min(8,Math.max(0.2,viewZoom*(e.deltaY<0?1.12:1/1.12)));
+    const f=viewZoom/oldZoom;
+    panX=(mx-W/2)-((mx-W/2)-panX)*f;
+    panY=(my-H/2)-((my-H/2)-panY)*f;
+    updateZoomLbl();
+  },{passive:false});
+  cv.addEventListener('mousedown',e=>{_isPanning=true;_dragX=e.clientX;_dragY=e.clientY;cv.style.cursor='grabbing';});
+  window.addEventListener('mousemove',e=>{if(!_isPanning)return;const rect=cv.getBoundingClientRect();const scl=cv.clientWidth/rect.width;panX+=(e.clientX-_dragX)*scl;panY+=(e.clientY-_dragY)*scl;_dragX=e.clientX;_dragY=e.clientY;});
+  window.addEventListener('mouseup',()=>{_isPanning=false;cv.style.cursor='grab';});
+  cv.addEventListener('dblclick',resetView);
+});
+</script>
+<script>document.querySelector('.mod-pill.active')?.scrollIntoView({inline:'center',block:'nearest'});</script>
+</body>
+</html>

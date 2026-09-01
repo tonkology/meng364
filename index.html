@@ -1,0 +1,1580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MENG 364 — Machine Dynamics Tool</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+/* ── Reset ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --blue:    #055934;
+  --blue-dk: #0A353E;
+  --blue-lt: #EEF8F5;
+  --orange:  #A68A58;
+  --green:   #208D44;
+  --red:     #733B43;
+  --amber:   #A68A58;
+  --gray:    #8D9991;
+  --bg:      #F2F7ED;
+  --surface: #FFFFFF;
+  --border:  #C2CCC6;
+  --text:    #1D2921;
+  --muted:   #5C6660;
+
+  /* link colours */
+  --c-crank:    #055934;
+  --c-coupler:  #A68A58;
+  --c-follower: #208D44;
+  --c-ground:   #8D9991;
+}
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  min-height: 100vh;
+}
+
+/* ── Header ─────────────────────────────────────────────── */
+.hdr {
+  background: var(--blue);
+  color: #fff;
+  padding: 10px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,.3);
+}
+.hdr h1  { font-size: .97rem; font-weight: 700; }
+.hdr p   { font-size: .7rem;  opacity: .82; margin-top: 1px; }
+.badge {
+  background: var(--orange);
+  border-radius: 20px;
+  padding: 4px 14px;
+  font-size: .73rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ── Layout ─────────────────────────────────────────────── */
+.layout {
+  display: grid;
+  grid-template-columns: 268px 1fr;
+  gap: 14px;
+  padding: 14px;
+  max-width: 1440px;
+  margin: 0 auto;
+  align-items: start;
+}
+@media (max-width: 780px) {
+  .layout { grid-template-columns: 1fr; }
+}
+
+/* ── Cards ──────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border-radius: 10px;
+  box-shadow: 0 1px 5px rgba(0,0,0,.09);
+  padding: 14px;
+  margin-bottom: 12px;
+}
+.card:last-child { margin-bottom: 0; }
+.card-ttl {
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--blue);
+  border-bottom: 2px solid var(--blue-lt);
+  padding-bottom: 6px;
+  margin-bottom: 12px;
+}
+
+/* ── Input rows ─────────────────────────────────────────── */
+.irow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 7px;
+}
+.dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.ilbl { font-size: .79rem; font-weight: 600; color: var(--muted); width: 86px; flex-shrink: 0; }
+.inum {
+  flex: 1;
+  min-width: 0;
+  width: 0;
+  padding: 5px 8px;
+  border: 1.5px solid var(--border);
+  border-radius: 5px;
+  font-size: .87rem;
+  font-weight: 700;
+  text-align: right;
+  color: var(--text);
+  background: #FAFAFA;
+  transition: border-color .15s;
+}
+.inum:focus  { outline: none; border-color: var(--blue); background: #fff; }
+.iunit { font-size: .7rem; color: var(--muted); width: 22px; }
+
+/* ── Presets ────────────────────────────────────────────── */
+.presets { display: flex; gap: 6px; margin-top: 10px; }
+.pre-btn {
+  flex: 1;
+  padding: 5px 4px;
+  border: 1.5px solid var(--border);
+  border-radius: 5px;
+  background: #fff;
+  font-size: .67rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--muted);
+  transition: all .15s;
+}
+.pre-btn:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-lt); }
+
+/* ── Link legend ────────────────────────────────────────── */
+.legend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px 8px;
+  margin-top: 10px;
+}
+.leg-item { display: flex; align-items: center; gap: 6px; font-size: .73rem; color: var(--muted); }
+.leg-bar  { width: 20px; height: 4px; border-radius: 3px; flex-shrink: 0; }
+
+/* ── Assembly toggle ────────────────────────────────────── */
+.tog-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.tog-lbl { font-size: .76rem; font-weight: 600; color: var(--muted); }
+.toggle  { position: relative; display: inline-block; width: 38px; height: 20px; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.tog-sl {
+  position: absolute; inset: 0;
+  background: var(--border);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: .2s;
+}
+.tog-sl::before {
+  content: '';
+  position: absolute;
+  width: 14px; height: 14px;
+  left: 3px; top: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: .2s;
+}
+input:checked + .tog-sl { background: var(--blue); }
+input:checked + .tog-sl::before { transform: translateX(18px); }
+
+/* ── Grashof box ────────────────────────────────────────── */
+.g-box {
+  padding: 9px 12px;
+  border-radius: 7px;
+  font-size: .82rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 9px;
+  line-height: 1.4;
+}
+.g-ok   { background: #E8F5E9; color: var(--green);  border: 1.5px solid #A5D6A7; }
+.g-warn { background: #FFF8E1; color: var(--amber);  border: 1.5px solid #FFE082; }
+.g-fail { background: #FFEBEE; color: var(--red);    border: 1.5px solid #FFCDD2; }
+.g-det  { font-size: .75rem; color: var(--muted); line-height: 1.9; }
+
+/* ── Sliders ────────────────────────────────────────────── */
+.sl-lbl { display: flex; justify-content: space-between; font-size: .75rem; font-weight: 600; color: var(--muted); margin-bottom: 3px; }
+input[type=range] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  outline: none;
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--blue);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,.25);
+}
+#theta2-range::-webkit-slider-thumb { background: var(--orange); }
+.mt8 { margin-top: 8px; }
+.mt12 { margin-top: 12px; }
+
+/* ── Buttons ────────────────────────────────────────────── */
+.btns { display: flex; gap: 7px; margin-top: 8px; }
+.btn {
+  flex: 1;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  font-size: .79rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .15s;
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+}
+.btn-p { background: var(--blue);  color: #fff; }
+.btn-p:hover { background: var(--blue-dk); }
+.btn-s { background: #C2CCC6; color: var(--text); }
+.btn-s:hover { background: #B0BEC5; }
+.btn-r { background: var(--red); color: #fff; }
+
+/* ── Live values ────────────────────────────────────────── */
+.stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; }
+.stat-c { background: var(--bg); border-radius: 6px; padding: 7px 5px; text-align: center; }
+.stat-n { font-size: .63rem; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); }
+.stat-v { font-size: .87rem; font-weight: 800; color: var(--blue); font-family: 'Courier New', monospace; margin-top: 2px; word-break: break-all; }
+
+/* ── Right column ───────────────────────────────────────── */
+.right { min-width: 0; }
+
+.cv-wrap { position: relative; }
+#mechCanvas { width: 100%; height: auto; display: block; border-radius: 6px; cursor: default; }
+.cv-stage { position: relative; }
+.cv-badge {
+  position: absolute; top: 10px; right: 14px;
+  background: rgba(21,101,192,.92);
+  color: #fff;
+  padding: 3px 12px;
+  border-radius: 20px;
+  font-size: .78rem;
+  font-weight: 700;
+  font-family: monospace;
+  pointer-events: none;
+}
+.cv-info {
+  position: absolute; bottom: 10px; left: 14px;
+  font-size: .75rem;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+/* ── Plots ──────────────────────────────────────────────── */
+.plots { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+@media (max-width: 560px) { .plots { grid-template-columns: 1fr; } }
+.plt-card {
+  background: var(--surface);
+  border-radius: 10px;
+  box-shadow: 0 1px 5px rgba(0,0,0,.09);
+  padding: 11px 12px 10px;
+  position: relative;
+}
+.plt-dl-btn{position:absolute;top:7px;right:8px;background:none;border:1px solid var(--border);border-radius:4px;color:var(--muted);font-size:.65rem;padding:2px 6px;cursor:pointer;line-height:1.4;transition:all .15s;z-index:5;}
+.plt-dl-btn:hover{background:var(--blue-lt);color:var(--blue);border-color:var(--blue);}
+.plt-ttl {
+  font-size: .66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  color: var(--muted);
+  text-align: center;
+  margin-bottom: 5px;
+}
+
+/* ── Info chip ──────────────────────────────────────────── */
+.chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 12px;
+  font-size: .68rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+.chip-ok   { background: #E8F5E9; color: var(--green); }
+.chip-warn { background: #FFF8E1; color: var(--amber); }
+.chip-fail { background: #FFEBEE; color: var(--red);   }
+
+/* ── Module nav ─────────────────────────────────────────── */
+.mod-nav {
+  background: var(--blue-dk);
+  display: flex;
+  gap: 0;
+  padding: 0 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  box-shadow: 0 2px 6px rgba(0,0,0,.25);
+}
+.mod-nav::-webkit-scrollbar { display: none; }
+.mod-pill {
+  display: inline-block;
+  padding: 8px 13px;
+  color: rgba(255,255,255,.65);
+  font-size: .73rem;
+  font-weight: 700;
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
+  transition: all .15s;
+}
+.mod-pill:hover  { color: #fff; border-bottom-color: rgba(255,255,255,.4); }
+.mod-pill.active { color: #fff; border-bottom-color: #fff; }
+
+/* ── Tooltips ───────────────────────────────────────────── */
+.tip{display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;background:var(--blue-lt);color:var(--blue);font-size:.58rem;font-weight:800;cursor:help;flex-shrink:0;position:relative;margin-left:2px;vertical-align:middle;}
+.tip::after{content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 7px);transform:translateX(-50%);background:#1D2921;color:#fff;padding:6px 10px;border-radius:6px;font-size:.71rem;font-weight:500;line-height:1.45;white-space:normal;width:210px;text-align:left;opacity:0;pointer-events:none;transition:opacity .15s;z-index:9999;box-shadow:0 3px 10px rgba(0,0,0,.3);}
+.tip:hover::after{opacity:1;}
+
+/* ── Input validation ───────────────────────────────────── */
+.inum.invalid{border-color:var(--red)!important;background:#FFF5F5!important;}
+.inp-err{display:none;font-size:.7rem;color:var(--red);margin-top:5px;font-weight:600;padding:3px 7px;background:#FFF5F5;border-radius:4px;border-left:3px solid var(--red);}
+.inp-err.show{display:block;}
+
+/* ── Print button ───────────────────────────────────────── */
+.print-btn{background:none;border:1.5px solid rgba(255,255,255,.5);color:#fff;border-radius:6px;padding:4px 11px;font-size:.7rem;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.print-btn:hover{background:rgba(255,255,255,.15);}
+
+/* ── Zoom bar ───────────────────────────────────────────── */
+.zoom-bar{display:flex;gap:5px;margin-top:8px;align-items:center;}
+.zoom-btn{padding:3px 9px;border:1.5px solid var(--border);border-radius:5px;background:#fff;font-size:.73rem;font-weight:700;cursor:pointer;color:var(--muted);transition:all .15s;line-height:1.6;}
+.zoom-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-lt);}
+.zoom-lbl{font-size:.7rem;color:var(--muted);min-width:38px;text-align:center;font-weight:600;}
+
+/* ── Print layout ───────────────────────────────────────── */
+@media print{
+  .mod-nav,.btns,.presets,.tog-row,.m1-banner,.zoom-bar,.print-btn,.plt-dl-btn,#anim-btn{display:none!important;}
+  .hdr{background:#fff!important;color:#000!important;box-shadow:none!important;border-bottom:2px solid #055934;}
+  .badge{background:#EEF8F5!important;color:#055934!important;}
+  body{background:#fff!important;}
+  .card{box-shadow:none!important;border:1px solid #ddd!important;page-break-inside:avoid;}
+  .layout{display:block!important;}
+  .left,.right{display:block!important;width:100%!important;}
+  .plots{grid-template-columns:1fr 1fr!important;}
+  canvas{max-width:100%!important;}
+}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body, button, input, select, textarea { font-family:'Alexandria', system-ui, sans-serif !important; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- Header                                                 -->
+<!-- ══════════════════════════════════════════════════════ -->
+<header class="hdr">
+  <div>
+    <h1>Machine Dynamics Tool</h1>
+    <p>MENG 364 &nbsp;·&nbsp; King Abdulaziz University</p>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div class="badge">Module 1 — 4-Bar Linkage</div>
+    <button class="print-btn" onclick="window.print()">⎙ Print / PDF</button>
+  </div>
+</header>
+
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- MENG 364 Course Hub — live week banner                 -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div id="course-hub" style="max-width:1400px;margin:10px auto 0;padding:0 14px;">
+  <div style="background:linear-gradient(135deg,#055934,#0A353E);border-radius:12px;
+              padding:14px 20px;color:#fff;display:flex;flex-wrap:wrap;
+              align-items:center;gap:14px;">
+    <div style="flex:1;min-width:240px;">
+      <div style="font-size:.68rem;letter-spacing:.12em;color:#86C242;font-weight:700;"
+           id="hub-wk">MENG 364 · FALL 2026</div>
+      <div style="font-size:1.02rem;font-weight:700;margin-top:2px;" id="hub-topic">Machine Dynamics</div>
+      <div style="font-size:.74rem;color:#A7E0C5;margin-top:2px;" id="hub-mile"></div>
+    </div>
+    <a id="hub-btn" href="#" style="background:#86C242;color:#055934;font-weight:700;
+       font-size:.8rem;padding:9px 18px;border-radius:8px;text-decoration:none;
+       white-space:nowrap;">Open this week's module →</a>
+  </div>
+  <div id="hub-strip" style="display:flex;gap:4px;margin-top:8px;"></div>
+</div>
+<script>
+(function(){
+  // [topic, milestone, module href] per week 1..16
+  const WEEKS = [
+    ["CH1: Links, joints, DOF & Gr\u00fcbler", "Build report 1 · LEGO Grashof discovery (Mon)", "index.html"],
+    ["CH1: Grashof, inversions, transmission angle", "", "index.html"],
+    ["CH1: Graphical linkage synthesis", "Design project launched", "index.html"],
+    ["CH2: Freudenstein & position analysis", "", "module2.html"],
+    ["CH2: Velocity analysis", "Project proposal due", "module2.html"],
+    ["CH2: Acceleration & simulation", "Build report 2", "module2.html"],
+    ["CH2 review & worked examples", "Exam I next week", "module2.html"],
+    ["EXAM I · CH3 static force begins", "Exam I this week", "module3.html"],
+    ["CH3: Dynamic force & D'Alembert", "Build report 3", "module3.html"],
+    ["CH3 wrap · CH4 flywheels begin", "", "module4.html"],
+    ["CH4: Flywheel design & motor selection", "", "module4.html"],
+    ["CH5: Balancing", "Exam II next week", "module5.html"],
+    ["EXAM II · CH6 gear trains begin", "Exam II · Build report 4", "module6.html"],
+    ["CH6: Epicyclic trains · CH7 cams begin", "Project defense · Build report 5", "module6.html"],
+    ["CH7: Cam design & SVAJ", "", "module7.html"],
+    ["Robotics session — not examined", "Just come and enjoy it", "index.html"],
+  ];
+  const START = new Date(2026, 8, 6); // Sun 6 Sep 2026
+  const now = new Date();
+  let wk = Math.floor((now - START) / (7*24*3600*1000)) + 1;
+  const active = wk >= 1 && wk <= 16;
+  wk = Math.min(Math.max(wk, 1), 16);
+  const [topic, mile, href] = WEEKS[wk-1];
+  document.getElementById('hub-wk').textContent =
+    active ? ('MENG 364 · WEEK ' + wk + ' OF 16') : 'MENG 364 · FALL 2026';
+  document.getElementById('hub-topic').textContent = topic;
+  document.getElementById('hub-mile').textContent = mile;
+  document.getElementById('hub-btn').href = href;
+  const strip = document.getElementById('hub-strip');
+  for (let i = 1; i <= 16; i++) {
+    const seg = document.createElement('a');
+    seg.href = WEEKS[i-1][2];
+    seg.title = 'Week ' + i + ': ' + WEEKS[i-1][0];
+    seg.style.cssText = 'flex:1;height:7px;border-radius:4px;background:' +
+      (i < wk && active ? '#208D44' : i === wk && active ? '#86C242' : '#C2CCC6') + ';';
+    strip.appendChild(seg);
+  }
+})();
+</script>
+
+<nav class="mod-nav">
+  <a href="index.html"   class="mod-pill active">Module 1 — 4-Bar Linkage</a>
+  <a href="module2.html" class="mod-pill">Module 2 — Coupler Point</a>
+  <a href="module3.html" class="mod-pill">Module 3 — Force Analysis</a>
+  <a href="module4.html" class="mod-pill">Module 4 — Flywheel</a>
+  <a href="module5.html" class="mod-pill">Module 5 — Balancing</a>
+  <a href="module6.html" class="mod-pill">Module 6 — Gear Trains</a>
+  <a href="module7.html" class="mod-pill">Module 7 — Cam Design</a>
+</nav>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- Main layout                                            -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div class="layout">
+
+  <!-- ── LEFT PANEL ─────────────────────────────────────── -->
+  <div class="left">
+
+    <!-- Link lengths -->
+    <div class="card">
+      <div class="card-ttl">Link Lengths</div>
+
+      <div class="irow">
+        <div class="dot" style="background:var(--c-crank)"></div>
+        <span class="ilbl">a — Crank <span class="tip" data-tip="The driven input link. Rotates fully if the Grashof condition holds (S+L ≤ P+Q). Typical range: 1–5 cm.">?</span></span>
+        <input type="number" class="inum" id="inp-a" value="2" min="0.01" step="0.1">
+        <span class="iunit">cm</span>
+      </div>
+      <div class="irow">
+        <div class="dot" style="background:var(--c-coupler)"></div>
+        <span class="ilbl">b — Coupler <span class="tip" data-tip="The floating link connecting A (crank pin) to B (follower pin). Its orientation θ₃ affects the coupler curve.">?</span></span>
+        <input type="number" class="inum" id="inp-b" value="4.5" min="0.01" step="0.1">
+        <span class="iunit">cm</span>
+      </div>
+      <div class="irow">
+        <div class="dot" style="background:var(--c-follower)"></div>
+        <span class="ilbl">c — Follower <span class="tip" data-tip="The output (driven) link pivoted at O₄. Its angle θ₄ is the output variable. Also called the rocker in a crank-rocker.">?</span></span>
+        <input type="number" class="inum" id="inp-c" value="3.5" min="0.01" step="0.1">
+        <span class="iunit">cm</span>
+      </div>
+      <div class="irow">
+        <div class="dot" style="background:var(--c-ground)"></div>
+        <span class="ilbl">d — Ground <span class="tip" data-tip="The fixed frame link — distance between pivots O₂ and O₄. Usually the longest link. Changing d shifts the mechanism between Grashof types.">?</span></span>
+        <input type="number" class="inum" id="inp-d" value="4" min="0.01" step="0.1">
+        <span class="iunit">cm</span>
+      </div>
+      <div class="inp-err" id="link-err"></div>
+
+      <div class="legend">
+        <div class="leg-item"><div class="leg-bar" style="background:var(--c-crank)"></div>Crank (a)</div>
+        <div class="leg-item"><div class="leg-bar" style="background:var(--c-coupler)"></div>Coupler (b)</div>
+        <div class="leg-item"><div class="leg-bar" style="background:var(--c-follower)"></div>Follower (c)</div>
+        <div class="leg-item"><div class="leg-bar" style="background:var(--c-ground);height:6px"></div>Ground (d)</div>
+      </div>
+
+      <div class="tog-row">
+        <span class="tog-lbl">Assembly:</span>
+        <label class="toggle">
+          <input type="checkbox" id="asm-tog" onchange="onAssemblyToggle()">
+          <span class="tog-sl"></span>
+        </label>
+        <span class="tog-lbl" id="asm-lbl">Open</span>
+      </div>
+
+      <div class="presets">
+        <button class="pre-btn" onclick="setPreset('cr')">Crank-Rocker</button>
+        <button class="pre-btn" onclick="setPreset('dc')">Double Crank</button>
+        <button class="pre-btn" onclick="setPreset('dr')">Double Rocker</button>
+      </div>
+      <div id="save-indicator" style="margin-top:8px;font-size:.7rem;color:var(--muted);text-align:right;"></div>
+    </div>
+
+    <!-- Grashof -->
+    <div class="card">
+      <div class="card-ttl">Grashof Condition</div>
+      <div class="g-box g-ok" id="g-type">—</div>
+      <div class="g-det" id="g-det"></div>
+    </div>
+
+    <!-- Animation -->
+    <div class="card">
+      <div class="card-ttl">Animation</div>
+
+      <div class="sl-lbl">
+        <span>Input speed ω₂ <span class="tip" data-tip="Angular velocity of the crank. Lower = slower animation, easier to observe dead-centre positions. Use the 🐢 button for slow-motion.">?</span></span>
+        <span id="spd-lbl">30 rpm</span>
+      </div>
+      <input type="range" id="spd-range" min="1" max="200" value="30">
+
+      <div class="mt12">
+        <div class="sl-lbl">
+          <span>Crank angle θ₂ <span class="tip" data-tip="Manual crank position. Drag while paused to step through the cycle and inspect kinematic quantities at any angle.">?</span></span>
+          <span id="th2-lbl">0°</span>
+        </div>
+        <input type="range" id="theta2-range" min="0" max="359" value="0" step="1">
+      </div>
+
+      <div class="btns">
+        <button class="btn btn-p" id="anim-btn" onclick="toggleAnim()">&#9654; Animate</button>
+        <button class="btn btn-s"               onclick="resetCrank()">&#8635; Reset</button>
+        <button class="btn btn-s"               onclick="setSlowMo()" title="Set speed to 5 rpm for slow-motion inspection">🐢</button>
+      </div>
+      <div class="btns">
+        <button class="btn btn-s" onclick="stepCrank(-5)">&#9664; 5°</button>
+        <button class="btn btn-s" onclick="stepCrank( 5)">5° &#9654;</button>
+      </div>
+    </div>
+
+    <!-- Live values -->
+    <div class="card">
+      <div class="card-ttl">Live Output Values</div>
+      <div class="stats">
+        <div class="stat-c"><div class="stat-n">θ₃ (°)</div><div class="stat-v" id="sv-t3">—</div></div>
+        <div class="stat-c"><div class="stat-n">θ₄ (°)</div><div class="stat-v" id="sv-t4">—</div></div>
+        <div class="stat-c"><div class="stat-n">μ (°)</div> <div class="stat-v" id="sv-mu">—</div></div>
+        <div class="stat-c"><div class="stat-n">ω₃ r/s</div><div class="stat-v" id="sv-w3">—</div></div>
+        <div class="stat-c"><div class="stat-n">ω₄ r/s</div><div class="stat-v" id="sv-w4">—</div></div>
+        <div class="stat-c"><div class="stat-n">α₄ r/s²</div><div class="stat-v" id="sv-a4">—</div></div>
+      </div>
+    </div>
+
+  </div><!-- /left -->
+
+  <!-- ── RIGHT PANEL ────────────────────────────────────── -->
+  <div class="right">
+
+    <!-- Canvas -->
+    <div class="card cv-wrap">
+      <div class="card-ttl" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>Mechanism View</span>
+        <span style="font-size:.65rem;color:var(--muted);font-weight:500;text-transform:none;letter-spacing:0;">Scroll to zoom · Drag to pan · Double-click to reset</span>
+      </div>
+      <div class="cv-stage">
+  <canvas id="mechCanvas" width="800" height="430" style="cursor:grab;"></canvas>
+      <div class="cv-badge" id="cv-badge">θ₂ = 0°</div>
+      <div class="cv-info" id="cv-mu"></div>
+      </div>
+      <div class="zoom-bar">
+        <button class="zoom-btn" onclick="zoomStep(1.25)">＋ Zoom</button>
+        <button class="zoom-btn" onclick="zoomStep(1/1.25)">－ Zoom</button>
+        <span class="zoom-lbl" id="zoom-lbl">100%</span>
+        <button class="zoom-btn" onclick="resetView()">⟳ Reset</button>
+      </div>
+    </div>
+
+    <!-- 4 Plots -->
+    <div class="plots">
+      <div class="plt-card">
+        <div class="plt-ttl">Transmission Angle μ vs θ₂</div>
+        <canvas id="ch-mu"  height="145"></canvas>
+      </div>
+      <div class="plt-card">
+        <div class="plt-ttl">Output Angle θ₄ vs θ₂</div>
+        <canvas id="ch-th4" height="145"></canvas>
+      </div>
+      <div class="plt-card">
+        <div class="plt-ttl">Output Velocity ω₄ vs θ₂</div>
+        <canvas id="ch-w4"  height="145"></canvas>
+      </div>
+      <div class="plt-card">
+        <div class="plt-ttl">Output Acceleration α₄ vs θ₂</div>
+        <canvas id="ch-a4"  height="145"></canvas>
+      </div>
+    </div>
+
+    <!-- Diagnostics -->
+    <div class="card" style="margin-top:12px" id="diag-card">
+      <div class="card-ttl" style="color:var(--teal);border-bottom-color:#EEF8F5">Diagnostics &amp; Observations</div>
+      <div id="diag-list" style="font-size:.78rem;line-height:1.9;color:var(--text)"></div>
+    </div>
+
+  </div><!-- /right -->
+</div><!-- /layout -->
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- JavaScript                                             -->
+<!-- ══════════════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+/* ────────────────────────────────────────────────────────
+   Constants
+──────────────────────────────────────────────────────── */
+const PI   = Math.PI;
+const TAU  = 2 * PI;
+const D2R  = PI / 180;
+const R2D  = 180 / PI;
+const NPTS = 360;            // points per full revolution (1° resolution)
+
+/* ────────────────────────────────────────────────────────
+   State
+──────────────────────────────────────────────────────── */
+let links   = { a: 2, b: 4.5, c: 3.5, d: 4 };
+let omega2  = 30 * TAU / 60;   // rad/s  (30 rpm default)
+let theta2  = 0;               // current crank angle, rad
+let animDir = 1;               // +1 forward, -1 backward (for non-Grashof bounce)
+let isAnim  = false;
+let rafId   = null;
+let lastTs  = null;
+let asm     = 1;               // +1 open assembly, -1 crossed assembly
+
+let cycleData = null;          // precomputed full-cycle arrays
+
+/* ────────────────────────────────────────────────────────
+   KINEMATICS
+──────────────────────────────────────────────────────── */
+
+/**
+ * Position analysis using Freudenstein's equation.
+ *
+ * Vector loop:  a·e^(iθ₂) + b·e^(iθ₃) = d + c·e^(iθ₄)
+ *
+ * K₁ = d/a,  K₂ = d/c,  K₃ = (a²-b²+c²+d²)/(2ac)
+ *
+ * Freudenstein:  K₁·cosθ₄ − K₂·cosθ₂ + K₃ = cos(θ₂−θ₄)
+ *
+ * Half-angle substitution t = tan(θ₄/2) gives quadratic:
+ *   A·t² + B·t + C = 0
+ *     A = K₁ + (K₂−1)cosθ₂ − K₃
+ *     B = 2·sinθ₂
+ *     C = (K₂+1)cosθ₂ − K₁ − K₃
+ *
+ * Returns null if discriminant < 0 (mechanism can't reach this angle).
+ */
+function positionAnalysis(th2, a, b, c, d, assembly) {
+  const K1 = d / a;
+  const K2 = d / c;
+  const K3 = (a*a - b*b + c*c + d*d) / (2 * a * c);
+
+  const c2 = Math.cos(th2), s2 = Math.sin(th2);
+
+  const A = K1 + (K2 - 1) * c2 - K3;
+  const B = 2 * s2;
+  const C = (K2 + 1) * c2 - K1 - K3;
+
+  const disc = B*B - 4*A*C;
+  if (disc < -1e-9) return null;          // no real solution
+
+  const sq = Math.sqrt(Math.max(0, disc));
+
+  // Degenerate case A ≈ 0 → linear equation  B·t + C = 0
+  let t;
+  if (Math.abs(A) < 1e-10) {
+    t = (Math.abs(B) < 1e-10) ? 0 : -C / B;
+  } else {
+    t = (-B + assembly * sq) / (2 * A);
+  }
+
+  const th4 = 2 * Math.atan(t);
+
+  // θ₃ from vector loop
+  const bx = d + c * Math.cos(th4) - a * c2;
+  const by =     c * Math.sin(th4) - a * s2;
+  const th3 = Math.atan2(by, bx);
+
+  return { th3, th4 };
+}
+
+/**
+ * Velocity analysis — solves the 2×2 linear system:
+ *
+ *  [−b·sinθ₃   c·sinθ₄] [ω₃]   [ a·ω₂·sinθ₂]
+ *  [ b·cosθ₃  −c·cosθ₄] [ω₄] = [−a·ω₂·cosθ₂]
+ */
+function velocityAnalysis(th2, th3, th4, a, b, c, w2) {
+  const s3 = Math.sin(th3), c3 = Math.cos(th3);
+  const s4 = Math.sin(th4), c4 = Math.cos(th4);
+
+  const M11 = -b*s3,  M12 = c*s4;
+  const M21 =  b*c3,  M22 = -c*c4;
+  const r1  =  a*w2*Math.sin(th2);
+  const r2  = -a*w2*Math.cos(th2);
+
+  const det = M11*M22 - M12*M21;
+  if (Math.abs(det) < 1e-10) return { w3: 0, w4: 0 };
+
+  return {
+    w3: (r1*M22 - M12*r2) / det,
+    w4: (M11*r2 - r1*M21) / det
+  };
+}
+
+/**
+ * Acceleration analysis — same 2×2 matrix, new RHS (α₂ = 0):
+ *
+ *  A₁ = a·ω₂²·cosθ₂ + b·ω₃²·cosθ₃ − c·ω₄²·cosθ₄
+ *  A₂ = a·ω₂²·sinθ₂ + b·ω₃²·sinθ₃ − c·ω₄²·sinθ₄
+ */
+function accelerationAnalysis(th2, th3, th4, a, b, c, w2, w3, w4) {
+  const s3 = Math.sin(th3), c3 = Math.cos(th3);
+  const s4 = Math.sin(th4), c4 = Math.cos(th4);
+  const s2 = Math.sin(th2), c2 = Math.cos(th2);
+
+  const A1 = a*w2*w2*c2 + b*w3*w3*c3 - c*w4*w4*c4;
+  const A2 = a*w2*w2*s2 + b*w3*w3*s3 - c*w4*w4*s4;
+
+  const M11 = -b*s3, M12 = c*s4;
+  const M21 =  b*c3, M22 = -c*c4;
+
+  const det = M11*M22 - M12*M21;
+  if (Math.abs(det) < 1e-10) return { a3: 0, a4: 0 };
+
+  return {
+    a3: (A1*M22 - M12*A2) / det,
+    a4: (M11*A2 - A1*M21) / det
+  };
+}
+
+/**
+ * Transmission angle μ — acute angle between coupler and follower at pin B.
+ * Returns angle in degrees, in [0°, 90°].
+ */
+function transmissionAngle(th3, th4) {
+  return Math.acos(Math.min(1, Math.abs(Math.cos(th3 - th4)))) * R2D;
+}
+
+/* ────────────────────────────────────────────────────────
+   GRASHOF ANALYSIS
+──────────────────────────────────────────────────────── */
+function grashofAnalysis(a, b, c, d) {
+  const S  = Math.min(a, b, c, d);
+  const L  = Math.max(a, b, c, d);
+  const PQ = a + b + c + d - S - L;   // sum of the other two
+  const SL = S + L;
+  const eps = 1e-9;
+
+  let type, cls;
+
+  if (SL > PQ + eps) {
+    // Non-Grashof: no link can rotate fully
+    type = 'Non-Grashof — Double Rocker';
+    cls  = 'g-fail';
+  } else if (Math.abs(SL - PQ) < eps) {
+    // Change-point (degenerate Grashof)
+    type = 'Special Grashof — Change Point';
+    cls  = 'g-warn';
+  } else {
+    // Grashof: at least one link rotates fully
+    const near = v => Math.abs(v - S) < eps;
+    if      (near(d)) { type = 'Grashof — Double Crank (Drag Link)';                cls = 'g-ok'; }
+    else if (near(a)) { type = 'Grashof — Crank-Rocker';                            cls = 'g-ok'; }
+    else if (near(c)) { type = 'Grashof — Rocker-Crank (swap input/output)';        cls = 'g-ok'; }
+    else              { type = 'Grashof — Double Rocker (coupler is shortest)';      cls = 'g-ok'; }
+  }
+
+  return { S, L, PQ, SL, type, cls };
+}
+
+/* ────────────────────────────────────────────────────────
+   FULL-CYCLE PRECOMPUTATION
+──────────────────────────────────────────────────────── */
+function computeCycle() {
+  const { a, b, c, d } = links;
+  const w2 = omega2;
+
+  const th3 = [], th4 = [], w3 = [], w4 = [], a4 = [], mu = [];
+
+  for (let i = 0; i < NPTS; i++) {
+    const t2  = i * TAU / NPTS;
+    const pos = positionAnalysis(t2, a, b, c, d, asm);
+
+    if (!pos) {
+      th3.push(null); th4.push(null);
+      w3.push(null);  w4.push(null);
+      a4.push(null);  mu.push(null);
+      continue;
+    }
+
+    const vel = velocityAnalysis(t2, pos.th3, pos.th4, a, b, c, w2);
+    const acc = accelerationAnalysis(t2, pos.th3, pos.th4, a, b, c, w2, vel.w3, vel.w4);
+    const muV = transmissionAngle(pos.th3, pos.th4);
+
+    th3.push(pos.th3 * R2D);
+    th4.push(pos.th4 * R2D);
+    w3.push(vel.w3);
+    w4.push(vel.w4);
+    a4.push(acc.a4);
+    mu.push(muV);
+  }
+
+  cycleData = { th3, th4, w3, w4, a4, mu };
+}
+
+/* ────────────────────────────────────────────────────────
+   CANVAS DRAWING
+──────────────────────────────────────────────────────── */
+const canvas = document.getElementById('mechCanvas');
+const ctx    = canvas.getContext('2d');
+
+// Logical canvas dimensions (drawing coordinate space)
+// We handle DPR by scaling the backing store.
+let CW = 800, CH = 430;
+let O2x, O2y, SCALE;
+
+// ── Zoom / pan state ─────────────────────────────────────
+let viewZoom = 1, panX = 0, panY = 0;
+let _isPanning = false, _dragX = 0, _dragY = 0;
+
+function zoomStep(factor) {
+  viewZoom = Math.min(8, Math.max(0.2, viewZoom * factor));
+  updateZoomLbl(); drawMechanism(theta2);
+}
+function resetView() {
+  viewZoom = 1; panX = 0; panY = 0;
+  updateZoomLbl(); drawMechanism(theta2);
+}
+function updateZoomLbl() {
+  const el = document.getElementById('zoom-lbl');
+  if (el) el.textContent = Math.round(viewZoom * 100) + '%';
+}
+
+function setupCanvas() {
+  const dpr  = window.devicePixelRatio || 1;
+  const wrap  = canvas.parentElement;
+  const logW  = Math.max(300, wrap.clientWidth - 28);  // card padding 14px each side
+  const logH  = Math.round(logW * 430 / 800);
+
+  CW = logW;  CH = logH;
+
+  canvas.style.width  = logW + 'px';
+  canvas.style.height = logH + 'px';
+  canvas.width  = Math.round(logW * dpr);
+  canvas.height = Math.round(logH * dpr);
+
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);  // scale for DPR
+}
+
+/** Convert world coords (O2 at origin, Y up) → canvas pixels */
+function w2c(wx, wy) {
+  return [ O2x + wx * SCALE,  O2y - wy * SCALE ];
+}
+
+function calcTransform() {
+  const { a, b, c, d } = links;
+  // generous bounding box: mechanism fits within maxReach in each direction from O2
+  const maxUp    = a + b;
+  const maxDown  = a + b;
+  const maxLeft  = a + b;
+  const maxRight = d + Math.max(c, a + b - d);
+
+  const marginX = 0.10, marginY = 0.12;
+  const scaleX  = CW * (1 - 2*marginX) / (maxLeft + maxRight);
+  const scaleY  = CH * (1 - 2*marginY) / (maxUp + maxDown);
+  SCALE = Math.min(scaleX, scaleY, 120);
+
+  // Centre the O2-O4 axis horizontally
+  const totalW = d * SCALE;
+  O2x = (CW - totalW) / 2;
+  O2y = CH * 0.58;
+}
+
+function drawMechanism(t2) {
+  const { a, b, c, d } = links;
+  setupCanvas();
+  calcTransform();
+
+  ctx.clearRect(0, 0, CW, CH);
+
+  // ── Background (not zoomed — always fills canvas) ───
+  ctx.fillStyle = '#F8FAFB';
+  ctx.fillRect(0, 0, CW, CH);
+
+  // ── Apply zoom / pan ────────────────────────────────
+  ctx.save();
+  ctx.translate(CW/2 + panX, CH/2 + panY);
+  ctx.scale(viewZoom, viewZoom);
+  ctx.translate(-CW/2, -CH/2);
+
+  // ── Light grid ─────────────────────────────────────
+  ctx.strokeStyle = '#E4EBF0';
+  ctx.lineWidth   = 1;
+  const gStep = SCALE;   // 1 cm grid
+  const gOffX = ((O2x % gStep) + gStep) % gStep;
+  const gOffY = ((O2y % gStep) + gStep) % gStep;
+  for (let x = gOffX; x < CW; x += gStep) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,CH); ctx.stroke(); }
+  for (let y = gOffY; y < CH; y += gStep) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(CW,y); ctx.stroke(); }
+
+  const [xO2, yO2] = w2c(0, 0);
+  const [xO4, yO4] = w2c(d, 0);
+
+  // ── Crank sweep circle ──────────────────────────────
+  ctx.strokeStyle = 'rgba(21,101,192,0.13)';
+  ctx.lineWidth   = 1.5;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.arc(xO2, yO2, a*SCALE, 0, TAU); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // ── Ground link (dashed) ────────────────────────────
+  drawGroundLink(xO2, yO2, xO4, yO4);
+
+  const pos = positionAnalysis(t2, a, b, c, d, asm);
+
+  if (!pos) {
+    // Can't assemble — show ground symbols + message
+    drawGroundSymbol(xO2, yO2);
+    drawGroundSymbol(xO4, yO4);
+    drawPin(xO2, yO2, 9, '#055934', true);
+    drawPin(xO4, yO4, 9, '#208D44', true);
+
+    ctx.fillStyle = '#733B43';
+    ctx.font = 'bold 13px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('⚠  Toggle position — crank cannot reach this angle', CW/2, CH * 0.25);
+    ctx.textAlign = 'left';
+    ctx.restore();
+    return;
+  }
+
+  const { th3, th4 } = pos;
+
+  // Compute key points in world coords → canvas
+  const Awx = a * Math.cos(t2),     Awy = a * Math.sin(t2);
+  const Bwx = d + c*Math.cos(th4),  Bwy = c * Math.sin(th4);
+  const [xA, yA] = w2c(Awx, Awy);
+  const [xB, yB] = w2c(Bwx, Bwy);
+
+  // ── Follower sweep arc ──────────────────────────────
+  ctx.strokeStyle = 'rgba(46,125,50,0.10)';
+  ctx.lineWidth   = 1.5;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.arc(xO4, yO4, c*SCALE, 0, TAU); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // ── Links ───────────────────────────────────────────
+  // Render order: follower behind coupler, crank in front
+  drawLink(xO4, yO4, xB, yB, '#208D44', 7);    // c — follower
+  drawLink(xA,  yA,  xB, yB, '#A68A58', 6);    // b — coupler
+  drawLink(xO2, yO2, xA, yA, '#055934', 8);    // a — crank
+
+  // ── Ground symbols ──────────────────────────────────
+  drawGroundSymbol(xO2, yO2);
+  drawGroundSymbol(xO4, yO4);
+
+  // ── Pin joints ──────────────────────────────────────
+  drawPin(xO2, yO2, 9, '#055934', true);
+  drawPin(xO4, yO4, 9, '#208D44', true);
+  drawPin(xA,  yA,  6, '#A68A58', false);
+  drawPin(xB,  yB,  6, '#FF8F00', false);
+
+  // ── Point labels ────────────────────────────────────
+  ctx.font      = 'bold 12px system-ui';
+  ctx.fillStyle = '#37474F';
+  placeLabel('O₂', xO2, yO2, -16, +5);
+  placeLabel('O₄', xO4, yO4,  +9, +5);
+  placeLabel('A',  xA,  yA,   +9, -8);
+  placeLabel('B',  xB,  yB,   +9, -8);
+
+  // ── Link dimension labels ────────────────────────────
+  drawLinkLabel(xO2, yO2, xA,  yA,  `a=${a}`,   '#055934');
+  drawLinkLabel(xA,  yA,  xB,  yB,  `b=${b}`,   '#A68A58');
+  drawLinkLabel(xO4, yO4, xB,  yB,  `c=${c}`,   '#208D44');
+  drawLinkLabel(xO2, yO2, xO4, yO4, `d=${d}`,   '#8D9991', -1);   // -1 = below
+
+  // ── Crank angle arc at O2 ───────────────────────────
+  // In canvas: +angle is CW; world +angle is CCW (Y flipped)
+  // So draw arc from canvas 0 to -t2, anticlockwise=true (CCW in canvas = CW in world? no)
+  // canvas.arc(cx,cy,r,start,end,anticlockwise):
+  //   anticlockwise=false → arc goes CW from start to end
+  //   anticlockwise=true  → arc goes CCW from start to end
+  // World CCW from 0 to t2 = Canvas from 0 to -t2 going anticlockwise (CCW in canvas)
+  if (t2 > 0.01) {
+    ctx.beginPath();
+    ctx.arc(xO2, yO2, 30, 0, -t2, true);
+    ctx.strokeStyle = 'rgba(21,101,192,0.55)';
+    ctx.lineWidth   = 2;
+    ctx.stroke();
+    // small tick at current angle
+    const tX = xO2 + 30 * Math.cos(-t2);
+    const tY = yO2 + 30 * Math.sin(-t2);
+    ctx.beginPath();
+    ctx.arc(tX, tY, 3, 0, TAU);
+    ctx.fillStyle = 'rgba(21,101,192,0.8)';
+    ctx.fill();
+  }
+
+  // ── End zoom/pan transform ───────────────────────────
+  ctx.restore();
+
+  // ── Velocity/Acceleration for live panel ─────────────
+  const vel = velocityAnalysis(t2, th3, th4, a, b, c, omega2);
+  const acc = accelerationAnalysis(t2, th3, th4, a, b, c, omega2, vel.w3, vel.w4);
+  const muV = transmissionAngle(th3, th4);
+
+  updateLivePanel(th3, th4, muV, vel, acc);
+
+  // ── Transmission angle badge ─────────────────────────
+  const muColor = muV < 30 ? '#733B43' : muV < 45 ? '#A68A58' : '#208D44';
+  const cvMu = document.getElementById('cv-mu');
+  cvMu.style.color = muColor;
+  cvMu.textContent = `μ = ${muV.toFixed(1)}°  ${muV < 30 ? '⚠ poor' : muV < 45 ? '⚡ marginal' : '✓ good'}`;
+}
+
+/* ── Canvas drawing helpers ──────────────────────────── */
+
+function drawLink(x1, y1, x2, y2, color, lw) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth   = lw;
+  ctx.lineCap     = 'round';
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+}
+
+function drawGroundLink(x1, y1, x2, y2) {
+  ctx.save();
+  ctx.strokeStyle = '#90A4AE';
+  ctx.lineWidth   = 3;
+  ctx.setLineDash([10, 5]);
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  ctx.restore();
+}
+
+function drawGroundSymbol(cx, cy) {
+  const W = 16, H = 11;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx - W/2, cy + H);
+  ctx.lineTo(cx + W/2, cy + H);
+  ctx.closePath();
+  ctx.fillStyle   = '#F2F7ED';
+  ctx.strokeStyle = '#8D9991';
+  ctx.lineWidth   = 1.5;
+  ctx.fill(); ctx.stroke();
+  // Hatch
+  ctx.beginPath();
+  ctx.moveTo(cx - W/2 - 3, cy + H); ctx.lineTo(cx + W/2 + 3, cy + H);
+  ctx.stroke();
+  ctx.lineWidth = 1;
+  for (let i = -W/2 - 2; i <= W/2 + 2; i += 6) {
+    ctx.beginPath();
+    ctx.moveTo(cx + i,     cy + H);
+    ctx.lineTo(cx + i + 5, cy + H + 6);
+    ctx.stroke();
+  }
+}
+
+function drawPin(cx, cy, r, color, isFixed) {
+  if (isFixed) {
+    ctx.beginPath(); ctx.arc(cx, cy, r+4, 0, TAU);
+    ctx.fillStyle = '#F2F7ED'; ctx.fill();
+    ctx.strokeStyle = '#90A4AE'; ctx.lineWidth = 1; ctx.stroke();
+  }
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU);
+  ctx.fillStyle   = '#FFFFFF'; ctx.fill();
+  ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.stroke();
+  // Centre dot
+  ctx.beginPath(); ctx.arc(cx, cy, 3, 0, TAU);
+  ctx.fillStyle = color; ctx.fill();
+}
+
+function placeLabel(text, cx, cy, dx, dy) {
+  ctx.fillText(text, cx + dx, cy + dy);
+}
+
+function drawLinkLabel(x1, y1, x2, y2, text, color, side) {
+  const mx = (x1+x2)/2, my = (y1+y2)/2;
+  const ang = Math.atan2(y2-y1, x2-x1);
+  const perp = ang - PI/2;
+  const offset = 13 * (side === -1 ? -1 : 1);
+  ctx.save();
+  ctx.translate(mx + Math.cos(perp)*offset, my + Math.sin(perp)*offset);
+  ctx.font      = '10px system-ui';
+  ctx.fillStyle = color;
+  ctx.textAlign = 'center';
+  ctx.fillText(text, 0, 0);
+  ctx.restore();
+}
+
+/* ── Live panel update ───────────────────────────────── */
+function updateLivePanel(th3, th4, mu, vel, acc) {
+  const f1 = v => (v == null ? '—' : v.toFixed(1));
+  const f3 = v => (v == null ? '—' : v.toFixed(3));
+
+  document.getElementById('sv-t3').textContent = f1(th3 * R2D) + '°';
+  document.getElementById('sv-t4').textContent = f1(th4 * R2D) + '°';
+  document.getElementById('sv-mu').textContent = f1(mu) + '°';
+  document.getElementById('sv-w3').textContent = f3(vel.w3);
+  document.getElementById('sv-w4').textContent = f3(vel.w4);
+  document.getElementById('sv-a4').textContent = f3(acc.a4);
+
+  const deg = Math.round(theta2 * R2D) % 360;
+  document.getElementById('cv-badge').textContent   = `θ₂ = ${deg}°`;
+  document.getElementById('th2-lbl').textContent    = `${deg}°`;
+  document.getElementById('theta2-range').value     = deg;
+}
+
+/* ────────────────────────────────────────────────────────
+   CHART.JS PLOTS
+──────────────────────────────────────────────────────── */
+
+// Custom plugin: vertical marker line at current θ₂
+const vLinePlugin = {
+  id: 'vLine',
+  afterDraw(chart) {
+    const deg = chart.options.plugins.vLine?.deg;
+    if (deg == null) return;
+    const { ctx: c, chartArea: ca, scales: { x } } = chart;
+    const px = x.getPixelForValue(deg);
+    if (!px || px < ca.left || px > ca.right) return;
+    c.save();
+    c.strokeStyle = 'rgba(230,81,0,0.8)';
+    c.lineWidth   = 1.5;
+    c.setLineDash([4, 3]);
+    c.beginPath(); c.moveTo(px, ca.top); c.lineTo(px, ca.bottom); c.stroke();
+    c.restore();
+  }
+};
+Chart.register(vLinePlugin);
+
+let charts = {};
+
+const CHART_CFG = [
+  { id:'ch-mu',  key:'mu',  label:'μ (°)',       color:'#0A353E', yTitle:'Transmission Angle (°)' },
+  { id:'ch-th4', key:'th4', label:'θ₄ (°)',      color:'#055934', yTitle:'Output Angle (°)' },
+  { id:'ch-w4',  key:'w4',  label:'ω₄ (rad/s)', color:'#208D44', yTitle:'Angular Velocity (rad/s)' },
+  { id:'ch-a4',  key:'a4',  label:'α₄ (rad/s²)','color':'#A68A58', yTitle:'Angular Acceleration (rad/s²)' },
+];
+
+function initCharts() {
+  CHART_CFG.forEach(cfg => {
+    const el = document.getElementById(cfg.id);
+
+    // Extra reference datasets for μ chart
+    const extraDatasets = (cfg.id === 'ch-mu') ? [
+      { label:'45° min',  data: Array.from({length:360},(_,i)=>({x:i,y:45})),
+        borderColor:'rgba(230,81,0,0.6)',  borderWidth:1.2, borderDash:[5,4],
+        pointRadius:0, fill:false },
+      { label:'30° limit', data: Array.from({length:360},(_,i)=>({x:i,y:30})),
+        borderColor:'rgba(198,40,40,0.6)', borderWidth:1.2, borderDash:[5,4],
+        pointRadius:0, fill:false }
+    ] : [];
+
+    charts[cfg.id] = new Chart(el, {
+      type: 'line',
+      data: {
+        datasets: [
+          {
+            label: cfg.label,
+            data: [],
+            borderColor: cfg.color,
+            backgroundColor: cfg.color + '18',
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: true,
+            tension: 0.3,
+            spanGaps: false,
+          },
+          ...extraDatasets
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        animation: false,
+        plugins: {
+          legend: { display: false },
+          vLine: { deg: 0 },
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            filter: item => item.datasetIndex === 0,
+            callbacks: {
+              title: items => `θ₂ = ${items[0].parsed.x}°`,
+              label: item  => `${item.dataset.label}: ${item.parsed.y != null ? item.parsed.y.toFixed(4) : '—'}`
+            }
+          }
+        },
+        scales: {
+          x: {
+            type: 'linear',
+            min: 0, max: 359,
+            title: { display: true, text: 'Crank Angle θ₂ (°)', font: { size: 10 } },
+            ticks: { stepSize: 60, font: { size: 9 } },
+            grid: { color: '#EEF2F5' }
+          },
+          y: {
+            title: { display: true, text: cfg.yTitle, font: { size: 10 } },
+            ticks: { font: { size: 9 }, maxTicksLimit: 6 },
+            grid: { color: '#EEF2F5' }
+          }
+        }
+      }
+    });
+  });
+}
+
+function updateCharts() {
+  if (!cycleData) return;
+  const toXY = arr => arr.map((v, i) => ({ x: i, y: v }));
+
+  charts['ch-mu' ].data.datasets[0].data = toXY(cycleData.mu);
+  charts['ch-th4'].data.datasets[0].data = toXY(cycleData.th4);
+  charts['ch-w4' ].data.datasets[0].data = toXY(cycleData.w4);
+  charts['ch-a4' ].data.datasets[0].data = toXY(cycleData.a4);
+
+  const deg = Math.round(theta2 * R2D) % 360;
+  Object.values(charts).forEach(ch => {
+    ch.options.plugins.vLine.deg = deg;
+    ch.update('none');
+  });
+}
+
+function updateChartMarker() {
+  const deg = Math.round(theta2 * R2D) % 360;
+  Object.values(charts).forEach(ch => {
+    ch.options.plugins.vLine.deg = deg;
+    ch.update('none');
+  });
+}
+
+/* ────────────────────────────────────────────────────────
+   GRASHOF DISPLAY
+──────────────────────────────────────────────────────── */
+function displayGrashof() {
+  const { a, b, c, d } = links;
+  const g = grashofAnalysis(a, b, c, d);
+
+  const typeEl   = document.getElementById('g-type');
+  const detailEl = document.getElementById('g-det');
+
+  typeEl.className = `g-box ${g.cls}`;
+  typeEl.textContent = g.type;
+
+  detailEl.innerHTML =
+    `S (shortest) = <b>${g.S.toFixed(3)}</b> &nbsp;·&nbsp; L (longest) = <b>${g.L.toFixed(3)}</b><br>` +
+    `P + Q = <b>${g.PQ.toFixed(3)}</b><br>` +
+    `S + L = <b>${g.SL.toFixed(3)}</b> &nbsp;` +
+    (g.SL <= g.PQ + 1e-9
+      ? `<span style="color:var(--green)">≤ P+Q &nbsp;✓ Grashof</span>`
+      : `<span style="color:var(--red)">&gt; P+Q &nbsp;✗ Non-Grashof</span>`);
+}
+
+/* ────────────────────────────────────────────────────────
+   ANIMATION LOOP
+──────────────────────────────────────────────────────── */
+function animLoop(ts) {
+  if (!lastTs) lastTs = ts;
+  const dt = Math.min((ts - lastTs) / 1000, 0.05);   // cap at 50 ms
+  lastTs = ts;
+
+  const dTh = omega2 * dt * animDir;
+  let newTh  = theta2 + dTh;
+
+  // Bounce if position is invalid (non-Grashof or near toggle)
+  const testPos = positionAnalysis(newTh, links.a, links.b, links.c, links.d, asm);
+  if (!testPos) {
+    animDir = -animDir;
+    newTh   = theta2 + omega2 * dt * animDir;
+    // If still invalid, hold
+    const retry = positionAnalysis(newTh, links.a, links.b, links.c, links.d, asm);
+    if (!retry) newTh = theta2;
+  }
+
+  theta2 = ((newTh % TAU) + TAU) % TAU;
+
+  drawMechanism(theta2);
+  updateChartMarker();
+
+  if (isAnim) rafId = requestAnimationFrame(animLoop);
+}
+
+function toggleAnim() {
+  isAnim = !isAnim;
+  const btn = document.getElementById('anim-btn');
+  if (isAnim) {
+    lastTs = null;
+    animDir = 1;
+    btn.textContent  = '⏸ Pause';
+    btn.className    = 'btn btn-r';
+    rafId = requestAnimationFrame(animLoop);
+  } else {
+    btn.textContent = '▶ Animate';
+    btn.className   = 'btn btn-p';
+    if (rafId) cancelAnimationFrame(rafId);
+  }
+}
+
+function resetCrank() {
+  theta2 = 0;
+  animDir = 1;
+  drawMechanism(0);
+  updateChartMarker();
+  document.getElementById('theta2-range').value = 0;
+  document.getElementById('th2-lbl').textContent = '0°';
+}
+
+function stepCrank(deg) {
+  if (isAnim) return;
+  theta2 = ((theta2 + deg * D2R) % TAU + TAU) % TAU;
+  drawMechanism(theta2);
+  updateChartMarker();
+}
+
+/* ────────────────────────────────────────────────────────
+   PRESETS
+──────────────────────────────────────────────────────── */
+const PRESETS = {
+  // Norton's textbook example — Grashof crank-rocker (a is shortest)
+  cr: { a: 2,   b: 4.5, c: 3.5, d: 4   },
+  // Double crank (drag link) — d is shortest, both input and output rotate
+  dc: { a: 3,   b: 5,   c: 4.5, d: 2   },
+  // Non-Grashof double rocker — S+L > P+Q, no continuous rotation possible
+  dr: { a: 3,   b: 3,   c: 3,   d: 5   },
+};
+
+function setPreset(name) {
+  const p = PRESETS[name];
+  if (!p) return;
+  ['a','b','c','d'].forEach(k => {
+    document.getElementById(`inp-${k}`).value = p[k];
+  });
+  refreshAll();
+}
+
+/* ────────────────────────────────────────────────────────
+   ASSEMBLY TOGGLE
+──────────────────────────────────────────────────────── */
+function onAssemblyToggle() {
+  asm = document.getElementById('asm-tog').checked ? -1 : 1;
+  document.getElementById('asm-lbl').textContent = asm === 1 ? 'Open' : 'Crossed';
+  refreshAll();
+}
+
+/* ────────────────────────────────────────────────────────
+   INPUT HANDLERS
+──────────────────────────────────────────────────────── */
+function readLinks() {
+  const a = parseFloat(document.getElementById('inp-a').value);
+  const b = parseFloat(document.getElementById('inp-b').value);
+  const c = parseFloat(document.getElementById('inp-c').value);
+  const d = parseFloat(document.getElementById('inp-d').value);
+  if (!validateLinkInputs()) return false;
+  if ([a,b,c,d].some(v => !isFinite(v) || v <= 0)) return false;
+  links = { a, b, c, d };
+  return true;
+}
+
+function refreshAll() {
+  if (!readLinks()) return;
+  computeCycle();
+  updateCharts();
+  displayGrashof();
+  drawMechanism(theta2);
+  saveMechState();
+  updateDiagnostics();
+}
+
+function updateDiagnostics() {
+  const el = document.getElementById('diag-list');
+  if (!el || !cycleData) return;
+  const {a,b,c,d} = links;
+  const rpm = parseFloat(document.getElementById('spd-range').value)||30;
+  const obs = [];
+
+  // 1. Grashof
+  const gr = grashofAnalysis(a,b,c,d);
+  obs.push(`<b>Grashof:</b> ${gr.type}. ${gr.satisfied
+    ? 'Crank can rotate fully — mechanism has a crank.'
+    : 'No full rotation possible — this is a rocker-rocker.'}`);
+
+  // 2. Transmission angle
+  const muArr = cycleData.mu.filter(v=>isFinite(v));
+  if (muArr.length) {
+    const muMin = Math.min(...muArr).toFixed(1);
+    const muMax = Math.max(...muArr).toFixed(1);
+    const warn = parseFloat(muMin) < 40;
+    obs.push(`<b>Transmission angle μ:</b> min = ${muMin}°, max = ${muMax}°. `
+      + (warn
+        ? `⚠ <span style="color:var(--red)">Min below 40° — force transmission is poor near this angle. Consider increasing the crank length <i>a</i> or reducing the ground link <i>d</i>.</span>`
+        : `✓ Stays above 40° — good force transmission throughout.`));
+  }
+
+  // 3. Speed context
+  const w2 = rpm * 2*Math.PI/60;
+  const w4arr = cycleData.w4.filter(v=>isFinite(v));
+  if (w4arr.length) {
+    const w4max = Math.max(...w4arr.map(Math.abs)).toFixed(2);
+    obs.push(`<b>Speed:</b> Crank at ${rpm} rpm (${w2.toFixed(2)} rad/s). Peak follower speed |ω₄|_max = ${w4max} rad/s.`);
+  }
+
+  // 4. Acceleration
+  const a4arr = cycleData.a4.filter(v=>isFinite(v));
+  if (a4arr.length) {
+    const a4max = Math.max(...a4arr.map(Math.abs)).toFixed(1);
+    obs.push(`<b>Acceleration:</b> Peak |α₄|_max = ${a4max} rad/s². Higher crank speed amplifies this by ω² — relevant for inertia force sizing (Module 3).`);
+  }
+
+  // 5. Link ratio advice
+  const ratio = (a/d).toFixed(3);
+  obs.push(`<b>Crank/ground ratio a/d = ${ratio}.</b> `
+    + (a/d > 1 ? 'Crank longer than ground — unusual; check Grashof condition.'
+      : a/d < 0.5 ? 'Short crank relative to ground — good for compact designs.'
+      : 'Typical proportions for a crank-rocker.'));
+
+  el.innerHTML = obs.map((o,i) => `<div style="padding:4px 0;border-bottom:1px solid #EEF2F5">${i+1}. ${o}</div>`).join('');
+}
+
+function saveMechState() {
+  try {
+    const rpm = parseFloat(document.getElementById('spd-range').value) || 30;
+    const state = {
+      a: links.a, b: links.b, c: links.c, d: links.d,
+      rpm,
+      assembly: document.getElementById('asm-tog').checked ? -1 : 1,
+      ts: Date.now()
+    };
+    localStorage.setItem('meng364_mechanism', JSON.stringify(state));
+    const ind = document.getElementById('save-indicator');
+    if (ind) ind.textContent = '✓ Saved — available in all other modules';
+  } catch(e) {}
+}
+
+// Link length inputs
+['a','b','c','d'].forEach(k =>
+  document.getElementById(`inp-${k}`)
+    .addEventListener('input', refreshAll)
+);
+
+// Speed slider
+document.getElementById('spd-range').addEventListener('input', function () {
+  const rpm = +this.value;
+  document.getElementById('spd-lbl').textContent = `${rpm} rpm`;
+  omega2 = rpm * TAU / 60;
+  computeCycle();
+  updateCharts();
+});
+
+// θ₂ slider (manual step when not animating)
+document.getElementById('theta2-range').addEventListener('input', function () {
+  if (isAnim) return;
+  theta2 = (+this.value) * D2R;
+  document.getElementById('th2-lbl').textContent = `${this.value}°`;
+  document.getElementById('cv-badge').textContent = `θ₂ = ${this.value}°`;
+  drawMechanism(theta2);
+  updateChartMarker();
+});
+
+// Resize — redraw on window resize
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => drawMechanism(theta2), 120);
+});
+
+/* ── Canvas zoom / pan events ──────────────────────────── */
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) / rect.width * CW;
+  const my = (e.clientY - rect.top)  / rect.height * CH;
+  const oldZoom = viewZoom;
+  viewZoom = Math.min(8, Math.max(0.2, viewZoom * (e.deltaY < 0 ? 1.12 : 1/1.12)));
+  const f = viewZoom / oldZoom;
+  panX = (mx - CW/2) - ((mx - CW/2) - panX) * f;
+  panY = (my - CH/2) - ((my - CH/2) - panY) * f;
+  updateZoomLbl();
+  drawMechanism(theta2);
+}, { passive: false });
+
+canvas.addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  _isPanning = true; _dragX = e.clientX; _dragY = e.clientY;
+  canvas.style.cursor = 'grabbing';
+});
+window.addEventListener('mousemove', e => {
+  if (!_isPanning) return;
+  const rect = canvas.getBoundingClientRect();
+  const scaleF = CW / rect.width;
+  panX += (e.clientX - _dragX) * scaleF;
+  panY += (e.clientY - _dragY) * scaleF;
+  _dragX = e.clientX; _dragY = e.clientY;
+  drawMechanism(theta2);
+});
+window.addEventListener('mouseup', () => {
+  _isPanning = false;
+  canvas.style.cursor = 'grab';
+});
+canvas.addEventListener('dblclick', () => resetView());
+
+/* ── Input validation ──────────────────────────────────── */
+function validateLinkInputs() {
+  const ids = ['a','b','c','d'];
+  let firstMsg = '';
+  let allOk = true;
+  ids.forEach(k => {
+    const el = document.getElementById(`inp-${k}`);
+    const v  = parseFloat(el.value);
+    const ok = isFinite(v) && v > 0;
+    el.classList.toggle('invalid', !ok);
+    if (!ok && allOk) { firstMsg = `Link <b>${k}</b> must be a positive number.`; allOk = false; }
+  });
+  const err = document.getElementById('link-err');
+  if (err) { err.innerHTML = firstMsg; err.classList.toggle('show', !allOk); }
+  return allOk;
+}
+
+/* ── Slow-motion shortcut ──────────────────────────────── */
+function setSlowMo() {
+  const sl = document.getElementById('spd-range');
+  sl.value = 5;
+  document.getElementById('spd-lbl').textContent = '5 rpm';
+  omega2 = 5 * TAU / 60;
+  computeCycle(); updateCharts();
+}
+
+/* ────────────────────────────────────────────────────────
+   INIT
+──────────────────────────────────────────────────────── */
+function addChartExportButtons(){
+  document.querySelectorAll('.plt-card').forEach(card=>{
+    const cv=card.querySelector('canvas');
+    if(!cv||card.querySelector('.plt-dl-btn')) return;
+    const ttl=card.querySelector('.plt-ttl');
+    const name=(ttl?ttl.textContent.replace(/[^a-zA-Z0-9_]/g,'_').slice(0,30):'chart');
+    const btn=document.createElement('button');
+    btn.className='plt-dl-btn'; btn.title='Download chart as PNG'; btn.textContent='⬇ PNG';
+    btn.onclick=()=>{
+      const a=document.createElement('a');
+      a.href=cv.toDataURL('image/png');
+      a.download=name+'.png'; a.click();
+    };
+    card.appendChild(btn);
+  });
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  omega2 = 30 * TAU / 60;
+
+  initCharts();
+  computeCycle();
+  updateCharts();
+  displayGrashof();
+  drawMechanism(0);
+  saveMechState();
+  updateDiagnostics();
+  addChartExportButtons();
+});
+</script>
+<script>document.querySelector('.mod-pill.active')?.scrollIntoView({inline:'center',block:'nearest'});</script>
+</body>
+</html>
