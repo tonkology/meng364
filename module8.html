@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MENG 364 — Module 8: Mechanism Builder</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --blue:#055934; --blue-dk:#0A353E; --blue-lt:#EEF8F5;
+  --orange:#A68A58; --green:#208D44; --red:#733B43; --amber:#A68A58;
+  --gray:#8D9991; --bg:#F2F7ED; --surface:#FFFFFF; --border:#C2CCC6;
+  --text:#1D2921; --muted:#5C6660;
+}
+body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text); font-size: 14px; min-height: 100vh; }
+
+.hdr { background: var(--blue); color:#fff; padding:10px 20px; display:flex;
+  justify-content:space-between; align-items:center; box-shadow:0 2px 8px rgba(0,0,0,.3); }
+.hdr h1 { font-size:.97rem; font-weight:700; }
+.hdr p  { font-size:.7rem; opacity:.82; margin-top:1px; }
+.badge { background: var(--orange); border-radius:20px; padding:4px 14px;
+  font-size:.73rem; font-weight:700; white-space:nowrap; }
+
+.mod-nav { display:flex; gap:2px; background:var(--blue-dk); padding:0 12px;
+  overflow-x:auto; scrollbar-width:none; }
+.mod-nav::-webkit-scrollbar { display:none; }
+.mod-pill { color:rgba(255,255,255,.68); text-decoration:none; font-size:.72rem;
+  font-weight:600; padding:8px 12px; white-space:nowrap;
+  border-bottom:3px solid transparent; transition:all .15s; }
+.mod-pill:hover  { color:#fff; border-bottom-color:rgba(255,255,255,.4); }
+.mod-pill.active { color:#fff; border-bottom-color:#fff; }
+
+.layout { display:grid; grid-template-columns:300px 1fr; gap:14px; padding:14px;
+  max-width:1440px; margin:0 auto; align-items:start; }
+@media (max-width:900px){ .layout{ grid-template-columns:1fr; } }
+
+.card { background:var(--surface); border-radius:10px; box-shadow:0 1px 5px rgba(0,0,0,.09);
+  padding:14px; margin-bottom:12px; }
+.card:last-child { margin-bottom:0; }
+.card-ttl { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:1.2px;
+  color:var(--blue); border-bottom:2px solid var(--blue-lt); padding-bottom:6px; margin-bottom:12px; }
+
+/* ── Tool palette ─────────────────────────────────────────── */
+.tools { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.tool { display:flex; align-items:center; gap:6px; padding:7px 8px; border:1.5px solid var(--border);
+  border-radius:6px; background:#fff; font-size:.72rem; font-weight:700; color:var(--muted);
+  cursor:pointer; transition:all .13s; text-align:left; }
+.tool:hover { border-color:var(--blue); color:var(--blue); background:var(--blue-lt); }
+.tool.active { background:var(--blue); border-color:var(--blue); color:#fff; }
+.tool .gl { font-size:.95rem; line-height:1; }
+.tool-hint { font-size:.68rem; color:var(--muted); background:var(--bg); border-radius:6px;
+  padding:7px 9px; margin-top:8px; line-height:1.45; min-height:46px; }
+.tool-hint b { color:var(--blue); }
+
+.btns { display:flex; gap:7px; margin-top:8px; }
+.btn { flex:1; padding:8px 10px; border:none; border-radius:6px; font-size:.79rem;
+  font-weight:700; cursor:pointer; transition:all .15s;
+  display:flex; align-items:center; justify-content:center; gap:4px; }
+.btn-p { background:var(--blue); color:#fff; } .btn-p:hover{ background:var(--blue-dk); }
+.btn-s { background:#C2CCC6; color:var(--text); } .btn-s:hover{ background:#B0BEC5; }
+.btn-r { background:var(--red); color:#fff; }
+
+/* ── DOF panel ────────────────────────────────────────────── */
+.dof-big { text-align:center; padding:10px 6px 8px; border-radius:8px; background:var(--bg); }
+.dof-n { font-size:2.1rem; font-weight:800; font-family:'Courier New',monospace; line-height:1; }
+.dof-l { font-size:.63rem; font-weight:700; text-transform:uppercase; letter-spacing:.6px;
+  color:var(--muted); margin-top:3px; }
+.dof-eq { font-family:'Courier New',monospace; font-size:.72rem; color:var(--muted);
+  text-align:center; margin-top:8px; line-height:1.6; }
+.dof-eq b { color:var(--text); }
+.dof-msg { font-size:.71rem; line-height:1.5; margin-top:9px; padding:8px 9px; border-radius:6px; }
+.msg-ok   { background:#E8F5E9; color:var(--green); }
+.msg-warn { background:#FFF8E1; color:#7A5B00; }
+.msg-bad  { background:#FFEBEE; color:var(--red); }
+
+/* ── Object lists ─────────────────────────────────────────── */
+.olist { max-height:210px; overflow-y:auto; }
+.orow { display:flex; align-items:center; gap:6px; padding:5px 6px; border-radius:5px;
+  font-size:.73rem; }
+.orow:nth-child(odd) { background:var(--bg); }
+.orow .sw { width:11px; height:11px; border-radius:3px; flex-shrink:0; }
+.orow .nm { flex:1; font-weight:600; min-width:0; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; }
+.orow .mini { width:52px; padding:3px 5px; border:1.5px solid var(--border); border-radius:4px;
+  font-size:.72rem; font-weight:700; text-align:right; background:#FAFAFA; }
+.orow .mini:focus { outline:none; border-color:var(--blue); background:#fff; }
+.xbtn { border:none; background:none; color:var(--gray); cursor:pointer; font-size:.9rem;
+  padding:0 3px; line-height:1; }
+.xbtn:hover { color:var(--red); }
+.drv { border:none; background:none; cursor:pointer; font-size:.85rem; padding:0 2px;
+  opacity:.3; line-height:1; }
+.drv.on { opacity:1; }
+.empty { font-size:.72rem; color:var(--muted); text-align:center; padding:12px 4px;
+  font-style:italic; }
+
+/* ── Canvas ───────────────────────────────────────────────── */
+.right { min-width:0; }
+.cv-wrap { position:relative; }
+.cv-stage { position:relative; }
+#mechCanvas { width:100%; height:auto; display:block; border-radius:6px; background:#F4F7F9;
+  cursor:crosshair; touch-action:none; }
+.cv-badge { position:absolute; top:10px; right:14px; background:rgba(5,89,52,.92); color:#fff;
+  padding:3px 12px; border-radius:20px; font-size:.78rem; font-weight:700;
+  font-family:monospace; pointer-events:none; }
+.cv-info { position:absolute; bottom:10px; left:14px; font-size:.75rem; font-weight:700;
+  pointer-events:none; }
+.zoom-bar { display:flex; gap:5px; margin-top:8px; align-items:center; flex-wrap:wrap; }
+.zoom-btn { padding:3px 9px; border:1.5px solid var(--border); border-radius:5px; background:#fff;
+  font-size:.73rem; font-weight:700; cursor:pointer; color:var(--muted); transition:all .15s;
+  line-height:1.6; }
+.zoom-btn:hover { border-color:var(--blue); color:var(--blue); background:var(--blue-lt); }
+.zoom-lbl { font-size:.7rem; color:var(--muted); min-width:38px; text-align:center; font-weight:600; }
+.spacer { flex:1; }
+
+.plots { display:grid; grid-template-columns:1fr 1fr 1fr; gap:11px; }
+@media (max-width:820px){ .plots{ grid-template-columns:1fr; } }
+.plt-card { background:var(--surface); border-radius:10px; box-shadow:0 1px 5px rgba(0,0,0,.09);
+  padding:11px; }
+.plt-ttl { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.9px;
+  color:var(--blue); margin-bottom:7px; }
+.plt-note { font-size:.68rem; color:var(--muted); text-align:center; padding:26px 8px;
+  line-height:1.5; }
+
+@media print {
+  .mod-nav,.tools,.btns,.zoom-bar,.tool-hint,.xbtn,.drv { display:none!important; }
+  .hdr { background:#fff!important; color:#000!important; box-shadow:none!important;
+    border-bottom:2px solid #055934; }
+  .badge { background:#EEF8F5!important; color:#055934!important; }
+  body { background:#fff!important; }
+  .card { box-shadow:none!important; border:1px solid #ddd!important; page-break-inside:avoid; }
+  .layout { display:block!important; }
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div>
+    <h1>Mechanism Builder — Draw It, Count Its DOF, Watch It Move</h1>
+    <p>Build any planar linkage from links and joints · constraint-based kinematics</p>
+  </div>
+  <div class="badge">MODULE 8</div>
+</div>
+
+<nav class="mod-nav">
+  <a href="index.html"   class="mod-pill">Module 1 — 4-Bar Linkage</a>
+  <a href="module2.html" class="mod-pill">Module 2 — Coupler Point</a>
+  <a href="module3.html" class="mod-pill">Module 3 — Force Analysis</a>
+  <a href="module4.html" class="mod-pill">Module 4 — Flywheel</a>
+  <a href="module5.html" class="mod-pill">Module 5 — Balancing</a>
+  <a href="module6.html" class="mod-pill">Module 6 — Gear Trains</a>
+  <a href="module7.html" class="mod-pill">Module 7 — Cam Design</a>
+  <a href="module8.html" class="mod-pill active">Module 8 — Mechanism Builder</a>
+</nav>
+
+<div class="layout">
+
+  <!-- ── LEFT PANEL ─────────────────────────────────────── -->
+  <div class="left">
+
+    <div class="card">
+      <div class="card-ttl">Build Tools</div>
+      <div class="tools">
+        <button class="tool active" data-tool="select"><span class="gl">✥</span>Move</button>
+        <button class="tool" data-tool="link"><span class="gl">╱</span>Link</button>
+        <button class="tool" data-tool="pin"><span class="gl">●</span>Pin (R)</button>
+        <button class="tool" data-tool="ground"><span class="gl">⏚</span>Ground</button>
+        <button class="tool" data-tool="slider"><span class="gl">▭</span>Slider (P)</button>
+        <button class="tool" data-tool="half"><span class="gl">◐</span>Half joint</button>
+        <button class="tool" data-tool="node"><span class="gl">✚</span>Add node</button>
+        <button class="tool" data-tool="probe"><span class="gl">◎</span>Probe</button>
+        <button class="tool" data-tool="delete"><span class="gl">✕</span>Delete</button>
+        <button class="tool" data-tool="clear"><span class="gl">⌫</span>Clear all</button>
+      </div>
+      <div class="tool-hint" id="hint"></div>
+      <div class="btns">
+        <button class="btn btn-s" onclick="undo()">↶ Undo</button>
+        <button class="btn btn-s" onclick="assemble()">⚙ Assemble</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-ttl">Mobility (Degrees of Freedom)</div>
+      <div class="dof-big">
+        <div class="dof-n" id="dof-n">—</div>
+        <div class="dof-l">Degrees of freedom</div>
+      </div>
+      <div class="dof-eq" id="dof-eq"></div>
+      <div class="dof-msg" id="dof-msg"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-ttl">Links <span style="float:right;font-weight:600;text-transform:none;
+        letter-spacing:0;color:var(--muted)" id="link-count"></span></div>
+      <div class="olist" id="link-list"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-ttl">Joints <span style="float:right;font-weight:600;text-transform:none;
+        letter-spacing:0;color:var(--muted)" id="joint-count"></span></div>
+      <div class="olist" id="joint-list"></div>
+      <div style="font-size:.66rem;color:var(--muted);margin-top:8px;line-height:1.45">
+        ⟳ marks a <b>driver</b>. Set its speed in rpm. You need exactly one driver
+        per degree of freedom.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-ttl">Examples</div>
+      <div class="tools">
+        <button class="tool" onclick="loadExample('fourbar')">Four-bar</button>
+        <button class="tool" onclick="loadExample('slider')">Slider-crank</button>
+        <button class="tool" onclick="loadExample('quickreturn')">Quick-return</button>
+        <button class="tool" onclick="loadExample('paradox')">Grübler paradox</button>
+      </div>
+    </div>
+
+  </div><!-- /left -->
+
+  <!-- ── RIGHT PANEL ────────────────────────────────────── -->
+  <div class="right">
+
+    <div class="card cv-wrap">
+      <div class="card-ttl" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>Mechanism Canvas</span>
+        <span style="font-size:.65rem;color:var(--muted);font-weight:500;text-transform:none;
+          letter-spacing:0;">Scroll to zoom · Right-drag to pan · Double-click to reset</span>
+      </div>
+      <div class="cv-stage">
+        <canvas id="mechCanvas" width="900" height="470"></canvas>
+        <div class="cv-badge" id="cv-badge">θ = 0°</div>
+        <div class="cv-info" id="cv-info"></div>
+      </div>
+      <div class="zoom-bar">
+        <button class="zoom-btn" onclick="zoomStep(1.25)">＋ Zoom</button>
+        <button class="zoom-btn" onclick="zoomStep(1/1.25)">－ Zoom</button>
+        <span class="zoom-lbl" id="zoom-lbl">100%</span>
+        <button class="zoom-btn" onclick="resetView()">⟳ Reset view</button>
+        <span class="spacer"></span>
+        <button class="zoom-btn" id="anim-btn" onclick="toggleAnim()">▶ Animate</button>
+        <button class="zoom-btn" onclick="togglePath()" id="path-btn">Path: on</button>
+      </div>
+    </div>
+
+    <div class="plots">
+      <div class="plt-card">
+        <div class="plt-ttl">Probe position</div>
+        <canvas id="ch-pos" height="150"></canvas>
+        <div class="plt-note" id="note-pos" style="display:none"></div>
+      </div>
+      <div class="plt-card">
+        <div class="plt-ttl">Probe velocity</div>
+        <canvas id="ch-vel" height="150"></canvas>
+        <div class="plt-note" id="note-vel" style="display:none"></div>
+      </div>
+      <div class="plt-card">
+        <div class="plt-ttl">Probe acceleration</div>
+        <canvas id="ch-acc" height="150"></canvas>
+        <div class="plt-note" id="note-acc" style="display:none"></div>
+      </div>
+    </div>
+
+  </div><!-- /right -->
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   PART 1 — PLANAR CONSTRAINT SOLVER
+
+   Every body carries three generalised coordinates q = (x, y, θ).
+   Joints impose constraint equations Φ(q,t) = 0:
+
+     revolute  2 equations   (full joint, J₁)
+     prismatic 2 equations   (full joint, J₁)
+     half      1 equation    (half joint, J₂)
+     ground    3 equations   (body 0 is locked)
+
+   Position solves Φ = 0 by Newton-Raphson; velocity solves the linear
+   system J q̇ = ν on the same Jacobian. This is the same method used by
+   commercial kinematics packages, and it is what lets the tool handle
+   ANY linkage the student draws rather than one hard-coded family.
+   ═══════════════════════════════════════════════════════════════════ */
+
+const PI = Math.PI, TAU = 2*PI, D2R = PI/180, R2D = 180/PI;
+
+const Amat = th => { const c=Math.cos(th), s=Math.sin(th); return [c,-s,s,c]; };
+const Bmat = th => { const c=Math.cos(th), s=Math.sin(th); return [-s,-c,c,-s]; };
+const mv   = (M,v) => [M[0]*v[0]+M[1]*v[1], M[2]*v[0]+M[3]*v[1]];
+
+function luSolve(M, b) {
+  const n = b.length, a = M.map((r,i)=>[...r, b[i]]);
+  for (let c=0;c<n;c++) {
+    let p=c; for(let r=c+1;r<n;r++) if(Math.abs(a[r][c])>Math.abs(a[p][c])) p=r;
+    if (Math.abs(a[p][c])<1e-12) return null;
+    [a[c],a[p]]=[a[p],a[c]];
+    for(let r=0;r<n;r++){ if(r===c) continue;
+      const f=a[r][c]/a[c][c];
+      for(let k=c;k<=n;k++) a[r][k]-=f*a[c][k];
+    }
+  }
+  return a.map((r,i)=>r[n]/a[i][i]);
+}
+
+// Damped least squares — survives redundant and under-determined systems,
+// which a half-finished student mechanism always is.
+function dlsSolve(J, phi, lam) {
+  const m=J.length, n=J[0].length;
+  const N=Array.from({length:n},()=>new Array(n).fill(0)), g=new Array(n).fill(0);
+  for (let i=0;i<m;i++) for (let j=0;j<n;j++) {
+    g[j]+=J[i][j]*phi[i];
+    for (let k=0;k<n;k++) N[j][k]+=J[i][j]*J[i][k];
+  }
+  for (let j=0;j<n;j++) N[j][j]+=lam;
+  return luSolve(N,g);
+}
+
+// Rank by Gaussian elimination. This is the NUMERICAL mobility — the thing
+// that catches redundant constraints, which Kutzbach's formula cannot see.
+function matRank(M, tol=1e-7) {
+  if (!M.length) return 0;
+  const a=M.map(r=>[...r]), rows=a.length, cols=a[0].length;
+  let r=0;
+  for (let c=0;c<cols && r<rows;c++) {
+    let p=r; for(let i=r+1;i<rows;i++) if(Math.abs(a[i][c])>Math.abs(a[p][c])) p=i;
+    if (Math.abs(a[p][c])<tol) continue;
+    [a[r],a[p]]=[a[p],a[r]];
+    for(let i=0;i<rows;i++){ if(i===r) continue;
+      const f=a[i][c]/a[r][c];
+      for(let k=c;k<cols;k++) a[i][k]-=f*a[r][k];
+    }
+    r++;
+  }
+  return r;
+}
+
+/* ── Model ───────────────────────────────────────────────────────
+   bodies[0] is ALWAYS ground.
+   body  = {pts:[{x,y}…] local, q:[x,y,θ], q0:[…], name, col}
+   joint = {type, a, ia, b, ib, ax?, dth0?, drive?, rpm?, th0?}
+     a/ia = body index + local point index on side A
+   ─────────────────────────────────────────────────────────────── */
+let model = null;
+
+const LCOL = ['#8D9991','#055934','#A68A58','#208D44','#733B43','#0A353E',
+              '#4A7C59','#B07D3F','#5C6660','#2E6B8A'];
+
+function newModel() {
+  return { bodies:[{pts:[], q:[0,0,0], q0:[0,0,0], name:'Ground', col:LCOL[0], ground:true}],
+           joints:[], probe:null, t:0 };
+}
+const jSA = jt => model.bodies[jt.a].pts[jt.ia];
+const jSB = jt => model.bodies[jt.b].pts[jt.ib];
+
+function worldPt(body, s) {
+  const [x,y,th]=body.q, w=mv(Amat(th),[s.x,s.y]);
+  return [x+w[0], y+w[1]];
+}
+const nodeWorld = (bi,pi) => worldPt(model.bodies[bi], model.bodies[bi].pts[pi]);
+
+function jointRows(jt) {
+  const ba=model.bodies[jt.a], bb=model.bodies[jt.b];
+  const n=model.bodies.length*3, ia=jt.a*3, ib=jt.b*3;
+  const tha=ba.q[2], thb=bb.q[2];
+  const Aa=Amat(tha), Ab=Amat(thb), Ba=Bmat(tha), Bb=Bmat(thb);
+  const SA=jSA(jt), SB=jSB(jt);
+  const sa=[SA.x,SA.y], sb=[SB.x,SB.y];
+  const Aasa=mv(Aa,sa), Absb=mv(Ab,sb), Basa=mv(Ba,sa), Bbsb=mv(Bb,sb);
+  const rows=[];
+
+  if (jt.type==='rev') {
+    for (let k=0;k<2;k++) {
+      const r=new Array(n).fill(0);
+      r[ia+k]=1;  r[ia+2]=Basa[k];
+      r[ib+k]=-1; r[ib+2]=-Bbsb[k];
+      rows.push({r, v: ba.q[k]+Aasa[k]-bb.q[k]-Absb[k]});
+    }
+    return rows;
+  }
+
+  // prismatic + half share the perpendicular-offset equation n̂ᵀd = 0
+  const d=[ bb.q[0]+Absb[0]-ba.q[0]-Aasa[0], bb.q[1]+Absb[1]-ba.q[1]-Aasa[1] ];
+  const nl=[-Math.sin(jt.ax), Math.cos(jt.ax)];
+  const nh=mv(Aa,nl), dn=mv(Ba,nl);
+  const r=new Array(n).fill(0);
+  r[ia]=-nh[0]; r[ia+1]=-nh[1];
+  r[ia+2]=(dn[0]*d[0]+dn[1]*d[1]) - (nh[0]*Basa[0]+nh[1]*Basa[1]);
+  r[ib]= nh[0]; r[ib+1]= nh[1];
+  r[ib+2]= nh[0]*Bbsb[0]+nh[1]*Bbsb[1];
+  rows.push({r, v: nh[0]*d[0]+nh[1]*d[1]});
+
+  if (jt.type==='pris') {
+    const r2=new Array(n).fill(0);
+    r2[ia+2]=1; r2[ib+2]=-1;
+    rows.push({r:r2, v: tha-thb-jt.dth0});
+  }
+  return rows;
+}
+
+function kinematicRows() {
+  const n=model.bodies.length*3, rows=[];
+  for (let k=0;k<3;k++){ const r=new Array(n).fill(0); r[k]=1;
+    rows.push({r, v: model.bodies[0].q[k]-model.bodies[0].q0[k]}); }
+  model.joints.forEach(jt=>{ if(validJoint(jt)) rows.push(...jointRows(jt)); });
+  return rows;
+}
+
+const validJoint = jt => model.bodies[jt.a] && model.bodies[jt.b] &&
+  model.bodies[jt.a].pts[jt.ia] && model.bodies[jt.b].pts[jt.ib];
+
+const drivers = () => model.joints.map((jt,i)=>({jt,i}))
+  .filter(o=>o.jt.drive && validJoint(o.jt));
+
+// A driver measures its angle from the pose it was switched on in. Capture that
+// reference if it is missing, so a driver created in code (an example, a loaded
+// file) behaves exactly like one toggled on in the joint list.
+function armDrivers(){
+  drivers().forEach(({jt})=>{
+    if (!isFinite(jt.th0)) jt.th0 = model.bodies[jt.b].q[2]-model.bodies[jt.a].q[2];
+  });
+}
+
+function driverRows(t) {
+  const n=model.bodies.length*3;
+  return drivers().map(({jt})=>{
+    const ia=jt.a*3, ib=jt.b*3;
+    const r=new Array(n).fill(0);
+    r[ib+2]=1; r[ia+2]=-1;
+    const omega=(jt.rpm||0)*TAU/60;
+    const target=jt.th0 + omega*t;
+    return {r, v: model.bodies[jt.b].q[2]-model.bodies[jt.a].q[2]-target, vt: omega};
+  });
+}
+
+/* ── Mobility ────────────────────────────────────────────────────
+   Kutzbach:  M = 3(L−1) − 2J₁ − J₂     (what the student computes)
+   Numerical: M = 3L − rank(J)          (what the mechanism truly has)
+   A disagreement is a redundant constraint — Grübler's paradox.
+   ─────────────────────────────────────────────────────────────── */
+function dofInfo() {
+  const L=model.bodies.length;
+  const good=model.joints.filter(validJoint);
+  const J1=good.filter(j=>j.type==='rev'||j.type==='pris').length;
+  const J2=good.filter(j=>j.type==='half').length;
+  const kutzbach=3*(L-1)-2*J1-J2;
+  const numeric=3*L-matRank(kinematicRows().map(r=>r.r));
+  return {kutzbach, numeric, L, J1, J2, redundant:kutzbach!==numeric, nd:drivers().length};
+}
+
+function solvePosition(t, maxIt=60) {
+  armDrivers();
+  const n=model.bodies.length*3;
+  for (let it=0; it<maxIt; it++) {
+    const rows=[...kinematicRows(), ...driverRows(t)];
+    if (!rows.length) return {ok:true, err:0};
+    const phi=rows.map(r=>r.v);
+    const err=Math.max(...phi.map(Math.abs));
+    if (err<1e-10) return {ok:true, it, err};
+    const dq=dlsSolve(rows.map(r=>r.r), phi, 1e-9);
+    if (!dq) return {ok:false, err, reason:'singular'};
+    for (const v of dq) if(!isFinite(v)) return {ok:false, err, reason:'diverged'};
+    for (let i=0;i<n;i++) model.bodies[(i/3)|0].q[i%3] -= dq[i];
+  }
+  const rows=[...kinematicRows(), ...driverRows(t)];
+  const err=rows.length?Math.max(...rows.map(r=>Math.abs(r.v))):0;
+  return {ok:err<1e-6, err, reason:'cannot assemble'};
+}
+
+function solveVelocity(t) {
+  const rows=[...kinematicRows(), ...driverRows(t)];
+  const n=model.bodies.length*3;
+  if (!rows.length) return new Array(n).fill(0);
+  const J=rows.map(r=>r.r), nu=rows.map(r=>r.vt||0);
+  if (J.length===n) { const q=luSolve(J,nu); if(q && q.every(isFinite)) return q; }
+  const N=Array.from({length:n},()=>new Array(n).fill(0)), g=new Array(n).fill(0);
+  for(let i=0;i<J.length;i++) for(let j=0;j<n;j++){ g[j]+=J[i][j]*nu[i];
+    for(let k=0;k<n;k++) N[j][k]+=J[i][j]*J[i][k]; }
+  for(let j=0;j<n;j++) N[j][j]+=1e-9;
+  const q=luSolve(N,g);
+  return (q && q.every(isFinite)) ? q : new Array(n).fill(0);
+}
+
+const snapQ  = () => model.bodies.map(b=>[...b.q]);
+const restoreQ = s => s.forEach((q,i)=>{ if(model.bodies[i]) model.bodies[i].q=[...q]; });
+
+// Acceleration by central difference of the velocity field. Each velocity is
+// itself an exact linear solve, so the O(h²) error here lands near 1e-9 —
+// far below anything visible on a plot.
+function solveAccel(t, h=1e-4) {
+  const s=snapQ();
+  solvePosition(t+h); const v1=solveVelocity(t+h);
+  restoreQ(s);
+  solvePosition(t-h); const v2=solveVelocity(t-h);
+  restoreQ(s);
+  return v1.map((v,i)=>(v-v2[i])/(2*h));
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PART 2 — VIEW + RENDERING
+   World y points UP; the canvas transform flips it, so counter-clockwise
+   is positive on screen (matching the sign convention in every other
+   module).
+   ═══════════════════════════════════════════════════════════════════ */
+const cv = document.getElementById('mechCanvas');
+const ctx = cv.getContext('2d');
+let viewScale = 3.2, ox = 0, oy = 0, panX = 0, panY = 0;
+let showPath = true;
+
+function setupCanvas() {
+  const dpr=window.devicePixelRatio||1;
+  const logW=cv.clientWidth||900, logH=Math.round(logW*470/900);
+  cv.style.height=logH+'px';
+  cv.width=Math.round(logW*dpr); cv.height=Math.round(logH*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {W:logW, H:logH};
+}
+let VW=900, VH=470;
+const W2S = p => [ VW/2 + panX + p[0]*viewScale, VH/2 + panY - p[1]*viewScale ];
+const S2W = (sx,sy) => [ (sx - VW/2 - panX)/viewScale, -(sy - VH/2 - panY)/viewScale ];
+
+function zoomStep(f){ viewScale=Math.min(40,Math.max(.4,viewScale*f)); updZoom(); render(); }
+function resetView(){ viewScale=3.2; panX=0; panY=0; updZoom(); render(); }
+function updZoom(){ document.getElementById('zoom-lbl').textContent=Math.round(viewScale/3.2*100)+'%'; }
+function togglePath(){ showPath=!showPath;
+  document.getElementById('path-btn').textContent='Path: '+(showPath?'on':'off'); render(); }
+
+function drawGrid() {
+  const step = viewScale>8 ? 5 : viewScale>3 ? 10 : 25;
+  const [x0,y1]=S2W(0,0), [x1,y0]=S2W(VW,VH);
+  ctx.strokeStyle='#E3EAE6'; ctx.lineWidth=1;
+  for(let x=Math.floor(x0/step)*step; x<=x1; x+=step){
+    const s=W2S([x,0]); ctx.beginPath(); ctx.moveTo(s[0],0); ctx.lineTo(s[0],VH); ctx.stroke(); }
+  for(let y=Math.floor(y0/step)*step; y<=y1; y+=step){
+    const s=W2S([0,y]); ctx.beginPath(); ctx.moveTo(0,s[1]); ctx.lineTo(VW,s[1]); ctx.stroke(); }
+  // axes
+  ctx.strokeStyle='#C2CCC6'; ctx.lineWidth=1.5;
+  const o=W2S([0,0]);
+  ctx.beginPath(); ctx.moveTo(0,o[1]); ctx.lineTo(VW,o[1]); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(o[0],0); ctx.lineTo(o[0],VH); ctx.stroke();
+}
+
+function groundSymbol(sx,sy) {
+  ctx.fillStyle='#8D9991'; ctx.strokeStyle='#5C6660'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(sx-9,sy+14); ctx.lineTo(sx+9,sy+14);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.beginPath();
+  for(let i=-10;i<=10;i+=5){ ctx.moveTo(sx+i,sy+14); ctx.lineTo(sx+i-4,sy+20); }
+  ctx.strokeStyle='#8D9991'; ctx.lineWidth=1.2; ctx.stroke();
+}
+
+function render() {
+  const d=setupCanvas(); VW=d.W; VH=d.H;
+  ctx.clearRect(0,0,VW,VH);
+  ctx.fillStyle='#F4F7F9'; ctx.fillRect(0,0,VW,VH);
+  drawGrid();
+
+  // traced probe path
+  if (showPath && pathPts.length>1) {
+    ctx.strokeStyle='rgba(166,138,88,.85)'; ctx.lineWidth=2; ctx.setLineDash([]);
+    ctx.beginPath();
+    pathPts.forEach((p,i)=>{ const s=W2S(p); i?ctx.lineTo(s[0],s[1]):ctx.moveTo(s[0],s[1]); });
+    ctx.stroke();
+  }
+
+  // slider tracks
+  model.joints.forEach(jt=>{
+    if (!validJoint(jt) || jt.type==='rev') return;
+    const ba=model.bodies[jt.a];
+    const base=worldPt(ba, jSA(jt));
+    const ang=ba.q[2]+jt.ax, L=60/viewScale*3;
+    const p1=[base[0]-Math.cos(ang)*L, base[1]-Math.sin(ang)*L];
+    const p2=[base[0]+Math.cos(ang)*L, base[1]+Math.sin(ang)*L];
+    const s1=W2S(p1), s2=W2S(p2);
+    ctx.strokeStyle= jt.type==='pris' ? 'rgba(92,102,96,.55)' : 'rgba(115,59,67,.55)';
+    ctx.lineWidth=6; ctx.setLineDash(jt.type==='half'?[7,5]:[]);
+    ctx.beginPath(); ctx.moveTo(s1[0],s1[1]); ctx.lineTo(s2[0],s2[1]); ctx.stroke();
+    ctx.setLineDash([]);
+  });
+
+  // links
+  model.bodies.forEach((b,bi)=>{
+    if (bi===0) return;
+    const pw=b.pts.map(p=>W2S(worldPt(b,p)));
+    if (pw.length>=2) {
+      ctx.strokeStyle=b.col; ctx.lineWidth=(bi===dragBody?7:5); ctx.lineJoin='round';
+      ctx.lineCap='round';
+      ctx.beginPath();
+      if (pw.length>=3) { pw.forEach((s,i)=>i?ctx.lineTo(s[0],s[1]):ctx.moveTo(s[0],s[1]));
+        ctx.closePath(); ctx.fillStyle=b.col+'22'; ctx.fill(); }
+      else { ctx.moveTo(pw[0][0],pw[0][1]); ctx.lineTo(pw[1][0],pw[1][1]); }
+      ctx.stroke();
+    }
+    // label at centroid
+    if (pw.length) {
+      const cxm=pw.reduce((a,s)=>a+s[0],0)/pw.length, cym=pw.reduce((a,s)=>a+s[1],0)/pw.length;
+      ctx.fillStyle=b.col; ctx.font='bold 10px system-ui'; ctx.textAlign='center';
+      ctx.textBaseline='middle'; ctx.fillText(b.name, cxm, cym-12);
+    }
+  });
+
+  // ground points
+  model.bodies[0].pts.forEach((p,i)=>{ const s=W2S(worldPt(model.bodies[0],p)); groundSymbol(s[0],s[1]); });
+
+  // joints
+  model.joints.forEach(jt=>{
+    if(!validJoint(jt)) return;
+    const s=W2S(worldPt(model.bodies[jt.b], jSB(jt)));
+    const col = jt.type==='rev'?'#055934': jt.type==='pris'?'#5C6660':'#733B43';
+    ctx.beginPath(); ctx.arc(s[0],s[1], jt.type==='rev'?6:7, 0, TAU);
+    ctx.fillStyle='#fff'; ctx.fill();
+    ctx.strokeStyle=col; ctx.lineWidth=2.5; ctx.stroke();
+    if (jt.type!=='rev') { ctx.beginPath(); ctx.arc(s[0],s[1],2.5,0,TAU);
+      ctx.fillStyle=col; ctx.fill(); }
+    if (jt.drive) {
+      ctx.beginPath(); ctx.arc(s[0],s[1],11,0,TAU);
+      ctx.strokeStyle='#A68A58'; ctx.lineWidth=2; ctx.setLineDash([3,3]); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  });
+
+  // free nodes (not yet jointed)
+  model.bodies.forEach((b,bi)=>{ if(bi===0) return;
+    b.pts.forEach((p,pi)=>{
+      const used=model.joints.some(jt=>validJoint(jt) &&
+        ((jt.a===bi&&jt.ia===pi)||(jt.b===bi&&jt.ib===pi)));
+      if (used) return;
+      const s=W2S(worldPt(b,p));
+      ctx.beginPath(); ctx.arc(s[0],s[1],4.5,0,TAU);
+      ctx.fillStyle='#fff'; ctx.fill();
+      ctx.strokeStyle=b.col; ctx.lineWidth=2; ctx.stroke();
+    });
+  });
+
+  // pending selection highlight
+  if (pending) {
+    const s=W2S(nodeWorld(pending.b,pending.p));
+    ctx.beginPath(); ctx.arc(s[0],s[1],10,0,TAU);
+    ctx.strokeStyle='#A68A58'; ctx.lineWidth=2.5; ctx.setLineDash([4,3]); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  // probe marker
+  if (model.probe && model.bodies[model.probe.b]) {
+    const s=W2S(nodeWorld(model.probe.b,model.probe.p));
+    ctx.beginPath(); ctx.arc(s[0],s[1],8,0,TAU);
+    ctx.strokeStyle='#A68A58'; ctx.lineWidth=3; ctx.stroke();
+    ctx.beginPath(); ctx.arc(s[0],s[1],2.5,0,TAU); ctx.fillStyle='#A68A58'; ctx.fill();
+  }
+  // rubber band while drawing a link
+  if (drawing) {
+    const s1=W2S(drawing.from), s2=W2S(drawing.to);
+    ctx.strokeStyle='#A68A58'; ctx.lineWidth=3; ctx.setLineDash([6,4]);
+    ctx.beginPath(); ctx.moveTo(s1[0],s1[1]); ctx.lineTo(s2[0],s2[1]); ctx.stroke();
+    ctx.setLineDash([]);
+    const len=Math.hypot(drawing.to[0]-drawing.from[0], drawing.to[1]-drawing.from[1]);
+    ctx.fillStyle='#A68A58'; ctx.font='bold 11px system-ui'; ctx.textAlign='left';
+    ctx.fillText(len.toFixed(1), s2[0]+10, s2[1]-8);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PART 3 — INTERACTION
+   ═══════════════════════════════════════════════════════════════════ */
+let tool='select', pending=null, drawing=null, dragBody=null, dragOff=null, undoStack=[];
+let pathPts=[];
+
+const HINTS = {
+  select:'<b>Move</b> — drag a link to reposition it. The solver re-assembles the mechanism when you let go.',
+  link:'<b>Link</b> — drag on empty canvas to draw a new link between two points.',
+  pin:'<b>Pin (revolute)</b> — click one node, then another. They become a single pin joint. Removes 2 DOF.',
+  ground:'<b>Ground</b> — click a node to pin it to the frame. Removes 2 DOF.',
+  slider:'<b>Slider (prismatic)</b> — click the sliding node, then the link it rides on (or empty canvas for a ground track). Removes 2 DOF.',
+  half:'<b>Half joint</b> — pin-in-slot. Click the pin node, then the slotted link. Slides AND rotates, so it removes only 1 DOF.',
+  node:'<b>Add node</b> — click a link to add an attachment point (makes ternary links for six-bars).',
+  probe:'<b>Probe</b> — click a node to trace its path and plot its kinematics.',
+  delete:'<b>Delete</b> — click a link or joint to remove it.',
+  clear:'<b>Clear all</b> — click the canvas to erase everything.',
+};
+
+document.querySelectorAll('.tool[data-tool]').forEach(btn=>{
+  btn.onclick=()=>{
+    document.querySelectorAll('.tool[data-tool]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    tool=btn.dataset.tool; pending=null;
+    document.getElementById('hint').innerHTML=HINTS[tool]||'';
+    cv.style.cursor = tool==='select' ? 'grab' : 'crosshair';
+    render();
+  };
+});
+document.getElementById('hint').innerHTML=HINTS.select;
+
+function pushUndo(){
+  undoStack.push(JSON.stringify({bodies:model.bodies, joints:model.joints, probe:model.probe}));
+  if (undoStack.length>40) undoStack.shift();
+}
+function undo(){
+  if(!undoStack.length) return;
+  const s=JSON.parse(undoStack.pop());
+  model.bodies=s.bodies; model.joints=s.joints; model.probe=s.probe;
+  pathPts=[]; refresh();
+}
+
+function evPos(e){
+  const r=cv.getBoundingClientRect();
+  return [e.clientX-r.left, e.clientY-r.top];
+}
+function hitNode(sx,sy,tol=11){
+  let best=null, bd=tol;
+  model.bodies.forEach((b,bi)=>b.pts.forEach((p,pi)=>{
+    const s=W2S(worldPt(b,p)), d=Math.hypot(s[0]-sx,s[1]-sy);
+    if(d<bd){ bd=d; best={b:bi,p:pi}; }
+  }));
+  return best;
+}
+function hitLink(sx,sy,tol=9){
+  for(let bi=model.bodies.length-1;bi>=1;bi--){
+    const b=model.bodies[bi], pw=b.pts.map(p=>W2S(worldPt(b,p)));
+    for(let i=0;i<pw.length-(pw.length>=3?0:1);i++){
+      const A=pw[i], B=pw[(i+1)%pw.length];
+      const vx=B[0]-A[0], vy=B[1]-A[1], L2=vx*vx+vy*vy;
+      if(L2<1) continue;
+      let t=((sx-A[0])*vx+(sy-A[1])*vy)/L2; t=Math.max(0,Math.min(1,t));
+      const d=Math.hypot(sx-(A[0]+t*vx), sy-(A[1]+t*vy));
+      if(d<tol) return {bi, seg:i, t};
+    }
+  }
+  return null;
+}
+function hitJoint(sx,sy,tol=10){
+  for(let i=model.joints.length-1;i>=0;i--){
+    const jt=model.joints[i]; if(!validJoint(jt)) continue;
+    const s=W2S(worldPt(model.bodies[jt.b], jSB(jt)));
+    if(Math.hypot(s[0]-sx,s[1]-sy)<tol) return i;
+  }
+  return null;
+}
+// local axis angle of a body's first segment
+function bodyAxis(bi){
+  const b=model.bodies[bi];
+  if(b.pts.length<2) return 0;
+  return Math.atan2(b.pts[1].y-b.pts[0].y, b.pts[1].x-b.pts[0].x);
+}
+function addGroundPt(world){
+  model.bodies[0].pts.push({x:world[0], y:world[1]});
+  return model.bodies[0].pts.length-1;
+}
+
+let panning=false, panStart=null;
+cv.addEventListener('contextmenu', e=>e.preventDefault());
+
+cv.addEventListener('pointerdown', e=>{
+  const [sx,sy]=evPos(e);
+  if (e.button===2 || e.button===1) { panning=true; panStart=[sx-panX, sy-panY];
+    cv.setPointerCapture(e.pointerId); return; }
+  const world=S2W(sx,sy);
+
+  if (tool==='link') { pushUndo(); drawing={from:world, to:world};
+    cv.setPointerCapture(e.pointerId); return; }
+
+  if (tool==='select') {
+    const h=hitLink(sx,sy) ;
+    if (h) { pushUndo(); dragBody=h.bi;
+      dragOff=[model.bodies[h.bi].q[0]-world[0], model.bodies[h.bi].q[1]-world[1]];
+      cv.setPointerCapture(e.pointerId); cv.style.cursor='grabbing'; }
+    return;
+  }
+
+  if (tool==='clear') { if(confirm('Erase the whole mechanism?')){ pushUndo();
+    model=newModel(); pathPts=[]; refresh(); } return; }
+
+  if (tool==='delete') {
+    const ji=hitJoint(sx,sy);
+    if (ji!==null) { pushUndo(); model.joints.splice(ji,1); refresh(); return; }
+    const h=hitLink(sx,sy);
+    if (h) { pushUndo(); deleteBody(h.bi); refresh(); }
+    return;
+  }
+
+  if (tool==='node') {
+    const h=hitLink(sx,sy);
+    if (h) { pushUndo(); const b=model.bodies[h.bi];
+      const th=b.q[2], c=Math.cos(-th), s=Math.sin(-th);
+      const dx=world[0]-b.q[0], dy=world[1]-b.q[1];
+      b.pts.push({x:c*dx-s*dy, y:s*dx+c*dy}); refresh(); }
+    return;
+  }
+
+  if (tool==='probe') {
+    const n=hitNode(sx,sy);
+    if (n) { model.probe={b:n.b,p:n.p}; pathPts=[]; refresh(); }
+    return;
+  }
+
+  if (tool==='ground') {
+    const n=hitNode(sx,sy);
+    if (n && n.b!==0) { pushUndo();
+      const gi=addGroundPt(nodeWorld(n.b,n.p));
+      model.joints.push({type:'rev', a:0, ia:gi, b:n.b, ib:n.p});
+      refresh(); }
+    return;
+  }
+
+  if (tool==='pin') {
+    const n=hitNode(sx,sy);
+    if (!n) return;
+    if (!pending) { pending={b:n.b,p:n.p}; render(); return; }
+    if (pending.b===n.b) { pending=null; render(); return; }   // same body — invalid
+    pushUndo();
+    model.joints.push({type:'rev', a:pending.b, ia:pending.p, b:n.b, ib:n.p});
+    pending=null; refresh();
+    return;
+  }
+
+  if (tool==='slider' || tool==='half') {
+    if (!pending) { const n=hitNode(sx,sy); if(n && n.b!==0){ pending={b:n.b,p:n.p}; render(); } return; }
+    // second click picks the track: a link, or empty canvas for a ground rail
+    const h=hitLink(sx,sy);
+    pushUndo();
+    let aIdx, aPt, ax;
+    if (h && h.bi!==pending.b) { aIdx=h.bi; aPt=0; ax=bodyAxis(h.bi); }
+    else { aIdx=0; aPt=addGroundPt(world); ax=0; }
+    const jt={type: tool==='slider'?'pris':'half', a:aIdx, ia:aPt, b:pending.b, ib:pending.p, ax};
+    if (jt.type==='pris') jt.dth0=model.bodies[aIdx].q[2]-model.bodies[pending.b].q[2];
+    model.joints.push(jt);
+    pending=null; refresh();
+    return;
+  }
+});
+
+cv.addEventListener('pointermove', e=>{
+  const [sx,sy]=evPos(e);
+  if (panning) { panX=sx-panStart[0]; panY=sy-panStart[1]; render(); return; }
+  if (drawing) { drawing.to=S2W(sx,sy); render(); return; }
+  if (dragBody!==null) {
+    const w=S2W(sx,sy);
+    model.bodies[dragBody].q[0]=w[0]+dragOff[0];
+    model.bodies[dragBody].q[1]=w[1]+dragOff[1];
+    render(); return;
+  }
+});
+
+cv.addEventListener('pointerup', e=>{
+  if (panning) { panning=false; return; }
+  if (drawing) {
+    const {from,to}=drawing; drawing=null;
+    const L=Math.hypot(to[0]-from[0], to[1]-from[1]);
+    if (L>1.5) {
+      const ang=Math.atan2(to[1]-from[1], to[0]-from[0]);
+      const n=model.bodies.length;
+      model.bodies.push({ pts:[{x:0,y:0},{x:L,y:0}], q:[from[0],from[1],ang],
+        q0:[from[0],from[1],ang], name:'L'+n, col:LCOL[n%LCOL.length] });
+    }
+    refresh(); return;
+  }
+  if (dragBody!==null) { dragBody=null; cv.style.cursor='grab'; assemble(); }
+});
+
+cv.addEventListener('wheel', e=>{
+  e.preventDefault();
+  const [sx,sy]=evPos(e), before=S2W(sx,sy);
+  viewScale=Math.min(40,Math.max(.4, viewScale*(e.deltaY<0?1.12:1/1.12)));
+  const after=S2W(sx,sy);
+  panX += (after[0]-before[0])*viewScale;
+  panY -= (after[1]-before[1])*viewScale;
+  updZoom(); render();
+}, {passive:false});
+
+cv.addEventListener('dblclick', resetView);
+
+function deleteBody(bi){
+  if (bi===0) return;
+  model.joints = model.joints.filter(jt=>jt.a!==bi && jt.b!==bi)
+    .map(jt=>({...jt, a: jt.a>bi?jt.a-1:jt.a, b: jt.b>bi?jt.b-1:jt.b}));
+  model.bodies.splice(bi,1);
+  if (model.probe) { if(model.probe.b===bi) model.probe=null;
+    else if(model.probe.b>bi) model.probe.b--; }
+}
+
+function assemble(){
+  const r=solvePosition(model.t);
+  pathPts=[];
+  refresh(r);
+  return r;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PART 4 — PANELS
+   ═══════════════════════════════════════════════════════════════════ */
+function refreshDOF(posRes){
+  const d=dofInfo();
+  const el=document.getElementById('dof-n');
+  el.textContent = d.numeric;
+  el.style.color = d.numeric===0 ? 'var(--red)' : d.numeric<0 ? 'var(--red)'
+    : d.numeric===1 ? 'var(--green)' : 'var(--amber)';
+
+  document.getElementById('dof-eq').innerHTML =
+    `M = 3(L−1) − 2J₁ − J₂<br>` +
+    `M = 3(<b>${d.L}</b>−1) − 2(<b>${d.J1}</b>) − (<b>${d.J2}</b>) = <b>${d.kutzbach}</b>`;
+
+  const msg=document.getElementById('dof-msg');
+  let cls='msg-ok', txt='';
+  if (d.L===1) { cls='msg-warn'; txt='Nothing built yet. Draw a link with the <b>Link</b> tool, then pin it.'; }
+  else if (d.redundant) { cls='msg-warn';
+    txt=`<b>Grübler's paradox.</b> The formula gives ${d.kutzbach}, but the Jacobian`+
+        ` rank says the real mobility is <b>${d.numeric}</b>. Some constraints are`+
+        ` redundant — a link duplicates a restraint another already imposes.`; }
+  else if (d.numeric<0) { cls='msg-bad';
+    txt=`<b>Over-constrained (${d.numeric}).</b> This is a preloaded structure — remove a link or a joint.`; }
+  else if (d.numeric===0) { cls='msg-bad';
+    txt='<b>Structure.</b> Zero mobility — it cannot move. Remove a constraint to free it up.'; }
+  else if (d.nd===0) { cls='msg-warn';
+    txt=`Mobility <b>${d.numeric}</b>. Now mark ${d.numeric===1?'a joint':d.numeric+' joints'}`+
+        ` as ⟳ driver${d.numeric>1?'s':''} in the joint list to make it move.`; }
+  else if (d.nd<d.numeric) { cls='msg-warn';
+    txt=`<b>Under-driven.</b> Mobility is ${d.numeric} but only ${d.nd} driver`+
+        `${d.nd>1?'s are':' is'} set. Motion is not fully determined — add ${d.numeric-d.nd} more.`; }
+  else if (d.nd>d.numeric) { cls='msg-bad';
+    txt=`<b>Over-driven.</b> ${d.nd} drivers on a mobility-${d.numeric} mechanism. `+
+        `The drivers fight each other; remove ${d.nd-d.numeric}.`; }
+  else if (posRes && !posRes.ok) { cls='msg-bad';
+    txt='<b>Cannot assemble.</b> The links physically cannot close at this position — '+
+        'check the link lengths, or drag a link nearer its intended pose and press Assemble.'; }
+  else { cls='msg-ok';
+    txt=`<b>Constrained mechanism.</b> Mobility ${d.numeric} with ${d.nd} driver`+
+        `${d.nd>1?'s':''} — motion is fully determined. Press ▶ Animate.`; }
+  msg.className='dof-msg '+cls; msg.innerHTML=txt;
+}
+
+function refreshLists(){
+  const ll=document.getElementById('link-list');
+  document.getElementById('link-count').textContent=(model.bodies.length-1)+' + ground';
+  ll.innerHTML='';
+  if (model.bodies.length<2) ll.innerHTML='<div class="empty">No links yet</div>';
+  model.bodies.forEach((b,bi)=>{
+    if(bi===0) return;
+    const row=document.createElement('div'); row.className='orow';
+    const len = b.pts.length>=2 ? Math.hypot(b.pts[1].x-b.pts[0].x, b.pts[1].y-b.pts[0].y) : 0;
+    row.innerHTML=`<span class="sw" style="background:${b.col}"></span>`+
+      `<span class="nm">${b.name} · ${b.pts.length} node${b.pts.length>1?'s':''}</span>`+
+      `<span style="font-size:.68rem;color:var(--muted);font-family:monospace">${len.toFixed(1)}</span>`;
+    const x=document.createElement('button'); x.className='xbtn'; x.textContent='✕';
+    x.title='Delete link';
+    x.onclick=()=>{ pushUndo(); deleteBody(bi); refresh(); };
+    row.appendChild(x); ll.appendChild(row);
+  });
+
+  const jl=document.getElementById('joint-list');
+  const good=model.joints.filter(validJoint);
+  document.getElementById('joint-count').textContent=
+    `J₁=${good.filter(j=>j.type!=='half').length} · J₂=${good.filter(j=>j.type==='half').length}`;
+  jl.innerHTML='';
+  if (!model.joints.length) jl.innerHTML='<div class="empty">No joints yet</div>';
+  model.joints.forEach((jt,i)=>{
+    const row=document.createElement('div'); row.className='orow';
+    const nm=(k)=>model.bodies[k]?model.bodies[k].name:'?';
+    const label = jt.type==='rev'?'Pin':jt.type==='pris'?'Slider':'Half';
+    const col   = jt.type==='rev'?'#055934':jt.type==='pris'?'#5C6660':'#733B43';
+    row.innerHTML=`<span class="sw" style="background:${col}"></span>`+
+      `<span class="nm">${label} · ${nm(jt.a)}–${nm(jt.b)}</span>`;
+    if (jt.type==='rev') {
+      const d=document.createElement('button');
+      d.className='drv'+(jt.drive?' on':''); d.textContent='⟳'; d.title='Make this joint a driver';
+      d.onclick=()=>{ pushUndo();
+        jt.drive=!jt.drive;
+        if (jt.drive){ jt.rpm=jt.rpm||60;
+          jt.th0=model.bodies[jt.b].q[2]-model.bodies[jt.a].q[2]; }
+        model.t=0; refresh(); };
+      row.appendChild(d);
+      if (jt.drive) {
+        const inp=document.createElement('input'); inp.className='mini'; inp.type='number';
+        inp.value=jt.rpm; inp.title='rpm';
+        inp.onchange=()=>{ jt.rpm=parseFloat(inp.value)||0; refresh(); };
+        row.appendChild(inp);
+      }
+    } else {
+      const inp=document.createElement('input'); inp.className='mini'; inp.type='number';
+      inp.value=(jt.ax*R2D).toFixed(0); inp.title='Track angle (°)';
+      inp.onchange=()=>{ pushUndo(); jt.ax=(parseFloat(inp.value)||0)*D2R; assemble(); };
+      row.appendChild(inp);
+    }
+    const x=document.createElement('button'); x.className='xbtn'; x.textContent='✕';
+    x.onclick=()=>{ pushUndo(); model.joints.splice(i,1); refresh(); };
+    row.appendChild(x); jl.appendChild(row);
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PART 5 — CYCLE SWEEP + CHARTS
+   ═══════════════════════════════════════════════════════════════════ */
+let charts={};
+const CH_BASE = {
+  responsive:true, maintainAspectRatio:true, animation:false,
+  plugins:{ legend:{ display:true, labels:{ boxWidth:9, font:{size:9} } } },
+  scales:{ x:{ type:'linear',        // data is {x,y} pairs, not categories
+               title:{display:true,text:'driver angle (°)',font:{size:9}},
+               ticks:{font:{size:8},maxTicksLimit:7} },
+           y:{ ticks:{font:{size:8}} } },
+  elements:{ point:{radius:0}, line:{borderWidth:2, tension:.25} },
+};
+function mkChart(id,label,sets){
+  const c=document.getElementById(id);
+  if (charts[id]) charts[id].destroy();
+  charts[id]=new Chart(c.getContext('2d'),{ type:'line',
+    data:{ datasets: sets }, options: JSON.parse(JSON.stringify(CH_BASE)) });
+  return charts[id];
+}
+
+// Sweep one full revolution of the FIRST driver, recording the probe's
+// position, velocity and acceleration. Positions are solved by continuation
+// from the previous step so the mechanism stays on one assembly circuit.
+function runCycle(){
+  const drv=drivers();
+  const d=dofInfo();
+  if (!drv.length || !model.probe || d.numeric<1 || d.nd!==d.numeric) return null;
+  const rpm=drv[0].jt.rpm||60;
+  if (!rpm) return null;
+  const T=Math.abs(60/rpm);                        // seconds per revolution
+  const N=121, save=snapQ(), saveT=model.t;
+  const out={th:[],x:[],y:[],vx:[],vy:[],ax:[],ay:[],gaps:0};
+  for (let i=0;i<N;i++){
+    const t=T*i/(N-1);
+    const r=solvePosition(t);
+    const frac=(i/(N-1))*360*Math.sign(rpm);
+    out.th.push(frac);
+    if (!r.ok){ out.gaps++;
+      out.x.push(null); out.y.push(null); out.vx.push(null); out.vy.push(null);
+      out.ax.push(null); out.ay.push(null); continue; }
+    const P=nodeWorld(model.probe.b, model.probe.p);
+    const qd=solveVelocity(t), qdd=solveAccel(t);
+    const b=model.bodies[model.probe.b], s=b.pts[model.probe.p];
+    const th=b.q[2], w=qd[model.probe.b*3+2], al=qdd[model.probe.b*3+2];
+    const Bs=mv(Bmat(th),[s.x,s.y]), As=mv(Amat(th),[s.x,s.y]);
+    out.x.push(P[0]); out.y.push(P[1]);
+    out.vx.push(qd[model.probe.b*3]   + w*Bs[0]);
+    out.vy.push(qd[model.probe.b*3+1] + w*Bs[1]);
+    out.ax.push(qdd[model.probe.b*3]   + al*Bs[0] - w*w*As[0]);
+    out.ay.push(qdd[model.probe.b*3+1] + al*Bs[1] - w*w*As[1]);
+  }
+  restoreQ(save); model.t=saveT; solvePosition(model.t);
+  return out;
+}
+
+function noteOn(id,txt){
+  const c=document.getElementById(id.replace('note-','ch-')),
+        n=document.getElementById(id);
+  c.style.display='none'; n.style.display='block'; n.innerHTML=txt;
+}
+function noteOff(id){
+  document.getElementById(id.replace('note-','ch-')).style.display='block';
+  document.getElementById(id).style.display='none';
+}
+
+function refreshCharts(){
+  const d=dofInfo();
+  let why=null;
+  if (!model.probe) why='Pick a point with the <b>Probe</b> tool to plot its motion.';
+  else if (d.numeric<1) why='Mechanism has no mobility to plot.';
+  else if (d.nd!==d.numeric) why='Set one driver per degree of freedom to plot a cycle.';
+  if (why){ ['note-pos','note-vel','note-acc'].forEach(i=>noteOn(i,why)); return; }
+
+  const cyc=runCycle();
+  if (!cyc){ ['note-pos','note-vel','note-acc'].forEach(i=>noteOn(i,'No cycle data.')); return; }
+  if (cyc.gaps>0 && cyc.gaps>=cyc.th.length-1){
+    ['note-pos','note-vel','note-acc'].forEach(i=>noteOn(i,
+      'The mechanism cannot assemble anywhere in the cycle. Check link lengths.'));
+    return;
+  }
+  ['note-pos','note-vel','note-acc'].forEach(noteOff);
+
+  const XY=(arr)=>cyc.th.map((t,i)=>({x:t,y:arr[i]}));
+  const mag=(a,b)=>a.map((v,i)=> (v===null||b[i]===null)?null:Math.hypot(v,b[i]));
+
+  mkChart('ch-pos','pos',[
+    {label:'x', data:XY(cyc.x), borderColor:'#055934', spanGaps:false},
+    {label:'y', data:XY(cyc.y), borderColor:'#A68A58', spanGaps:false}]);
+  mkChart('ch-vel','vel',[
+    {label:'|v|', data:XY(mag(cyc.vx,cyc.vy)), borderColor:'#208D44', spanGaps:false},
+    {label:'vx',  data:XY(cyc.vx), borderColor:'#C2CCC6', spanGaps:false},
+    {label:'vy',  data:XY(cyc.vy), borderColor:'#8D9991', spanGaps:false}]);
+  mkChart('ch-acc','acc',[
+    {label:'|a|', data:XY(mag(cyc.ax,cyc.ay)), borderColor:'#733B43', spanGaps:false},
+    {label:'ax',  data:XY(cyc.ax), borderColor:'#C2CCC6', spanGaps:false},
+    {label:'ay',  data:XY(cyc.ay), borderColor:'#8D9991', spanGaps:false}]);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PART 6 — ANIMATION
+   ═══════════════════════════════════════════════════════════════════ */
+let animOn=false, animRAF=null, lastT=0;
+function toggleAnim(){
+  animOn=!animOn;
+  document.getElementById('anim-btn').textContent = animOn?'⏸ Pause':'▶ Animate';
+  if (animOn){ lastT=performance.now(); pathPts=[]; animRAF=requestAnimationFrame(step); }
+  else cancelAnimationFrame(animRAF);
+}
+function step(now){
+  if(!animOn) return;
+  const dt=Math.min(.05,(now-lastT)/1000); lastT=now;
+  model.t+=dt;
+  const r=solvePosition(model.t);
+  if (r.ok && model.probe && model.bodies[model.probe.b]){
+    pathPts.push(nodeWorld(model.probe.b,model.probe.p));
+    if (pathPts.length>900) pathPts.shift();
+  }
+  updBadge(r);
+  render();
+  animRAF=requestAnimationFrame(step);
+}
+function updBadge(r){
+  const drv=drivers();
+  const b=document.getElementById('cv-badge');
+  if (drv.length){
+    const jt=drv[0].jt, omega=(jt.rpm||0)*TAU/60;
+    const ang=((jt.th0+omega*model.t)*R2D)%360;
+    b.textContent='θ = '+((ang+360)%360).toFixed(1)+'°';
+  } else b.textContent='θ = —';
+  const info=document.getElementById('cv-info');
+  if (r && !r.ok){ info.style.color='var(--red)'; info.textContent='⚠ cannot assemble'; }
+  else if (model.probe && model.bodies[model.probe.b]){
+    const P=nodeWorld(model.probe.b,model.probe.p);
+    info.style.color='#A68A58';
+    info.textContent=`probe (${P[0].toFixed(2)}, ${P[1].toFixed(2)})`;
+  } else info.textContent='';
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PART 7 — EXAMPLES
+   ═══════════════════════════════════════════════════════════════════ */
+function mkBody(pts,x,y,th,name,i){
+  return {pts, q:[x,y,th], q0:[x,y,th], name, col:LCOL[i%LCOL.length]};
+}
+function loadExample(which){
+  pushUndo();
+  model=newModel(); pathPts=[]; model.t=0;
+  const B=model.bodies, J=model.joints;
+
+  if (which==='fourbar'){
+    const a=20,b=70,c=50,d=80;
+    B.push(mkBody([{x:0,y:0},{x:a,y:0}], 0,0,0.9,'Crank',1));
+    B.push(mkBody([{x:0,y:0},{x:b,y:0},{x:b*0.5,y:28}], a*Math.cos(.9),a*Math.sin(.9),0,'Coupler',2));
+    B.push(mkBody([{x:0,y:0},{x:c,y:0}], d,0,1.5,'Rocker',3));
+    B[0].pts.push({x:0,y:0},{x:d,y:0});
+    J.push({type:'rev',a:0,ia:0,b:1,ib:0});
+    J.push({type:'rev',a:1,ia:1,b:2,ib:0});
+    J.push({type:'rev',a:2,ia:1,b:3,ib:1});
+    J.push({type:'rev',a:0,ia:1,b:3,ib:0});
+    J[0].drive=true; J[0].rpm=60;
+    model.probe={b:2,p:2};
+  }
+  else if (which==='slider'){
+    const a=22,b=75;
+    B.push(mkBody([{x:0,y:0},{x:a,y:0}], 0,0,0.7,'Crank',1));
+    B.push(mkBody([{x:0,y:0},{x:b,y:0}], a*Math.cos(.7),a*Math.sin(.7),0,'Coupler',2));
+    B.push(mkBody([{x:0,y:0},{x:14,y:0}], a+b,0,0,'Piston',3));
+    B[0].pts.push({x:0,y:0},{x:0,y:0});
+    J.push({type:'rev',a:0,ia:0,b:1,ib:0});
+    J.push({type:'rev',a:1,ia:1,b:2,ib:0});
+    J.push({type:'rev',a:2,ia:1,b:3,ib:0});
+    J.push({type:'pris',a:0,ia:1,b:3,ib:0,ax:0,dth0:0});
+    J[0].drive=true; J[0].rpm=60;
+    model.probe={b:3,p:0};
+  }
+  else if (which==='quickreturn'){
+    // Crank pin rides in the slot of a rocking lever — a genuine half joint.
+    const a=18, Lv=95;
+    B.push(mkBody([{x:0,y:0},{x:a,y:0}], 0,40,0.6,'Crank',1));
+    B.push(mkBody([{x:0,y:0},{x:Lv,y:0}], 0,-40,1.25,'Slotted lever',2));
+    B[0].pts.push({x:0,y:40},{x:0,y:-40});
+    J.push({type:'rev',a:0,ia:0,b:1,ib:0});
+    J.push({type:'rev',a:0,ia:1,b:2,ib:0});
+    J.push({type:'half',a:2,ia:0,b:1,ib:1,ax:0});
+    J[0].drive=true; J[0].rpm=60;
+    model.probe={b:2,p:1};
+  }
+  else if (which==='paradox'){
+    // Parallelogram with a redundant parallel link: Kutzbach says 0, it moves.
+    const a=30, d=90, th=0.75, ca=a*Math.cos(th), sa=a*Math.sin(th);
+    B.push(mkBody([{x:0,y:0},{x:a,y:0}], 0,0,th,'Crank',1));
+    B.push(mkBody([{x:0,y:0},{x:d,y:0},{x:d/2,y:0}], ca,sa,0,'Coupler',2));
+    B.push(mkBody([{x:0,y:0},{x:a,y:0}], d,0,th,'Rocker',3));
+    B.push(mkBody([{x:0,y:0},{x:a,y:0}], d/2,0,th,'Extra',4));
+    B[0].pts.push({x:0,y:0},{x:d,y:0},{x:d/2,y:0});
+    J.push({type:'rev',a:0,ia:0,b:1,ib:0});
+    J.push({type:'rev',a:0,ia:1,b:3,ib:0});
+    J.push({type:'rev',a:1,ia:1,b:2,ib:0});
+    J.push({type:'rev',a:2,ia:1,b:3,ib:1});
+    J.push({type:'rev',a:0,ia:2,b:4,ib:0});
+    J.push({type:'rev',a:2,ia:2,b:4,ib:1});
+    J[0].drive=true; J[0].rpm=60;
+    model.probe={b:2,p:1};
+  }
+  armDrivers();
+  undoStack=[];
+  resetView(); assemble();
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PART 8 — BOOT
+   ═══════════════════════════════════════════════════════════════════ */
+function refresh(posRes){
+  refreshDOF(posRes);
+  refreshLists();
+  refreshCharts();
+  updBadge(posRes);
+  render();
+}
+window.addEventListener('resize', ()=>render());
+model=newModel();
+loadExample('fourbar');
+updZoom();
+document.querySelector('.mod-pill.active')?.scrollIntoView({inline:'center',block:'nearest'});
+</script>
+</body>
+</html>
