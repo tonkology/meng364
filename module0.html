@@ -63,9 +63,7 @@ body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
 .btn { flex:1; padding:8px 10px; border:none; border-radius:6px; font-size:.79rem;
   font-weight:700; cursor:pointer; transition:all .15s;
   display:flex; align-items:center; justify-content:center; gap:4px; }
-.btn-p { background:var(--blue); color:#fff; } .btn-p:hover{ background:var(--blue-dk); }
 .btn-s { background:#C2CCC6; color:var(--text); } .btn-s:hover{ background:#B0BEC5; }
-.btn-r { background:var(--red); color:#fff; }
 
 /* ── DOF panel ────────────────────────────────────────────── */
 .dof-big { text-align:center; padding:10px 6px 8px; border-radius:8px; background:var(--bg); }
@@ -159,7 +157,8 @@ body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   line-height:1.5; }
 
 @media print {
-  .mod-nav,.tools,.btns,.zoom-bar,.tool-hint,.xbtn,.drv { display:none!important; }
+  .mod-nav,.tools,.btns,.zoom-bar,.scrub-row,.tool-hint,.panel-note,
+  .xbtn,.drv-add,.drv-off,#status { display:none!important; }
   .hdr { background:#fff!important; color:#000!important; box-shadow:none!important;
     border-bottom:2px solid #055934; }
   .badge { background:#EEF8F5!important; color:#055934!important; }
@@ -793,7 +792,7 @@ let jog=null, range=null, animDir=1, limitMode='reverse';
 let pathPts=[];
 
 const HINTS = {
-  select:'<b>Move</b> — drag a <b>node</b> to reshape a link. Once a driver is set, dragging a <b>link</b> pulls the mechanism through its motion; with no driver it moves the link freely.',
+  select:'<b>Move</b> — with a motor set, drag anywhere to pull the mechanism through its motion. With no motor, drag a <b>node</b> to reshape a link or a <b>bar</b> to move it.',
   link:'<b>Link</b> — drag to draw. Ends snap to existing nodes and to the grid, and a snapped end is <b>pinned automatically</b> (green ring). Chain links together and they come out connected.',
   pin:'<b>Pin (revolute)</b> — click two nodes to join them. If two nodes already sit on the same spot, one click joins them. Removes 2 DOF.',
   ground:'<b>Ground</b> — click a node to pin it to the frame. Removes 2 DOF.',
@@ -821,7 +820,9 @@ function say(msg){ status=msg;
 
 function clearAll(){
   if (!confirm('Erase the whole mechanism?')) return;
-  pushUndo(); model=newModel(); pathPts=[]; say('Cleared.'); refresh();
+  stopAnim();
+  pushUndo(); model=newModel(); pathPts=[]; lastGoodQ=null; range=null;
+  say('Cleared.'); refresh();
 }
 
 function pushUndo(){
@@ -931,6 +932,26 @@ cv.addEventListener('pointerdown', e=>{
   }
 
   if (tool==='select') {
+    const d=dofInfo();
+    const driven = d.numeric>=1 && d.nd>0 && d.nd===d.numeric;
+    if (driven) {
+      // Once the mechanism is driven, dragging ANYTHING pulls it through its
+      // motion — including a joint, which is the most natural thing to grab.
+      // Reshaping a driven mechanism by dragging would silently deform it into
+      // something that no longer assembles.
+      if (!range) findRange();
+      const nd=hitNode(sx,sy), h=hitLink(sx,sy);
+      const bi = (nd && nd.b!==0) ? nd.b : (h ? h.bi : null);
+      if (range && bi!==null){
+        stopAnim();
+        const b=model.bodies[bi], th=-b.q[2], c=Math.cos(th), sn=Math.sin(th);
+        const dx=world[0]-b.q[0], dy=world[1]-b.q[1];
+        jog={bi, s:{x:c*dx-sn*dy, y:sn*dx+c*dy}};
+        cv.setPointerCapture(e.pointerId); cv.style.cursor='grabbing';
+        say('Dragging the mechanism — remove the motor to reshape links instead.');
+        return;
+      }
+    }
     const n=hitNode(sx,sy);
     if (n) {                       // reshape: drag the single node
       pushUndo(); dragNode=n;
@@ -938,21 +959,6 @@ cv.addEventListener('pointerdown', e=>{
     }
     const h=hitLink(sx,sy);
     if (h) {
-      const d=dofInfo();
-      if (d.nd>0 && d.nd===d.numeric){
-        // Driven mechanism: pull it through its motion instead of dragging the
-        // link off its constraints.
-        if (!range) findRange();
-        if (range){
-          stopAnim();
-          const b=model.bodies[h.bi], th=-b.q[2], c=Math.cos(th), sn=Math.sin(th);
-          const dx=world[0]-b.q[0], dy=world[1]-b.q[1];
-          jog={bi:h.bi, s:{x:c*dx-sn*dy, y:sn*dx+c*dy}};
-          cv.setPointerCapture(e.pointerId); cv.style.cursor='grabbing';
-          say('Drag to move the mechanism through its motion.');
-          return;
-        }
-      }
       pushUndo(); dragBody=h.bi;
       dragOff=[model.bodies[h.bi].q[0]-world[0], model.bodies[h.bi].q[1]-world[1]];
       cv.setPointerCapture(e.pointerId); cv.style.cursor='grabbing';
@@ -1491,6 +1497,10 @@ function setAnimBtns(){
   if(b) b.textContent = on?'⏸':'▶';
 }
 function toggleAnim(){
+  if (!animOn && !drivers().length){
+    say('Set a driver first — mark a joint ⟳ drive in the joint list.');
+    return;
+  }
   if (!range) findRange();
   animOn=!animOn; setAnimBtns();
   if (animOn){ lastT=performance.now(); pathPts=[]; lastGoodQ=snapQ(); animDir=1;
@@ -1580,6 +1590,9 @@ document.getElementById('scrub').addEventListener('input', e=>{
 });
 function step(now){
   if(!animOn) return;
+  // The motor can be deleted, or the whole model cleared, while the loop is
+  // running — stop rather than spinning on a mechanism with nothing driving it.
+  if (!drivers().length){ stopAnim('Driver removed — animation stopped.'); render(); return; }
   const dt=Math.min(.05,(now-lastT)/1000); lastT=now;
   let t=model.t + animDir*dt;
 
@@ -1676,7 +1689,7 @@ function buildSpec(sp){
   if (sp.drive!=null){ const jt=J[sp.drive]; jt.drive=true; jt.rpm=sp.rpm||60; }
   if (sp.probe) model.probe={b:sp.probe[0]+1, p:sp.probe[1]};
   armDrivers();
-  undoStack=[];
+  undoStack=[]; lastGoodQ=null; animDir=1; range=null;
   resetView(); assemble();
   say(sp.note||'');
 }
