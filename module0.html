@@ -1,0 +1,1809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MENG 364 — Module 0: Mechanism Builder</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --blue:#055934; --blue-dk:#0A353E; --blue-lt:#EEF8F5;
+  --orange:#A68A58; --green:#208D44; --red:#733B43; --amber:#A68A58;
+  --gray:#8D9991; --bg:#F2F7ED; --surface:#FFFFFF; --border:#C2CCC6;
+  --text:#1D2921; --muted:#5C6660;
+}
+body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text); font-size: 14px; min-height: 100vh; }
+
+.hdr { background: var(--blue); color:#fff; padding:10px 20px; display:flex;
+  justify-content:space-between; align-items:center; box-shadow:0 2px 8px rgba(0,0,0,.3); }
+.hdr h1 { font-size:.97rem; font-weight:700; }
+.hdr p  { font-size:.7rem; opacity:.82; margin-top:1px; }
+.badge { background: var(--orange); border-radius:20px; padding:4px 14px;
+  font-size:.73rem; font-weight:700; white-space:nowrap; }
+
+.mod-nav { display:flex; gap:2px; background:var(--blue-dk); padding:0 12px;
+  overflow-x:auto; scrollbar-width:none; }
+.mod-nav::-webkit-scrollbar { display:none; }
+.mod-pill { color:rgba(255,255,255,.68); text-decoration:none; font-size:.72rem;
+  font-weight:600; padding:8px 12px; white-space:nowrap;
+  border-bottom:3px solid transparent; transition:all .15s; }
+.mod-pill:hover  { color:#fff; border-bottom-color:rgba(255,255,255,.4); }
+.mod-pill.active { color:#fff; border-bottom-color:#fff; }
+
+.layout { display:grid; grid-template-columns:268px 1fr; gap:14px; padding:14px;
+  max-width:1440px; margin:0 auto; align-items:start; }
+@media (max-width:780px){ .layout{ grid-template-columns:1fr; } }
+
+.card { background:var(--surface); border-radius:10px; box-shadow:0 1px 5px rgba(0,0,0,.09);
+  padding:14px; margin-bottom:12px; }
+.card:last-child { margin-bottom:0; }
+.card-ttl { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:1.2px;
+  color:var(--blue); border-bottom:2px solid var(--blue-lt); padding-bottom:6px; margin-bottom:12px; }
+
+/* ── Tool palette ─────────────────────────────────────────── */
+.tools { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.tool { display:flex; align-items:center; gap:6px; padding:7px 8px; border:1.5px solid var(--border);
+  border-radius:6px; background:#fff; font-size:.72rem; font-weight:700; color:var(--muted);
+  cursor:pointer; transition:all .13s; text-align:left; }
+.tool:hover { border-color:var(--blue); color:var(--blue); background:var(--blue-lt); }
+.tool.active { background:var(--blue); border-color:var(--blue); color:#fff; }
+.tool .gl { font-size:.95rem; line-height:1; }
+.panel-note { font-size:.65rem; color:var(--muted); margin-top:8px; line-height:1.5; }
+.panel-note b { color:var(--text); }
+.ex-grp { font-size:.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.7px;
+  color:var(--muted); margin:10px 0 5px; }
+.ex-grp:first-of-type { margin-top:0; }
+.tool-hint { font-size:.68rem; color:var(--muted); background:var(--bg); border-radius:6px;
+  padding:7px 9px; margin-top:8px; line-height:1.45; min-height:46px; }
+.tool-hint b { color:var(--blue); }
+
+.btns { display:flex; gap:7px; margin-top:8px; }
+.btn { flex:1; padding:8px 10px; border:none; border-radius:6px; font-size:.79rem;
+  font-weight:700; cursor:pointer; transition:all .15s;
+  display:flex; align-items:center; justify-content:center; gap:4px; }
+.btn-p { background:var(--blue); color:#fff; } .btn-p:hover{ background:var(--blue-dk); }
+.btn-s { background:#C2CCC6; color:var(--text); } .btn-s:hover{ background:#B0BEC5; }
+.btn-r { background:var(--red); color:#fff; }
+
+/* ── DOF panel ────────────────────────────────────────────── */
+.dof-big { text-align:center; padding:10px 6px 8px; border-radius:8px; background:var(--bg); }
+.dof-n { font-size:2.1rem; font-weight:800; font-family:'Courier New',monospace; line-height:1; }
+.dof-l { font-size:.63rem; font-weight:700; text-transform:uppercase; letter-spacing:.6px;
+  color:var(--muted); margin-top:3px; }
+.dof-eq { font-family:'Courier New',monospace; font-size:.72rem; color:var(--muted);
+  text-align:center; margin-top:8px; line-height:1.6; }
+.dof-eq b { color:var(--text); }
+.dof-msg { font-size:.71rem; line-height:1.5; margin-top:9px; padding:8px 9px; border-radius:6px; }
+.msg-ok   { background:#E8F5E9; color:var(--green); }
+.msg-warn { background:#FFF8E1; color:#7A5B00; }
+.msg-bad  { background:#FFEBEE; color:var(--red); }
+
+/* ── Object lists ─────────────────────────────────────────── */
+/* The panel is 268px wide, so every row has to survive a ~240px content box:
+   the name flexes and ellipsises, everything else holds its natural width. */
+.olist { min-width:0; }
+.orow { display:flex; align-items:center; gap:5px; padding:5px 6px; border-radius:5px;
+  font-size:.72rem; min-width:0; }
+.orow:nth-child(odd) { background:var(--bg); }
+.orow .sw { width:10px; height:10px; border-radius:3px; flex:0 0 auto; }
+.orow .nm { flex:1 1 auto; font-weight:600; min-width:0; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; }
+.mini { width:46px; flex:0 0 auto; padding:3px 4px; border:1.5px solid var(--border);
+  border-radius:4px; font-size:.71rem; font-weight:700; text-align:right; background:#FAFAFA;
+  color:var(--text); }
+.mini:focus { outline:none; border-color:var(--blue); background:#fff; }
+.xbtn { border:none; background:none; color:var(--gray); cursor:pointer; font-size:.9rem;
+  padding:0 3px; line-height:1; }
+.xbtn:hover { color:var(--red); }
+.drv-add { flex:0 0 auto; border:1.5px solid var(--border); background:#fff; color:var(--muted);
+  border-radius:5px; font-size:.63rem; font-weight:700; padding:2px 5px; cursor:pointer;
+  white-space:nowrap; transition:all .13s; }
+.drv-add:hover { border-color:var(--amber); color:var(--amber); background:#FFF8E1; }
+.xbtn { flex:0 0 auto; }
+.jdel { border-left:1px solid var(--border); margin-left:2px; padding-left:6px!important; }
+/* Driver settings wrap onto a second line when they must, rather than
+   overflowing the panel or colliding with the joint row above. */
+.drv-row { display:flex; flex-wrap:wrap; align-items:center; gap:4px 5px;
+  padding:5px 7px 6px 17px; background:#FFF8E1; border-radius:0 0 6px 6px;
+  margin:-3px 0 4px; min-width:0; }
+.drv-tag { flex:0 0 auto; font-size:.8rem; font-weight:800; color:#7A5B00; line-height:1; }
+.drv-u { flex:0 0 auto; font-size:.64rem; color:var(--muted); font-weight:600; }
+.drv-off { flex:0 0 auto; margin-left:auto; border:1.5px solid #E0CFA0; background:#fff;
+  color:#7A5B00; border-radius:5px; font-size:.62rem; font-weight:700; padding:2px 5px;
+  cursor:pointer; white-space:nowrap; }
+.drv-off:hover { background:var(--red); border-color:var(--red); color:#fff; }
+.empty { font-size:.72rem; color:var(--muted); text-align:center; padding:12px 4px;
+  font-style:italic; }
+
+/* ── Canvas ───────────────────────────────────────────────── */
+.right { min-width:0; }
+.cv-wrap { position:relative; }
+.cv-stage { position:relative; }
+#mechCanvas { width:100%; height:auto; display:block; border-radius:6px; background:#F4F7F9;
+  cursor:crosshair; touch-action:none; }
+.cv-badge { position:absolute; top:10px; right:14px; background:rgba(5,89,52,.92); color:#fff;
+  padding:3px 12px; border-radius:20px; font-size:.78rem; font-weight:700;
+  font-family:monospace; pointer-events:none; }
+.cv-info { position:absolute; bottom:10px; left:14px; font-size:.75rem; font-weight:700;
+  pointer-events:none; }
+.scrub-row { display:flex; gap:6px; margin-top:9px; align-items:center; flex-wrap:wrap; }
+.scrub-row input[type=range] { flex:1; min-width:120px; accent-color:var(--blue); cursor:pointer; }
+.ang-box { font-size:.7rem; font-weight:700; color:var(--muted); display:flex;
+  align-items:center; gap:3px; }
+.ang-box input { width:52px; padding:2px 4px; border:1.5px solid var(--border);
+  border-radius:5px; font-size:.72rem; font-weight:700; text-align:right;
+  background:#FAFAFA; color:var(--text); }
+.ang-box input:focus { outline:none; border-color:var(--blue); background:#fff; }
+.scrub-lbl { font-size:.7rem; font-weight:700; color:var(--blue); font-family:'Courier New',monospace;
+  min-width:96px; text-align:right; }
+.lim-lbl { font-size:.66rem; color:var(--muted); font-weight:600; display:flex; align-items:center; gap:4px; }
+.lim-lbl select { font-size:.68rem; font-weight:700; padding:2px 4px; border:1.5px solid var(--border);
+  border-radius:5px; background:#fff; color:var(--muted); cursor:pointer; }
+.zoom-bar { display:flex; gap:5px; margin-top:8px; align-items:center; flex-wrap:wrap; }
+.zoom-btn { padding:3px 9px; border:1.5px solid var(--border); border-radius:5px; background:#fff;
+  font-size:.73rem; font-weight:700; cursor:pointer; color:var(--muted); transition:all .15s;
+  line-height:1.6; }
+.zoom-btn:hover { border-color:var(--blue); color:var(--blue); background:var(--blue-lt); }
+.zoom-lbl { font-size:.7rem; color:var(--muted); min-width:38px; text-align:center; font-weight:600; }
+.spacer { flex:1; }
+
+.plots { display:grid; grid-template-columns:1fr 1fr 1fr; gap:11px; }
+@media (max-width:820px){ .plots{ grid-template-columns:1fr; } }
+.plt-card { background:var(--surface); border-radius:10px; box-shadow:0 1px 5px rgba(0,0,0,.09);
+  padding:11px; }
+.plt-ttl { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.9px;
+  color:var(--blue); margin-bottom:7px; }
+.plt-note { font-size:.68rem; color:var(--muted); text-align:center; padding:26px 8px;
+  line-height:1.5; }
+
+@media print {
+  .mod-nav,.tools,.btns,.zoom-bar,.tool-hint,.xbtn,.drv { display:none!important; }
+  .hdr { background:#fff!important; color:#000!important; box-shadow:none!important;
+    border-bottom:2px solid #055934; }
+  .badge { background:#EEF8F5!important; color:#055934!important; }
+  body { background:#fff!important; }
+  .card { box-shadow:none!important; border:1px solid #ddd!important; page-break-inside:avoid; }
+  .layout { display:block!important; }
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div>
+    <h1>Mechanism Builder — Draw It, Count Its DOF, Watch It Move</h1>
+    <p>Build any planar linkage from links and joints · constraint-based kinematics</p>
+  </div>
+  <div class="badge">MODULE 0</div>
+</div>
+
+<nav class="mod-nav">
+  <a href="module0.html" class="mod-pill active">Module 0 — Mechanism Builder</a>
+  <a href="index.html"   class="mod-pill">Module 1 — 4-Bar Linkage</a>
+  <a href="module2.html" class="mod-pill">Module 2 — Coupler Point</a>
+  <a href="module3.html" class="mod-pill">Module 3 — Force Analysis</a>
+  <a href="module4.html" class="mod-pill">Module 4 — Flywheel</a>
+  <a href="module5.html" class="mod-pill">Module 5 — Balancing</a>
+  <a href="module6.html" class="mod-pill">Module 6 — Gear Trains</a>
+  <a href="module7.html" class="mod-pill">Module 7 — Cam Design</a>
+</nav>
+
+<div class="layout">
+
+  <!-- ── LEFT PANEL ─────────────────────────────────────── -->
+  <div class="left">
+
+    <div class="card">
+      <div class="card-ttl">Build Tools</div>
+      <div class="tools">
+        <button class="tool active" data-tool="select"><span class="gl">✥</span>Move</button>
+        <button class="tool" data-tool="link"><span class="gl">╱</span>Link</button>
+        <button class="tool" data-tool="pin"><span class="gl">●</span>Pin (R)</button>
+        <button class="tool" data-tool="ground"><span class="gl">⏚</span>Ground</button>
+        <button class="tool" data-tool="slider"><span class="gl">▭</span>Slider (P)</button>
+        <button class="tool" data-tool="half"><span class="gl">◐</span>Half joint</button>
+        <button class="tool" data-tool="node"><span class="gl">✚</span>Add node</button>
+        <button class="tool" data-tool="probe"><span class="gl">◎</span>Probe</button>
+        <button class="tool" data-tool="delete"><span class="gl">✕</span>Delete</button>
+        <button class="tool" onclick="clearAll()"><span class="gl">⌫</span>Clear all</button>
+      </div>
+      <div class="tool-hint" id="hint"></div>
+      <div id="status" style="font-size:.68rem;color:var(--green);font-weight:700;
+        min-height:15px;margin-top:5px"></div>
+      <div class="btns">
+        <button class="btn btn-s" onclick="undo()">↶ Undo</button>
+        <button class="btn btn-s" onclick="assemble()">⚙ Assemble</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-ttl">Mobility (Degrees of Freedom)</div>
+      <div class="dof-big">
+        <div class="dof-n" id="dof-n">—</div>
+        <div class="dof-l">Degrees of freedom</div>
+      </div>
+      <div class="dof-eq" id="dof-eq"></div>
+      <div class="dof-msg" id="dof-msg"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-ttl">Links <span style="float:right;font-weight:600;text-transform:none;
+        letter-spacing:0;color:var(--muted)" id="link-count"></span></div>
+      <div class="olist" id="link-list"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-ttl">Joints <span style="float:right;font-weight:600;text-transform:none;
+        letter-spacing:0;color:var(--muted)" id="joint-count"></span></div>
+      <div class="olist" id="joint-list"></div>
+      <div class="panel-note">
+        <b>⟳ drive</b> makes a joint a motor — one per degree of freedom.
+        <b>remove motor</b> stops it driving. <b>✕</b> deletes the joint.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-ttl">Examples</div>
+      <div class="tools">
+        <button class="tool" onclick="loadExample('fourbar')">Four-bar</button>
+        <button class="tool" onclick="loadExample('slider')">Slider-crank</button>
+        <button class="tool" onclick="loadExample('quickreturn')">Quick-return</button>
+        <button class="tool" onclick="loadExample('paradox')">Grübler paradox</button>
+      </div>
+    </div>
+
+  </div><!-- /left -->
+
+  <!-- ── RIGHT PANEL ────────────────────────────────────── -->
+  <div class="right">
+
+    <div class="card cv-wrap">
+      <div class="card-ttl" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>Mechanism Canvas</span>
+        <span style="font-size:.65rem;color:var(--muted);font-weight:500;text-transform:none;
+          letter-spacing:0;">Scroll to zoom · Right-drag to pan · Double-click to reset</span>
+      </div>
+      <div class="cv-stage">
+        <canvas id="mechCanvas" width="900" height="470"></canvas>
+        <div class="cv-badge" id="cv-badge">θ = 0°</div>
+        <div class="cv-info" id="cv-info"></div>
+      </div>
+      <div class="panel-note" style="margin:9px 0 0">
+        Move it by hand: drag the slider, type a θ, press ← →, or grab a link with
+        the <b>Move</b> tool.
+      </div>
+      <div class="scrub-row">
+        <button class="zoom-btn" onclick="stepBy(-1)" title="Step back">◀</button>
+        <button class="zoom-btn" id="anim-btn2" onclick="toggleAnim()">▶</button>
+        <button class="zoom-btn" onclick="stepBy(1)" title="Step forward">▶|</button>
+        <input type="range" id="scrub" min="0" max="1000" value="0" step="1">
+        <span class="ang-box">θ <input id="drv-ang" type="number" step="5"
+          title="Type a driver angle to jump straight to that position">°</span>
+        <span class="scrub-lbl" id="scrub-lbl">—</span>
+        <label class="lim-lbl">at limit
+          <select id="limit-mode" onchange="limitMode=this.value">
+            <option value="reverse">reverse (rock)</option>
+            <option value="restart">restart</option>
+            <option value="stop">stop</option>
+          </select>
+        </label>
+      </div>
+      <div class="zoom-bar">
+        <button class="zoom-btn" onclick="zoomStep(1.25)">＋ Zoom</button>
+        <button class="zoom-btn" onclick="zoomStep(1/1.25)">－ Zoom</button>
+        <span class="zoom-lbl" id="zoom-lbl">100%</span>
+        <button class="zoom-btn" onclick="resetView()">⟳ Reset view</button>
+        <span class="spacer"></span>
+        <button class="zoom-btn" id="anim-btn" onclick="toggleAnim()">▶ Animate</button>
+        <button class="zoom-btn" onclick="togglePath()" id="path-btn">Path: on</button>
+        <button class="zoom-btn" onclick="toggleSnap()" id="snap-btn">Snap: on</button>
+      </div>
+    </div>
+
+    <div class="plots">
+      <div class="plt-card">
+        <div class="plt-ttl">Probe position</div>
+        <canvas id="ch-pos" height="150"></canvas>
+        <div class="plt-note" id="note-pos" style="display:none"></div>
+      </div>
+      <div class="plt-card">
+        <div class="plt-ttl">Probe velocity</div>
+        <canvas id="ch-vel" height="150"></canvas>
+        <div class="plt-note" id="note-vel" style="display:none"></div>
+      </div>
+      <div class="plt-card">
+        <div class="plt-ttl">Probe acceleration</div>
+        <canvas id="ch-acc" height="150"></canvas>
+        <div class="plt-note" id="note-acc" style="display:none"></div>
+      </div>
+    </div>
+
+  </div><!-- /right -->
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   PART 1 — PLANAR CONSTRAINT SOLVER
+
+   Every body carries three generalised coordinates q = (x, y, θ).
+   Joints impose constraint equations Φ(q,t) = 0:
+
+     revolute  2 equations   (full joint, J₁)
+     prismatic 2 equations   (full joint, J₁)
+     half      1 equation    (half joint, J₂)
+     ground    3 equations   (body 0 is locked)
+
+   Position solves Φ = 0 by Newton-Raphson; velocity solves the linear
+   system J q̇ = ν on the same Jacobian. This is the same method used by
+   commercial kinematics packages, and it is what lets the tool handle
+   ANY linkage the student draws rather than one hard-coded family.
+   ═══════════════════════════════════════════════════════════════════ */
+
+const PI = Math.PI, TAU = 2*PI, D2R = PI/180, R2D = 180/PI;
+
+const Amat = th => { const c=Math.cos(th), s=Math.sin(th); return [c,-s,s,c]; };
+const Bmat = th => { const c=Math.cos(th), s=Math.sin(th); return [-s,-c,c,-s]; };
+const mv   = (M,v) => [M[0]*v[0]+M[1]*v[1], M[2]*v[0]+M[3]*v[1]];
+
+function luSolve(M, b) {
+  const n = b.length, a = M.map((r,i)=>[...r, b[i]]);
+  for (let c=0;c<n;c++) {
+    let p=c; for(let r=c+1;r<n;r++) if(Math.abs(a[r][c])>Math.abs(a[p][c])) p=r;
+    if (Math.abs(a[p][c])<1e-12) return null;
+    [a[c],a[p]]=[a[p],a[c]];
+    for(let r=0;r<n;r++){ if(r===c) continue;
+      const f=a[r][c]/a[c][c];
+      for(let k=c;k<=n;k++) a[r][k]-=f*a[c][k];
+    }
+  }
+  return a.map((r,i)=>r[n]/a[i][i]);
+}
+
+// Damped least squares — survives redundant and under-determined systems,
+// which a half-finished student mechanism always is.
+function dlsSolve(J, phi, lam) {
+  const m=J.length, n=J[0].length;
+  const N=Array.from({length:n},()=>new Array(n).fill(0)), g=new Array(n).fill(0);
+  for (let i=0;i<m;i++) for (let j=0;j<n;j++) {
+    g[j]+=J[i][j]*phi[i];
+    for (let k=0;k<n;k++) N[j][k]+=J[i][j]*J[i][k];
+  }
+  for (let j=0;j<n;j++) N[j][j]+=lam;
+  return luSolve(N,g);
+}
+
+// Rank by Gaussian elimination. This is the NUMERICAL mobility — the thing
+// that catches redundant constraints, which Kutzbach's formula cannot see.
+function matRank(M, tol=1e-7) {
+  if (!M.length) return 0;
+  const a=M.map(r=>[...r]), rows=a.length, cols=a[0].length;
+  let r=0;
+  for (let c=0;c<cols && r<rows;c++) {
+    let p=r; for(let i=r+1;i<rows;i++) if(Math.abs(a[i][c])>Math.abs(a[p][c])) p=i;
+    if (Math.abs(a[p][c])<tol) continue;
+    [a[r],a[p]]=[a[p],a[r]];
+    for(let i=0;i<rows;i++){ if(i===r) continue;
+      const f=a[i][c]/a[r][c];
+      for(let k=c;k<cols;k++) a[i][k]-=f*a[r][k];
+    }
+    r++;
+  }
+  return r;
+}
+
+/* ── Model ───────────────────────────────────────────────────────
+   bodies[0] is ALWAYS ground.
+   body  = {pts:[{x,y}…] local, q:[x,y,θ], q0:[…], name, col}
+   joint = {type, a, ia, b, ib, ax?, dth0?, drive?, rpm?, th0?}
+     a/ia = body index + local point index on side A
+   ─────────────────────────────────────────────────────────────── */
+let model = null;
+
+const LCOL = ['#8D9991','#055934','#A68A58','#208D44','#733B43','#0A353E',
+              '#4A7C59','#B07D3F','#5C6660','#2E6B8A'];
+
+function newModel() {
+  return { bodies:[{pts:[], q:[0,0,0], q0:[0,0,0], name:'Ground', col:LCOL[0], ground:true}],
+           joints:[], probe:null, t:0 };
+}
+const jSA = jt => model.bodies[jt.a].pts[jt.ia];
+const jSB = jt => model.bodies[jt.b].pts[jt.ib];
+
+function worldPt(body, s) {
+  const [x,y,th]=body.q, w=mv(Amat(th),[s.x,s.y]);
+  return [x+w[0], y+w[1]];
+}
+const nodeWorld = (bi,pi) => worldPt(model.bodies[bi], model.bodies[bi].pts[pi]);
+
+function jointRows(jt) {
+  const ba=model.bodies[jt.a], bb=model.bodies[jt.b];
+  const n=model.bodies.length*3, ia=jt.a*3, ib=jt.b*3;
+  const tha=ba.q[2], thb=bb.q[2];
+  const Aa=Amat(tha), Ab=Amat(thb), Ba=Bmat(tha), Bb=Bmat(thb);
+  const SA=jSA(jt), SB=jSB(jt);
+  const sa=[SA.x,SA.y], sb=[SB.x,SB.y];
+  const Aasa=mv(Aa,sa), Absb=mv(Ab,sb), Basa=mv(Ba,sa), Bbsb=mv(Bb,sb);
+  const rows=[];
+
+  if (jt.type==='rev') {
+    for (let k=0;k<2;k++) {
+      const r=new Array(n).fill(0);
+      r[ia+k]=1;  r[ia+2]=Basa[k];
+      r[ib+k]=-1; r[ib+2]=-Bbsb[k];
+      rows.push({r, v: ba.q[k]+Aasa[k]-bb.q[k]-Absb[k]});
+    }
+    return rows;
+  }
+
+  // prismatic + half share the perpendicular-offset equation n̂ᵀd = 0
+  const d=[ bb.q[0]+Absb[0]-ba.q[0]-Aasa[0], bb.q[1]+Absb[1]-ba.q[1]-Aasa[1] ];
+  const nl=[-Math.sin(jt.ax), Math.cos(jt.ax)];
+  const nh=mv(Aa,nl), dn=mv(Ba,nl);
+  const r=new Array(n).fill(0);
+  r[ia]=-nh[0]; r[ia+1]=-nh[1];
+  r[ia+2]=(dn[0]*d[0]+dn[1]*d[1]) - (nh[0]*Basa[0]+nh[1]*Basa[1]);
+  r[ib]= nh[0]; r[ib+1]= nh[1];
+  r[ib+2]= nh[0]*Bbsb[0]+nh[1]*Bbsb[1];
+  rows.push({r, v: nh[0]*d[0]+nh[1]*d[1]});
+
+  if (jt.type==='pris') {
+    const r2=new Array(n).fill(0);
+    r2[ia+2]=1; r2[ib+2]=-1;
+    rows.push({r:r2, v: tha-thb-jt.dth0});
+  }
+  return rows;
+}
+
+function kinematicRows() {
+  const n=model.bodies.length*3, rows=[];
+  for (let k=0;k<3;k++){ const r=new Array(n).fill(0); r[k]=1;
+    rows.push({r, v: model.bodies[0].q[k]-model.bodies[0].q0[k]}); }
+  model.joints.forEach(jt=>{ if(validJoint(jt)) rows.push(...jointRows(jt)); });
+  return rows;
+}
+
+const validJoint = jt => model.bodies[jt.a] && model.bodies[jt.b] &&
+  model.bodies[jt.a].pts[jt.ia] && model.bodies[jt.b].pts[jt.ib];
+
+const drivers = () => model.joints.map((jt,i)=>({jt,i}))
+  .filter(o=>o.jt.drive && validJoint(o.jt));
+
+// A driver measures its angle from the pose it was switched on in. Capture that
+// reference if it is missing, so a driver created in code (an example, a loaded
+// file) behaves exactly like one toggled on in the joint list.
+function armDrivers(){
+  drivers().forEach(({jt})=>{
+    if (!isFinite(jt.th0)) jt.th0 = model.bodies[jt.b].q[2]-model.bodies[jt.a].q[2];
+  });
+}
+
+function driverRows(t) {
+  const n=model.bodies.length*3;
+  return drivers().map(({jt})=>{
+    const ia=jt.a*3, ib=jt.b*3;
+    const r=new Array(n).fill(0);
+    r[ib+2]=1; r[ia+2]=-1;
+    const omega=(jt.rpm||0)*TAU/60;
+    const target=jt.th0 + omega*t;
+    return {r, v: model.bodies[jt.b].q[2]-model.bodies[jt.a].q[2]-target, vt: omega};
+  });
+}
+
+/* ── Mobility ────────────────────────────────────────────────────
+   Kutzbach:  M = 3(L−1) − 2J₁ − J₂     (what the student computes)
+   Numerical: M = 3L − rank(J)          (what the mechanism truly has)
+   A disagreement is a redundant constraint — Grübler's paradox.
+   ─────────────────────────────────────────────────────────────── */
+function dofInfo() {
+  const L=model.bodies.length;
+  const good=model.joints.filter(validJoint);
+  const J1=good.filter(j=>j.type==='rev'||j.type==='pris').length;
+  const J2=good.filter(j=>j.type==='half').length;
+  const kutzbach=3*(L-1)-2*J1-J2;
+  const numeric=3*L-matRank(kinematicRows().map(r=>r.r));
+  return {kutzbach, numeric, L, J1, J2, redundant:kutzbach!==numeric, nd:drivers().length};
+}
+
+function solvePosition(t, maxIt=60) {
+  armDrivers();
+  const n=model.bodies.length*3;
+  for (let it=0; it<maxIt; it++) {
+    const rows=[...kinematicRows(), ...driverRows(t)];
+    if (!rows.length) return {ok:true, err:0};
+    const phi=rows.map(r=>r.v);
+    const err=Math.max(...phi.map(Math.abs));
+    if (err<1e-10) return {ok:true, it, err};
+    const dq=dlsSolve(rows.map(r=>r.r), phi, 1e-9);
+    if (!dq) return {ok:false, err, reason:'singular'};
+    for (const v of dq) if(!isFinite(v)) return {ok:false, err, reason:'diverged'};
+    for (let i=0;i<n;i++) model.bodies[(i/3)|0].q[i%3] -= dq[i];
+  }
+  const rows=[...kinematicRows(), ...driverRows(t)];
+  const err=rows.length?Math.max(...rows.map(r=>Math.abs(r.v))):0;
+  return {ok:err<1e-6, err, reason:'cannot assemble'};
+}
+
+function solveVelocity(t) {
+  const rows=[...kinematicRows(), ...driverRows(t)];
+  const n=model.bodies.length*3;
+  if (!rows.length) return new Array(n).fill(0);
+  const J=rows.map(r=>r.r), nu=rows.map(r=>r.vt||0);
+  if (J.length===n) { const q=luSolve(J,nu); if(q && q.every(isFinite)) return q; }
+  const N=Array.from({length:n},()=>new Array(n).fill(0)), g=new Array(n).fill(0);
+  for(let i=0;i<J.length;i++) for(let j=0;j<n;j++){ g[j]+=J[i][j]*nu[i];
+    for(let k=0;k<n;k++) N[j][k]+=J[i][j]*J[i][k]; }
+  for(let j=0;j<n;j++) N[j][j]+=1e-9;
+  const q=luSolve(N,g);
+  return (q && q.every(isFinite)) ? q : new Array(n).fill(0);
+}
+
+/* ── Staying on one assembly circuit ──────────────────────────────
+   Near a toggle position two solution branches come close together and
+   Newton can hop from one to the other — the mechanism appears to flip
+   inside out. The true branch is continuous in time, so a step that moves
+   a body far more than the driver could have carried it in that interval
+   is a branch switch, not a solution. Treat it as a limit instead.
+   ─────────────────────────────────────────────────────────────────── */
+function modelScale(){
+  let s=1;
+  model.bodies.forEach(b=>b.pts.forEach(p=>{ s=Math.max(s, Math.hypot(p.x,p.y)); }));
+  return s;
+}
+function branchJump(prev, dt){
+  if (!prev) return false;
+  const wMax=Math.max(0, ...drivers().map(({jt})=>Math.abs((jt.rpm||0)*TAU/60)));
+  const swing=wMax*Math.abs(dt||0);
+  const aTol=Math.max(0.5, 3*swing);                 // radians
+  const S=modelScale(), pTol=Math.max(0.25*S, 3*swing*S);
+  for (let i=0;i<model.bodies.length;i++){
+    const q=model.bodies[i].q, p=prev[i];
+    if (!p) continue;
+    if (Math.abs(q[2]-p[2])>aTol) return true;
+    if (Math.hypot(q[0]-p[0], q[1]-p[1])>pTol) return true;
+  }
+  return false;
+}
+/* Advance from a known pose, distinguishing a branch switch from motion that
+   is merely fast. Size alone cannot tell them apart: approaching a toggle the
+   Jacobian is singular, so the output genuinely does swing hard. The test is
+   whether SUBDIVIDING the step removes the jump — following the branch in
+   smaller increments keeps Newton on it — while true fast motion covers the
+   same ground however finely it is sliced. */
+function stepTo(tTarget, prev, tPrev, dt){
+  if (!prev) return solvePosition(tTarget);
+  for (let sub=1; sub<=64; sub*=2){
+    restoreQ(prev);
+    let ok=true;
+    for (let k=1;k<=sub;k++){
+      if (!solvePosition(tPrev+(tTarget-tPrev)*k/sub).ok){ ok=false; break; }
+    }
+    if (!ok){ restoreQ(prev); return {ok:false, err:0, reason:'unreachable'}; }
+    if (!branchJump(prev, dt)) return {ok:true, err:0};
+  }
+  return {ok:true, err:0, fast:true};      // genuinely fast, not a branch switch
+}
+
+const snapQ  = () => model.bodies.map(b=>[...b.q]);
+const restoreQ = s => s.forEach((q,i)=>{ if(model.bodies[i]) model.bodies[i].q=[...q]; });
+
+// Acceleration by central difference of the velocity field. Each velocity is
+// itself an exact linear solve, so the O(h²) error here lands near 1e-9 —
+// far below anything visible on a plot.
+function solveAccel(t, h=1e-4) {
+  const s=snapQ();
+  solvePosition(t+h); const v1=solveVelocity(t+h);
+  restoreQ(s);
+  solvePosition(t-h); const v2=solveVelocity(t-h);
+  restoreQ(s);
+  return v1.map((v,i)=>(v-v2[i])/(2*h));
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PART 2 — VIEW + RENDERING
+   World y points UP; the canvas transform flips it, so counter-clockwise
+   is positive on screen (matching the sign convention in every other
+   module).
+   ═══════════════════════════════════════════════════════════════════ */
+const cv = document.getElementById('mechCanvas');
+const ctx = cv.getContext('2d');
+let viewScale = 3.2, ox = 0, oy = 0, panX = 0, panY = 0;
+let showPath = true;
+
+function setupCanvas() {
+  const dpr=window.devicePixelRatio||1;
+  const logW=cv.clientWidth||900, logH=Math.round(logW*470/900);
+  cv.style.height=logH+'px';
+  cv.width=Math.round(logW*dpr); cv.height=Math.round(logH*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {W:logW, H:logH};
+}
+let VW=900, VH=470;
+const W2S = p => [ VW/2 + panX + p[0]*viewScale, VH/2 + panY - p[1]*viewScale ];
+const S2W = (sx,sy) => [ (sx - VW/2 - panX)/viewScale, -(sy - VH/2 - panY)/viewScale ];
+
+function zoomStep(f){ viewScale=Math.min(40,Math.max(.4,viewScale*f)); updZoom(); render(); }
+function resetView(){ viewScale=3.2; panX=0; panY=0; updZoom(); render(); }
+function updZoom(){ document.getElementById('zoom-lbl').textContent=Math.round(viewScale/3.2*100)+'%'; }
+function toggleSnap(){ snapOn=!snapOn;
+  document.getElementById('snap-btn').textContent='Snap: '+(snapOn?'on':'off'); }
+function togglePath(){ showPath=!showPath;
+  document.getElementById('path-btn').textContent='Path: '+(showPath?'on':'off'); render(); }
+
+const gridStep = () => viewScale>8 ? 5 : viewScale>3 ? 10 : 25;
+
+function drawGrid() {
+  const step = gridStep();
+  const [x0,y1]=S2W(0,0), [x1,y0]=S2W(VW,VH);
+  ctx.strokeStyle='#E3EAE6'; ctx.lineWidth=1;
+  for(let x=Math.floor(x0/step)*step; x<=x1; x+=step){
+    const s=W2S([x,0]); ctx.beginPath(); ctx.moveTo(s[0],0); ctx.lineTo(s[0],VH); ctx.stroke(); }
+  for(let y=Math.floor(y0/step)*step; y<=y1; y+=step){
+    const s=W2S([0,y]); ctx.beginPath(); ctx.moveTo(0,s[1]); ctx.lineTo(VW,s[1]); ctx.stroke(); }
+  // axes
+  ctx.strokeStyle='#C2CCC6'; ctx.lineWidth=1.5;
+  const o=W2S([0,0]);
+  ctx.beginPath(); ctx.moveTo(0,o[1]); ctx.lineTo(VW,o[1]); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(o[0],0); ctx.lineTo(o[0],VH); ctx.stroke();
+}
+
+function groundSymbol(sx,sy) {
+  ctx.fillStyle='#8D9991'; ctx.strokeStyle='#5C6660'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(sx-9,sy+14); ctx.lineTo(sx+9,sy+14);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.beginPath();
+  for(let i=-10;i<=10;i+=5){ ctx.moveTo(sx+i,sy+14); ctx.lineTo(sx+i-4,sy+20); }
+  ctx.strokeStyle='#8D9991'; ctx.lineWidth=1.2; ctx.stroke();
+}
+
+function render() {
+  const d=setupCanvas(); VW=d.W; VH=d.H;
+  ctx.clearRect(0,0,VW,VH);
+  ctx.fillStyle='#F4F7F9'; ctx.fillRect(0,0,VW,VH);
+  drawGrid();
+
+  // traced probe path
+  if (showPath && pathPts.length>1) {
+    ctx.strokeStyle='rgba(166,138,88,.85)'; ctx.lineWidth=2; ctx.setLineDash([]);
+    ctx.beginPath();
+    pathPts.forEach((p,i)=>{ const s=W2S(p); i?ctx.lineTo(s[0],s[1]):ctx.moveTo(s[0],s[1]); });
+    ctx.stroke();
+  }
+
+  // slider tracks
+  model.joints.forEach(jt=>{
+    if (!validJoint(jt) || jt.type==='rev') return;
+    const ba=model.bodies[jt.a];
+    const base=worldPt(ba, jSA(jt));
+    const ang=ba.q[2]+jt.ax, u=[Math.cos(ang),Math.sin(ang)];
+    // Span the travel the slider actually has (measured during the range
+    // sweep), not a fixed stub around the anchor — otherwise the guide can sit
+    // nowhere near the block that rides on it.
+    let lo, hi;
+    if (isFinite(jt._smin) && isFinite(jt._smax) && jt._smax>jt._smin) {
+      const pad=Math.max((jt._smax-jt._smin)*0.15, 14/viewScale);
+      lo=jt._smin-pad; hi=jt._smax+pad;
+    } else {
+      const Bp=worldPt(model.bodies[jt.b], jSB(jt));
+      const p=(Bp[0]-base[0])*u[0]+(Bp[1]-base[1])*u[1], L=90/viewScale;
+      lo=p-L; hi=p+L;
+    }
+    const p1=[base[0]+u[0]*lo, base[1]+u[1]*lo];
+    const p2=[base[0]+u[0]*hi, base[1]+u[1]*hi];
+    const s1=W2S(p1), s2=W2S(p2);
+    ctx.strokeStyle= jt.type==='pris' ? 'rgba(92,102,96,.55)' : 'rgba(115,59,67,.55)';
+    ctx.lineWidth=6; ctx.setLineDash(jt.type==='half'?[7,5]:[]);
+    ctx.beginPath(); ctx.moveTo(s1[0],s1[1]); ctx.lineTo(s2[0],s2[1]); ctx.stroke();
+    ctx.setLineDash([]);
+  });
+
+  // links
+  model.bodies.forEach((b,bi)=>{
+    if (bi===0) return;
+    const pw=b.pts.map(p=>W2S(worldPt(b,p)));
+    if (pw.length>=2) {
+      ctx.strokeStyle=b.col; ctx.lineWidth=(bi===dragBody?7:5); ctx.lineJoin='round';
+      ctx.lineCap='round';
+      ctx.beginPath();
+      if (pw.length>=3) { pw.forEach((s,i)=>i?ctx.lineTo(s[0],s[1]):ctx.moveTo(s[0],s[1]));
+        ctx.closePath(); ctx.fillStyle=b.col+'22'; ctx.fill(); }
+      else { ctx.moveTo(pw[0][0],pw[0][1]); ctx.lineTo(pw[1][0],pw[1][1]); }
+      ctx.stroke();
+    }
+    // label at centroid
+    if (pw.length) {
+      const cxm=pw.reduce((a,s)=>a+s[0],0)/pw.length, cym=pw.reduce((a,s)=>a+s[1],0)/pw.length;
+      ctx.fillStyle=b.col; ctx.font='bold 10px system-ui'; ctx.textAlign='center';
+      ctx.textBaseline='middle'; ctx.fillText(b.name, cxm, cym-12);
+    }
+  });
+
+  // ground points
+  model.bodies[0].pts.forEach((p,i)=>{ const s=W2S(worldPt(model.bodies[0],p)); groundSymbol(s[0],s[1]); });
+
+  // joints
+  model.joints.forEach(jt=>{
+    if(!validJoint(jt)) return;
+    const s=W2S(worldPt(model.bodies[jt.b], jSB(jt)));
+    const col = jt.type==='rev'?'#055934': jt.type==='pris'?'#5C6660':'#733B43';
+    ctx.beginPath(); ctx.arc(s[0],s[1], jt.type==='rev'?6:7, 0, TAU);
+    ctx.fillStyle='#fff'; ctx.fill();
+    ctx.strokeStyle=col; ctx.lineWidth=2.5; ctx.stroke();
+    if (jt.type!=='rev') { ctx.beginPath(); ctx.arc(s[0],s[1],2.5,0,TAU);
+      ctx.fillStyle=col; ctx.fill(); }
+    if (jt.drive) {
+      ctx.beginPath(); ctx.arc(s[0],s[1],11,0,TAU);
+      ctx.strokeStyle='#A68A58'; ctx.lineWidth=2; ctx.setLineDash([3,3]); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  });
+
+  // free nodes (not yet jointed)
+  model.bodies.forEach((b,bi)=>{ if(bi===0) return;
+    b.pts.forEach((p,pi)=>{
+      const used=model.joints.some(jt=>validJoint(jt) &&
+        ((jt.a===bi&&jt.ia===pi)||(jt.b===bi&&jt.ib===pi)));
+      if (used) return;
+      const s=W2S(worldPt(b,p));
+      ctx.beginPath(); ctx.arc(s[0],s[1],4.5,0,TAU);
+      ctx.fillStyle='#fff'; ctx.fill();
+      ctx.strokeStyle=b.col; ctx.lineWidth=2; ctx.stroke();
+    });
+  });
+
+  // pending selection highlight
+  if (pending) {
+    const s=W2S(nodeWorld(pending.b,pending.p));
+    ctx.beginPath(); ctx.arc(s[0],s[1],10,0,TAU);
+    ctx.strokeStyle='#A68A58'; ctx.lineWidth=2.5; ctx.setLineDash([4,3]); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  // probe marker
+  if (model.probe && model.bodies[model.probe.b]) {
+    const s=W2S(nodeWorld(model.probe.b,model.probe.p));
+    ctx.beginPath(); ctx.arc(s[0],s[1],8,0,TAU);
+    ctx.strokeStyle='#A68A58'; ctx.lineWidth=3; ctx.stroke();
+    ctx.beginPath(); ctx.arc(s[0],s[1],2.5,0,TAU); ctx.fillStyle='#A68A58'; ctx.fill();
+  }
+  // rubber band while drawing a link
+  if (drawing) {
+    const s1=W2S(drawing.from), s2=W2S(drawing.to);
+    ctx.strokeStyle='#A68A58'; ctx.lineWidth=3; ctx.setLineDash([6,4]);
+    ctx.beginPath(); ctx.moveTo(s1[0],s1[1]); ctx.lineTo(s2[0],s2[1]); ctx.stroke();
+    ctx.setLineDash([]);
+    // ring each end that will snap to an existing node and become a pin
+    [[drawing.fromNode,s1],[drawing.toNode,s2]].forEach(([nd,sp])=>{
+      if(!nd) return;
+      ctx.beginPath(); ctx.arc(sp[0],sp[1],12,0,TAU);
+      ctx.strokeStyle='#208D44'; ctx.lineWidth=2.5; ctx.stroke();
+    });
+    const len=Math.hypot(drawing.to[0]-drawing.from[0], drawing.to[1]-drawing.from[1]);
+    ctx.fillStyle='#A68A58'; ctx.font='bold 11px system-ui'; ctx.textAlign='left';
+    ctx.fillText(len.toFixed(1), s2[0]+10, s2[1]-8);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PART 3 — INTERACTION
+   ═══════════════════════════════════════════════════════════════════ */
+let tool='select', pending=null, drawing=null, dragBody=null, dragOff=null, undoStack=[];
+let dragNode=null, snapOn=true, status='';
+let jog=null, range=null, animDir=1, limitMode='reverse';
+let pathPts=[];
+
+const HINTS = {
+  select:'<b>Move</b> — drag a <b>node</b> to reshape a link. Once a driver is set, dragging a <b>link</b> pulls the mechanism through its motion; with no driver it moves the link freely.',
+  link:'<b>Link</b> — drag to draw. Ends snap to existing nodes and to the grid, and a snapped end is <b>pinned automatically</b> (green ring). Chain links together and they come out connected.',
+  pin:'<b>Pin (revolute)</b> — click two nodes to join them. If two nodes already sit on the same spot, one click joins them. Removes 2 DOF.',
+  ground:'<b>Ground</b> — click a node to pin it to the frame. Removes 2 DOF.',
+  slider:'<b>Slider (prismatic)</b> — click the sliding node, then the link it rides on (or empty canvas for a ground track). Removes 2 DOF.',
+  half:'<b>Half joint</b> — pin-in-slot. Click the pin node, then the slotted link. Slides AND rotates, so it removes only 1 DOF.',
+  node:'<b>Add node</b> — click a link to add an attachment point (makes ternary links for six-bars).',
+  probe:'<b>Probe</b> — click a node to trace its path and plot its kinematics.',
+  delete:'<b>Delete</b> — click a link or joint to remove it.',
+};
+
+document.querySelectorAll('.tool[data-tool]').forEach(btn=>{
+  btn.onclick=()=>{
+    document.querySelectorAll('.tool[data-tool]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    tool=btn.dataset.tool; pending=null;
+    document.getElementById('hint').innerHTML=HINTS[tool]||'';
+    cv.style.cursor = tool==='select' ? 'grab' : 'crosshair';
+    render();
+  };
+});
+document.getElementById('hint').innerHTML=HINTS.select;
+
+function say(msg){ status=msg;
+  const el=document.getElementById('status'); if(el) el.textContent=msg; }
+
+function clearAll(){
+  if (!confirm('Erase the whole mechanism?')) return;
+  pushUndo(); model=newModel(); pathPts=[]; say('Cleared.'); refresh();
+}
+
+function pushUndo(){
+  undoStack.push(JSON.stringify({bodies:model.bodies, joints:model.joints, probe:model.probe}));
+  if (undoStack.length>40) undoStack.shift();
+}
+function undo(){
+  if(!undoStack.length) return;
+  const s=JSON.parse(undoStack.pop());
+  model.bodies=s.bodies; model.joints=s.joints; model.probe=s.probe;
+  pathPts=[]; refresh();
+}
+
+function evPos(e){
+  const r=cv.getBoundingClientRect();
+  return [e.clientX-r.left, e.clientY-r.top];
+}
+function hitNode(sx,sy,tol=11,exclude=null){
+  let best=null, bd=tol;
+  model.bodies.forEach((b,bi)=>{
+    if (exclude!==null && bi===exclude) return;
+    b.pts.forEach((p,pi)=>{
+      const s=W2S(worldPt(b,p)), d=Math.hypot(s[0]-sx,s[1]-sy);
+      if(d<bd){ bd=d; best={b:bi,p:pi}; }
+    });
+  });
+  return best;
+}
+
+// EVERY node under the cursor, nearest first. Nodes routinely sit exactly on
+// top of one another — that is what a pin joint looks like — so picking only
+// the closest one makes it impossible to select the second.
+function nodesAt(sx,sy,tol=12){
+  const out=[];
+  model.bodies.forEach((b,bi)=>b.pts.forEach((p,pi)=>{
+    const s=W2S(worldPt(b,p)), d=Math.hypot(s[0]-sx,s[1]-sy);
+    if(d<tol) out.push({b:bi,p:pi,d});
+  }));
+  return out.sort((a,b)=>a.d-b.d);
+}
+const alreadyJoined=(n1,n2)=>model.joints.some(jt=>
+  (jt.a===n1.b&&jt.ia===n1.p&&jt.b===n2.b&&jt.ib===n2.p) ||
+  (jt.a===n2.b&&jt.ia===n2.p&&jt.b===n1.b&&jt.ib===n1.p));
+
+// Cursor → world, snapping to a nearby node first, then to the grid.
+function snapAt(sx,sy,exclude=null){
+  const w=S2W(sx,sy);
+  if (!snapOn) return {world:w, node:null};
+  const n=hitNode(sx,sy,14,exclude);
+  if (n) return {world:nodeWorld(n.b,n.p), node:n};
+  const g=gridStep();
+  const gp=[Math.round(w[0]/g)*g, Math.round(w[1]/g)*g];
+  // Grid rounding can land the point exactly on an existing node while the raw
+  // cursor was too far away to register a hit. Re-test at the snapped location,
+  // otherwise the link looks attached but silently is not.
+  const sp=W2S(gp), n2=hitNode(sp[0],sp[1],7,exclude);
+  if (n2) return {world:nodeWorld(n2.b,n2.p), node:n2};
+  return {world:gp, node:null};
+}
+function hitLink(sx,sy,tol=9){
+  for(let bi=model.bodies.length-1;bi>=1;bi--){
+    const b=model.bodies[bi], pw=b.pts.map(p=>W2S(worldPt(b,p)));
+    for(let i=0;i<pw.length-(pw.length>=3?0:1);i++){
+      const A=pw[i], B=pw[(i+1)%pw.length];
+      const vx=B[0]-A[0], vy=B[1]-A[1], L2=vx*vx+vy*vy;
+      if(L2<1) continue;
+      let t=((sx-A[0])*vx+(sy-A[1])*vy)/L2; t=Math.max(0,Math.min(1,t));
+      const d=Math.hypot(sx-(A[0]+t*vx), sy-(A[1]+t*vy));
+      if(d<tol) return {bi, seg:i, t};
+    }
+  }
+  return null;
+}
+function hitJoint(sx,sy,tol=10){
+  for(let i=model.joints.length-1;i>=0;i--){
+    const jt=model.joints[i]; if(!validJoint(jt)) continue;
+    const s=W2S(worldPt(model.bodies[jt.b], jSB(jt)));
+    if(Math.hypot(s[0]-sx,s[1]-sy)<tol) return i;
+  }
+  return null;
+}
+// local axis angle of a body's first segment
+function bodyAxis(bi){
+  const b=model.bodies[bi];
+  if(b.pts.length<2) return 0;
+  return Math.atan2(b.pts[1].y-b.pts[0].y, b.pts[1].x-b.pts[0].x);
+}
+function addGroundPt(world){
+  model.bodies[0].pts.push({x:world[0], y:world[1]});
+  return model.bodies[0].pts.length-1;
+}
+
+let panning=false, panStart=null;
+cv.addEventListener('contextmenu', e=>e.preventDefault());
+
+cv.addEventListener('pointerdown', e=>{
+  const [sx,sy]=evPos(e);
+  if (e.button===2 || e.button===1) { panning=true; panStart=[sx-panX, sy-panY];
+    cv.setPointerCapture(e.pointerId); return; }
+  const world=S2W(sx,sy);
+
+  if (tool==='link') {
+    pushUndo();
+    const a=snapAt(sx,sy);
+    drawing={from:a.world, fromNode:a.node, to:a.world, toNode:a.node};
+    cv.setPointerCapture(e.pointerId); return;
+  }
+
+  if (tool==='select') {
+    const n=hitNode(sx,sy);
+    if (n) {                       // reshape: drag the single node
+      pushUndo(); dragNode=n;
+      cv.setPointerCapture(e.pointerId); cv.style.cursor='grabbing'; return;
+    }
+    const h=hitLink(sx,sy);
+    if (h) {
+      const d=dofInfo();
+      if (d.nd>0 && d.nd===d.numeric){
+        // Driven mechanism: pull it through its motion instead of dragging the
+        // link off its constraints.
+        if (!range) findRange();
+        if (range){
+          stopAnim();
+          const b=model.bodies[h.bi], th=-b.q[2], c=Math.cos(th), sn=Math.sin(th);
+          const dx=world[0]-b.q[0], dy=world[1]-b.q[1];
+          jog={bi:h.bi, s:{x:c*dx-sn*dy, y:sn*dx+c*dy}};
+          cv.setPointerCapture(e.pointerId); cv.style.cursor='grabbing';
+          say('Drag to move the mechanism through its motion.');
+          return;
+        }
+      }
+      pushUndo(); dragBody=h.bi;
+      dragOff=[model.bodies[h.bi].q[0]-world[0], model.bodies[h.bi].q[1]-world[1]];
+      cv.setPointerCapture(e.pointerId); cv.style.cursor='grabbing';
+    }
+    return;
+  }
+
+
+  if (tool==='delete') {
+    const ji=hitJoint(sx,sy);
+    if (ji!==null) { pushUndo(); model.joints.splice(ji,1); pruneGround(); refresh(); return; }
+    const h=hitLink(sx,sy);
+    if (h) { pushUndo(); deleteBody(h.bi); refresh(); }
+    return;
+  }
+
+  if (tool==='node') {
+    const h=hitLink(sx,sy);
+    if (h) { pushUndo(); const b=model.bodies[h.bi];
+      const th=b.q[2], c=Math.cos(-th), s=Math.sin(-th);
+      const dx=world[0]-b.q[0], dy=world[1]-b.q[1];
+      b.pts.push({x:c*dx-s*dy, y:s*dx+c*dy}); refresh(); }
+    return;
+  }
+
+  if (tool==='probe') {
+    const n=hitNode(sx,sy);
+    if (n) { model.probe={b:n.b,p:n.p}; pathPts=[]; refresh(); }
+    return;
+  }
+
+  if (tool==='ground') {
+    const n=hitNode(sx,sy);
+    if (n && n.b!==0) { pushUndo();
+      const gi=addGroundPt(nodeWorld(n.b,n.p));
+      model.joints.push({type:'rev', a:0, ia:gi, b:n.b, ib:n.p});
+      refresh(); }
+    return;
+  }
+
+  if (tool==='pin') {
+    const list=nodesAt(sx,sy);
+    if (!pending) {
+      // Two nodes from different links stacked on the same spot? That is
+      // unambiguous — pin them on a single click.
+      for (let i=0;i<list.length;i++) for (let j=i+1;j<list.length;j++) {
+        if (list[i].b!==list[j].b && !alreadyJoined(list[i],list[j])) {
+          pushUndo();
+          model.joints.push({type:'rev', a:list[i].b, ia:list[i].p, b:list[j].b, ib:list[j].p});
+          say(`Pinned ${model.bodies[list[i].b].name}–${model.bodies[list[j].b].name}`);
+          refresh(); return;
+        }
+      }
+      const dup=list.some((a,i)=>list.slice(i+1).some(b2=>a.b!==b2.b&&alreadyJoined(a,b2)));
+      if (dup) { say('Those nodes are already pinned together.'); return; }
+      if (list.length) { pending={b:list[0].b,p:list[0].p};
+        say('Now click the node to pin it to.'); render(); }
+      return;
+    }
+    // second click: must land on a DIFFERENT body
+    const other=list.find(n=>n.b!==pending.b) || hitNode(sx,sy,12,pending.b);
+    if (!other) { pending=null; say('Cancelled — pick a node on another link.'); render(); return; }
+    if (alreadyJoined(pending,other)) { pending=null; say('Those nodes are already pinned.');
+      render(); return; }
+    pushUndo();
+    model.joints.push({type:'rev', a:pending.b, ia:pending.p, b:other.b, ib:other.p});
+    say(`Pinned ${model.bodies[pending.b].name}–${model.bodies[other.b].name}`);
+    pending=null; refresh();
+    return;
+  }
+
+  if (tool==='slider' || tool==='half') {
+    if (!pending) { const n=hitNode(sx,sy); if(n && n.b!==0){ pending={b:n.b,p:n.p}; render(); } return; }
+    // second click picks the track: a link, or empty canvas for a ground rail
+    const h=hitLink(sx,sy);
+    pushUndo();
+    let aIdx, aPt, ax;
+    if (h && h.bi!==pending.b) { aIdx=h.bi; aPt=0; ax=bodyAxis(h.bi); }
+    else { aIdx=0; aPt=addGroundPt(world); ax=0; }
+    const jt={type: tool==='slider'?'pris':'half', a:aIdx, ia:aPt, b:pending.b, ib:pending.p, ax};
+    if (jt.type==='pris') jt.dth0=model.bodies[aIdx].q[2]-model.bodies[pending.b].q[2];
+    model.joints.push(jt);
+    pending=null; refresh();
+    return;
+  }
+});
+
+cv.addEventListener('pointermove', e=>{
+  const [sx,sy]=evPos(e);
+  if (panning) { panX=sx-panStart[0]; panY=sy-panStart[1]; render(); return; }
+  if (drawing) { const a=snapAt(sx,sy); drawing.to=a.world; drawing.toNode=a.node;
+    render(); return; }
+  if (jog) { jogTo(S2W(sx,sy)); return; }
+  if (dragNode) {
+    const a=snapAt(sx,sy, dragNode.b), b=model.bodies[dragNode.b];
+    if (dragNode.b===0) b.pts[dragNode.p]={x:a.world[0], y:a.world[1]};
+    else {                              // world → this body's local frame
+      const th=-b.q[2], c=Math.cos(th), sn=Math.sin(th);
+      const dx=a.world[0]-b.q[0], dy=a.world[1]-b.q[1];
+      b.pts[dragNode.p]={x:c*dx-sn*dy, y:sn*dx+c*dy};
+    }
+    render(); return;
+  }
+  if (dragBody!==null) {
+    const w=S2W(sx,sy);
+    model.bodies[dragBody].q[0]=w[0]+dragOff[0];
+    model.bodies[dragBody].q[1]=w[1]+dragOff[1];
+    render(); return;
+  }
+});
+
+cv.addEventListener('pointerup', e=>{
+  if (panning) { panning=false; return; }
+  if (drawing) {
+    const {from,to,fromNode,toNode}=drawing; drawing=null;
+    const L=Math.hypot(to[0]-from[0], to[1]-from[1]);
+    if (L>1.5) {
+      const ang=Math.atan2(to[1]-from[1], to[0]-from[0]);
+      const n=model.bodies.length;
+      model.bodies.push({ pts:[{x:0,y:0},{x:L,y:0}], q:[from[0],from[1],ang],
+        q0:[from[0],from[1],ang], name:'L'+n, col:LCOL[n%LCOL.length] });
+      // An endpoint dropped on an existing node becomes a pin automatically —
+      // draw a chain of links and it comes out already connected.
+      let made=0;
+      if (fromNode) { model.joints.push({type:'rev', a:fromNode.b, ia:fromNode.p, b:n, ib:0}); made++; }
+      if (toNode)   { model.joints.push({type:'rev', a:toNode.b,   ia:toNode.p,   b:n, ib:1}); made++; }
+      say(made ? `Link L${n} added, ${made} joint${made>1?'s':''} snapped`
+               : `Link L${n} added (length ${L.toFixed(1)})`);
+    }
+    refresh(); return;
+  }
+  if (jog) { jog=null; cv.style.cursor='grab'; return; }
+  if (dragNode) { dragNode=null; cv.style.cursor='grab'; assemble(); return; }
+  if (dragBody!==null) { dragBody=null; cv.style.cursor='grab'; assemble(); }
+});
+
+cv.addEventListener('wheel', e=>{
+  e.preventDefault();
+  const [sx,sy]=evPos(e), before=S2W(sx,sy);
+  viewScale=Math.min(40,Math.max(.4, viewScale*(e.deltaY<0?1.12:1/1.12)));
+  const after=S2W(sx,sy);
+  panX += (after[0]-before[0])*viewScale;
+  panY -= (after[1]-before[1])*viewScale;
+  updZoom(); render();
+}, {passive:false});
+
+cv.addEventListener('dblclick', resetView);
+
+// Ground points are created on demand by the Ground and Slider tools, so
+// deleting a link can strand them. Drop the unreferenced ones and renumber.
+function pruneGround(){
+  const used=new Set();
+  model.joints.forEach(jt=>{ if(jt.a===0) used.add(jt.ia); if(jt.b===0) used.add(jt.ib); });
+  if (model.probe && model.probe.b===0) used.add(model.probe.p);
+  const keep=[...used].sort((a,b)=>a-b);
+  if (keep.length===model.bodies[0].pts.length) return;
+  const map=new Map(keep.map((old,i)=>[old,i]));
+  model.bodies[0].pts=keep.map(i=>model.bodies[0].pts[i]);
+  model.joints.forEach(jt=>{ if(jt.a===0) jt.ia=map.get(jt.ia);
+                             if(jt.b===0) jt.ib=map.get(jt.ib); });
+  if (model.probe && model.probe.b===0) model.probe.p=map.get(model.probe.p);
+}
+
+// Velocity of a point fixed in a body:  v = ṙ + θ̇·B(θ)·s
+function pointVel(bi, s, qd){
+  const th=model.bodies[bi].q[2], w=qd[bi*3+2], Bs=mv(Bmat(th),[s.x,s.y]);
+  return [qd[bi*3]+w*Bs[0], qd[bi*3+1]+w*Bs[1]];
+}
+
+/* Drag the mechanism through its own motion.
+   The grabbed point can only travel along the path the constraints allow, so
+   instead of moving it to the cursor we solve for the driver time whose pose
+   puts it closest: Newton on  f(t) = (cursor − P(t))·v̂ , where v = dP/dt is
+   already available from the velocity solution. Two or three steps converge. */
+function jogTo(cursor){
+  if (!jog || !range) return;
+  const {bi, s}=jog;
+  for (let k=0;k<3;k++){
+    const qd=solveVelocity(model.t);
+    const P=worldPt(model.bodies[bi], s), v=pointVel(bi, s, qd);
+    const vv=v[0]*v[0]+v[1]*v[1];
+    if (vv<1e-9) break;                       // dead centre — no motion to follow
+    let dt=((cursor[0]-P[0])*v[0]+(cursor[1]-P[1])*v[1])/vv;
+    const cap=(range.hi-range.lo)/12;
+    dt=Math.max(-cap, Math.min(cap, dt));
+    let nt=model.t+dt;
+    if (range.full){ if(nt>range.hi) nt-=range.T; if(nt<range.lo) nt+=range.T; }
+    else nt=clampT(nt);
+    const save=snapQ();
+    if (!solvePosition(nt).ok){ restoreQ(save); solvePosition(model.t); break; }
+    model.t=nt;
+  }
+  updScrub(); updBadge({ok:true}); render();
+}
+
+function deleteBody(bi){
+  if (bi===0) return;
+  model.joints = model.joints.filter(jt=>jt.a!==bi && jt.b!==bi)
+    .map(jt=>({...jt, a: jt.a>bi?jt.a-1:jt.a, b: jt.b>bi?jt.b-1:jt.b}));
+  model.bodies.splice(bi,1);
+  if (model.probe) { if(model.probe.b===bi) model.probe=null;
+    else if(model.probe.b>bi) model.probe.b--; }
+  pruneGround();
+}
+
+function assemble(){
+  const r=solvePosition(model.t);
+  pathPts=[];
+  refresh(r);
+  return r;
+}
+
+/* ── Range of travel ──────────────────────────────────────────────
+   Sweeps the driver forward and back from the current pose to find where
+   the linkage stops assembling, then bisects onto the exact limit. A full
+   revolution reports full:true; anything less is a rocking motion whose
+   two toggle positions bound the travel.
+   ─────────────────────────────────────────────────────────────────── */
+function findRange(){
+  const drv=drivers(), d=dofInfo();
+  if (!drv.length || d.nd!==d.numeric || d.numeric<1){ range=null; return null; }
+  const T=Math.abs(60/(drv[0].jt.rpm||60));
+  const save=snapQ(), t0=model.t, N=180;
+  const dtStep=T/N;
+  let ref=null, refT=t0;              // pose we are continuing from, and its time
+  const reach=t=>stepTo(t, ref, refT, dtStep).ok;
+
+  const sweep=(sign)=>{
+    restoreQ(save); model.t=t0; solvePosition(t0);
+    let good=snapQ(), edge=t0;
+    ref=good; refT=t0;
+    for (let i=1;i<=N;i++){
+      const t=t0+sign*T*i/N;
+      if (!reach(t)){
+        let a=edge, b=t;                       // bisect onto the limit
+        for (let k=0;k<18;k++){
+          const m=(a+b)/2; restoreQ(good); ref=good; refT=a;
+          if (reach(m)){ a=m; good=snapQ(); } else b=m;
+        }
+        return {edge:a, full:false};
+      }
+      good=snapQ(); ref=good; refT=t; edge=t; logSlide();
+    }
+    return {edge, full:true};
+  };
+
+  const slide=model.joints.filter(j=>j.type!=='rev'&&validJoint(j));
+  slide.forEach(j=>{ j._smin=Infinity; j._smax=-Infinity; });
+  const logSlide=()=>slide.forEach(j=>{
+    const ba=model.bodies[j.a], A=worldPt(ba,jSA(j)), Bp=worldPt(model.bodies[j.b],jSB(j));
+    const ang=ba.q[2]+j.ax, u=[Math.cos(ang),Math.sin(ang)];
+    const p=(Bp[0]-A[0])*u[0]+(Bp[1]-A[1])*u[1];
+    j._smin=Math.min(j._smin,p); j._smax=Math.max(j._smax,p);
+  });
+
+  const fwd=sweep(1);
+  let lo, hi, full=false;
+  if (fwd.full){ lo=t0; hi=t0+T; full=true; }
+  else { hi=fwd.edge; lo=sweep(-1).edge; }
+
+  restoreQ(save); model.t=t0; solvePosition(t0);
+  range={lo,hi,T,full};
+  return range;
+}
+const clampT = t => !range ? t : Math.max(range.lo, Math.min(range.hi, t));
+
+/* ═══════════════════════════════════════════════════════════════════
+   PART 4 — PANELS
+   ═══════════════════════════════════════════════════════════════════ */
+function refreshDOF(posRes){
+  const d=dofInfo();
+  const el=document.getElementById('dof-n');
+  el.textContent = d.numeric;
+  el.style.color = d.numeric===0 ? 'var(--red)' : d.numeric<0 ? 'var(--red)'
+    : d.numeric===1 ? 'var(--green)' : 'var(--amber)';
+
+  document.getElementById('dof-eq').innerHTML =
+    `M = 3(L−1) − 2J₁ − J₂<br>` +
+    `M = 3(<b>${d.L}</b>−1) − 2(<b>${d.J1}</b>) − (<b>${d.J2}</b>) = <b>${d.kutzbach}</b>`;
+
+  const msg=document.getElementById('dof-msg');
+  let cls='msg-ok', txt='';
+  if (d.L===1) { cls='msg-warn'; txt='Nothing built yet. Draw a link with the <b>Link</b> tool, then pin it.'; }
+  else if (d.redundant) { cls='msg-warn';
+    txt=`<b>Grübler's paradox.</b> The formula gives ${d.kutzbach}, but the Jacobian`+
+        ` rank says the real mobility is <b>${d.numeric}</b>. Some constraints are`+
+        ` redundant — a link duplicates a restraint another already imposes.`; }
+  else if (d.numeric<0) { cls='msg-bad';
+    txt=`<b>Over-constrained (${d.numeric}).</b> This is a preloaded structure — remove a link or a joint.`; }
+  else if (d.numeric===0) { cls='msg-bad';
+    txt='<b>Structure.</b> Zero mobility — it cannot move. Remove a constraint to free it up.'; }
+  else if (d.nd===0) { cls='msg-warn';
+    txt=`Mobility <b>${d.numeric}</b>. Now mark ${d.numeric===1?'a joint':d.numeric+' joints'}`+
+        ` as ⟳ driver${d.numeric>1?'s':''} in the joint list to make it move.`; }
+  else if (d.nd<d.numeric) { cls='msg-warn';
+    txt=`<b>Under-driven.</b> Mobility is ${d.numeric} but only ${d.nd} driver`+
+        `${d.nd>1?'s are':' is'} set. Motion is not fully determined — add ${d.numeric-d.nd} more.`; }
+  else if (d.nd>d.numeric) { cls='msg-bad';
+    txt=`<b>Over-driven.</b> ${d.nd} drivers on a mobility-${d.numeric} mechanism. `+
+        `The drivers fight each other; remove ${d.nd-d.numeric}.`; }
+  else if (posRes && !posRes.ok) { cls='msg-bad';
+    txt='<b>Cannot assemble.</b> The links physically cannot close at this position — '+
+        'check the link lengths, or drag a link nearer its intended pose and press Assemble.'; }
+  else { cls='msg-ok';
+    txt=`<b>Constrained mechanism.</b> Mobility ${d.numeric} with ${d.nd} driver`+
+        `${d.nd>1?'s':''} — motion is fully determined. Press ▶ Animate.`; }
+  msg.className='dof-msg '+cls; msg.innerHTML=txt;
+}
+
+function refreshLists(){
+  const ll=document.getElementById('link-list');
+  document.getElementById('link-count').textContent=(model.bodies.length-1)+' + ground';
+  ll.innerHTML='';
+  if (model.bodies.length<2) ll.innerHTML='<div class="empty">No links yet</div>';
+  model.bodies.forEach((b,bi)=>{
+    if(bi===0) return;
+    const row=document.createElement('div'); row.className='orow';
+    const len = b.pts.length>=2 ? Math.hypot(b.pts[1].x-b.pts[0].x, b.pts[1].y-b.pts[0].y) : 0;
+    row.innerHTML=`<span class="sw" style="background:${b.col}"></span>`+
+      `<span class="nm">${b.name} · ${b.pts.length} node${b.pts.length>1?'s':''}</span>`;
+    // Editable length — students design to specified link lengths, so this has
+    // to be a number they can type, not a readout. Scales every attachment
+    // point so a ternary link keeps its shape.
+    const li=document.createElement('input');
+    li.className='mini'; li.type='number'; li.step='any'; li.title='Link length';
+    li.value=len.toFixed(1); li.disabled=len<1e-9;
+    li.onchange=()=>{
+      const nv=parseFloat(li.value);
+      if(!isFinite(nv)||nv<=0){ li.value=len.toFixed(1); return; }
+      pushUndo();
+      const k=nv/len; b.pts.forEach(p=>{ p.x*=k; p.y*=k; });
+      assemble();
+    };
+    row.appendChild(li);
+    const x=document.createElement('button'); x.className='xbtn'; x.textContent='✕';
+    x.title='Delete link';
+    x.onclick=()=>{ pushUndo(); deleteBody(bi); refresh(); };
+    row.appendChild(x); ll.appendChild(row);
+  });
+
+  const jl=document.getElementById('joint-list');
+  const good=model.joints.filter(validJoint);
+  document.getElementById('joint-count').textContent=
+    `J₁=${good.filter(j=>j.type!=='half').length} · J₂=${good.filter(j=>j.type==='half').length}`;
+  jl.innerHTML='';
+  if (!model.joints.length) jl.innerHTML='<div class="empty">No joints yet</div>';
+  model.joints.forEach((jt,i)=>{
+    const row=document.createElement('div'); row.className='orow';
+    const nm=(k)=>model.bodies[k]?model.bodies[k].name:'?';
+    const label = jt.type==='rev'?'Pin':jt.type==='pris'?'Slider':'Half';
+    const col   = jt.type==='rev'?'#055934':jt.type==='pris'?'#5C6660':'#733B43';
+    row.innerHTML=`<span class="sw" style="background:${col}"></span>`+
+      `<span class="nm">${label} · ${nm(jt.a)}–${nm(jt.b)}</span>`;
+    const setDriver=(on)=>{
+      pushUndo();
+      jt.drive=on;
+      if (on){ jt.rpm=jt.rpm||60;
+        jt.th0=model.bodies[jt.b].q[2]-model.bodies[jt.a].q[2]; }
+      model.t=0; refresh();
+    };
+
+    if (jt.type==='rev' && !jt.drive) {
+      const d=document.createElement('button');
+      d.className='drv-add'; d.textContent='⟳ drive';
+      d.title='Turn this joint into a driver (motor)';
+      d.onclick=()=>setDriver(true);
+      row.appendChild(d);
+    } else if (jt.type!=='rev') {
+      const inp=document.createElement('input'); inp.className='mini'; inp.type='number';
+      inp.value=(jt.ax*R2D).toFixed(0); inp.title='Track angle (°)';
+      inp.onchange=()=>{ pushUndo(); jt.ax=(parseFloat(inp.value)||0)*D2R; assemble(); };
+      row.appendChild(inp);
+    }
+
+    // Deleting the JOINT is destructive and lives apart from the motor
+    // controls, so that removing a motor can never take the connection with it.
+    const x=document.createElement('button'); x.className='xbtn jdel'; x.textContent='✕';
+    x.title='Delete this joint (removes the connection between the links)';
+    x.onclick=()=>{ pushUndo(); model.joints.splice(i,1); pruneGround(); refresh(); };
+    row.appendChild(x); jl.appendChild(row);
+
+    // Driver settings get their own row, with their own remove button.
+    if (jt.type==='rev' && jt.drive) {
+      const dr=document.createElement('div'); dr.className='drv-row';
+      const tag=document.createElement('span'); tag.className='drv-tag'; tag.textContent='⟳';
+      tag.title='This joint drives the mechanism';
+      dr.appendChild(tag);
+      const inp=document.createElement('input'); inp.className='mini'; inp.type='number';
+      inp.value=jt.rpm; inp.title='Driver speed (rpm)';
+      inp.onchange=()=>{ jt.rpm=parseFloat(inp.value)||0; model.t=0; refresh(); };
+      dr.appendChild(inp);
+      const u=document.createElement('span'); u.className='drv-u'; u.textContent='rpm';
+      dr.appendChild(u);
+      const off=document.createElement('button'); off.className='drv-off';
+      off.textContent='remove motor';
+      off.title='Stop driving this joint — the joint itself stays';
+      off.onclick=()=>setDriver(false);
+      dr.appendChild(off);
+      jl.appendChild(dr);
+    }
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PART 5 — CYCLE SWEEP + CHARTS
+   ═══════════════════════════════════════════════════════════════════ */
+let charts={};
+const CH_BASE = {
+  responsive:true, maintainAspectRatio:true, animation:false,
+  plugins:{ legend:{ display:true, labels:{ boxWidth:9, font:{size:9} } } },
+  scales:{ x:{ type:'linear',        // data is {x,y} pairs, not categories
+               title:{display:true,text:'driver angle (°)',font:{size:9}},
+               ticks:{font:{size:8},maxTicksLimit:7} },
+           y:{ ticks:{font:{size:8}} } },
+  elements:{ point:{radius:0}, line:{borderWidth:2, tension:.25} },
+};
+function mkChart(id,label,sets){
+  const c=document.getElementById(id);
+  if (charts[id]) charts[id].destroy();
+  charts[id]=new Chart(c.getContext('2d'),{ type:'line',
+    data:{ datasets: sets }, options: JSON.parse(JSON.stringify(CH_BASE)) });
+  return charts[id];
+}
+
+// Sweep one full revolution of the FIRST driver, recording the probe's
+// position, velocity and acceleration. Positions are solved by continuation
+// from the previous step so the mechanism stays on one assembly circuit.
+function runCycle(){
+  const drv=drivers();
+  const d=dofInfo();
+  if (!drv.length || !model.probe || d.numeric<1 || d.nd!==d.numeric) return null;
+  const rpm=drv[0].jt.rpm||60;
+  if (!rpm) return null;
+  const T=Math.abs(60/rpm);                        // seconds per revolution
+  // Plot the motion the mechanism actually has. A crank gets a full
+  // revolution; a rocker gets its travel between the two toggle positions,
+  // rather than a blind 0→360° sweep that would mostly fail to assemble.
+  const rg=range || findRange();
+  // Start a hair inside a toggle position: exactly at the limit the Jacobian
+  // is singular and the first step out of it is ill-conditioned.
+  const inset = rg && !rg.full ? (rg.hi-rg.lo)*0.004 : 0;
+  const t0 = rg ? rg.lo+inset : 0;
+  const t1 = rg ? (rg.full ? rg.lo+T : rg.hi-inset) : T;
+  const omega=Math.abs(rpm)*TAU/60;
+  const N=121, save=snapQ(), saveT=model.t;
+  const out={th:[],x:[],y:[],vx:[],vy:[],ax:[],ay:[],gaps:0,
+             partial: !!(rg && !rg.full)};
+  let lastGood=null, tPrev=t0;
+  for (let i=0;i<N;i++){
+    const t=t0+(t1-t0)*i/(N-1);
+    const r=stepTo(t, lastGood, tPrev, (t1-t0)/(N-1));
+    const frac=(t-t0)*omega*R2D;                   // degrees swept by the driver
+    out.th.push(frac);
+    // A failed step leaves q half-converged. Rewind to the last good pose so
+    // the continuation keeps its circuit and can recover once the driver comes
+    // back into reach — otherwise one unreachable angle poisons the rest.
+    if (!r.ok){ if(lastGood) restoreQ(lastGood); out.gaps++;
+      out.x.push(null); out.y.push(null); out.vx.push(null); out.vy.push(null);
+      out.ax.push(null); out.ay.push(null); continue; }
+    lastGood=snapQ(); tPrev=t;
+    const P=nodeWorld(model.probe.b, model.probe.p);
+    const qd=solveVelocity(t), qdd=solveAccel(t);
+    const b=model.bodies[model.probe.b], s=b.pts[model.probe.p];
+    const th=b.q[2], w=qd[model.probe.b*3+2], al=qdd[model.probe.b*3+2];
+    const Bs=mv(Bmat(th),[s.x,s.y]), As=mv(Amat(th),[s.x,s.y]);
+    out.x.push(P[0]); out.y.push(P[1]);
+    out.vx.push(qd[model.probe.b*3]   + w*Bs[0]);
+    out.vy.push(qd[model.probe.b*3+1] + w*Bs[1]);
+    out.ax.push(qdd[model.probe.b*3]   + al*Bs[0] - w*w*As[0]);
+    out.ay.push(qdd[model.probe.b*3+1] + al*Bs[1] - w*w*As[1]);
+  }
+  restoreQ(save); model.t=saveT; solvePosition(model.t);
+  return out;
+}
+
+function noteOn(id,txt){
+  const c=document.getElementById(id.replace('note-','ch-')),
+        n=document.getElementById(id);
+  c.style.display='none'; n.style.display='block'; n.innerHTML=txt;
+}
+function noteOff(id){
+  document.getElementById(id.replace('note-','ch-')).style.display='block';
+  document.getElementById(id).style.display='none';
+}
+
+function refreshCharts(){
+  const d=dofInfo();
+  let why=null;
+  if (!model.probe) why='Pick a point with the <b>Probe</b> tool to plot its motion.';
+  else if (d.numeric<1) why='Mechanism has no mobility to plot.';
+  else if (d.nd!==d.numeric) why='Set one driver per degree of freedom to plot a cycle.';
+  if (why){ ['note-pos','note-vel','note-acc'].forEach(i=>noteOn(i,why)); return; }
+
+  const cyc=runCycle();
+  if (!cyc){ ['note-pos','note-vel','note-acc'].forEach(i=>noteOn(i,'No cycle data.')); return; }
+  if (cyc.gaps>0 && cyc.gaps>=cyc.th.length-1){
+    ['note-pos','note-vel','note-acc'].forEach(i=>noteOn(i,
+      'The mechanism cannot assemble anywhere in the cycle. Check the link lengths.'));
+    return;
+  }
+  ['note-pos','note-vel','note-acc'].forEach(noteOff);
+
+  // A partial cycle is a real result, not an error: the driven link is not a
+  // crank. Say so, because this is the Grashof lesson.
+  if (cyc.partial) {
+    const sweep=Math.round(cyc.th[cyc.th.length-1]-cyc.th[0]);
+    say(`Driver sweeps ${sweep}° of 360° — this link rocks, it does not crank `+
+        `(Grashof: the shortest link must be the crank or the ground).`);
+  }
+
+  const XY=(arr)=>cyc.th.map((t,i)=>({x:t,y:arr[i]}));
+  const mag=(a,b)=>a.map((v,i)=> (v===null||b[i]===null)?null:Math.hypot(v,b[i]));
+
+  mkChart('ch-pos','pos',[
+    {label:'x', data:XY(cyc.x), borderColor:'#055934', spanGaps:false},
+    {label:'y', data:XY(cyc.y), borderColor:'#A68A58', spanGaps:false}]);
+  mkChart('ch-vel','vel',[
+    {label:'|v|', data:XY(mag(cyc.vx,cyc.vy)), borderColor:'#208D44', spanGaps:false},
+    {label:'vx',  data:XY(cyc.vx), borderColor:'#C2CCC6', spanGaps:false},
+    {label:'vy',  data:XY(cyc.vy), borderColor:'#8D9991', spanGaps:false}]);
+  mkChart('ch-acc','acc',[
+    {label:'|a|', data:XY(mag(cyc.ax,cyc.ay)), borderColor:'#733B43', spanGaps:false},
+    {label:'ax',  data:XY(cyc.ax), borderColor:'#C2CCC6', spanGaps:false},
+    {label:'ay',  data:XY(cyc.ay), borderColor:'#8D9991', spanGaps:false}]);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PART 6 — ANIMATION
+   ═══════════════════════════════════════════════════════════════════ */
+let animOn=false, animRAF=null, lastT=0, lastGoodQ=null;
+
+function setAnimBtns(){
+  const on=animOn;
+  const a=document.getElementById('anim-btn'), b=document.getElementById('anim-btn2');
+  if(a) a.textContent = on?'⏸ Pause':'▶ Animate';
+  if(b) b.textContent = on?'⏸':'▶';
+}
+function toggleAnim(){
+  if (!range) findRange();
+  animOn=!animOn; setAnimBtns();
+  if (animOn){ lastT=performance.now(); pathPts=[]; lastGoodQ=snapQ(); animDir=1;
+    animRAF=requestAnimationFrame(step); }
+  else cancelAnimationFrame(animRAF);
+}
+function stopAnim(msg){
+  animOn=false; cancelAnimationFrame(animRAF); setAnimBtns();
+  if(msg) say(msg);
+}
+
+// Move the mechanism to a given driver time, keeping everything in step.
+function gotoT(t, keepPath){
+  const save=snapQ();
+  const r=solvePosition(t);
+  if (!r.ok){ restoreQ(save); solvePosition(model.t); return false; }
+  model.t=t;
+  if (!keepPath) pathPts=[];
+  updScrub(); updBadge(r); render();
+  return true;
+}
+function updScrub(){
+  const sl=document.getElementById('scrub'), lb=document.getElementById('scrub-lbl');
+  if(!sl||!lb) return;
+  if (!range){ sl.value=0; sl.disabled=true; lb.textContent='no driver'; return; }
+  sl.disabled=false;
+  const f=(model.t-range.lo)/(range.hi-range.lo||1);
+  sl.value=Math.round(Math.max(0,Math.min(1,f))*1000);
+  const span=(range.hi-range.lo)/range.T*360;
+  lb.textContent = range.full ? 'full 360°' : `rocks ${span.toFixed(0)}°`;
+  const ab=document.getElementById('drv-ang');
+  if (ab && document.activeElement!==ab){
+    const a=driverAngleDeg();
+    ab.value = a===null ? '' : a.toFixed(0);
+  }
+}
+function stepBy(dir){
+  if(!range) findRange();
+  if(!range) return;
+  stopAnim();
+  const dt=(range.hi-range.lo)/72;               // 5° of a full revolution
+  let t=model.t+dir*dt;
+  if (range.full){ if(t>range.hi) t-=range.T; if(t<range.lo) t+=range.T; }
+  else t=clampT(t);
+  gotoT(t,true);
+}
+// Current driver angle (θ₂ for a ground-pinned crank), in degrees.
+function driverAngleDeg(){
+  const d=drivers();
+  if (!d.length) return null;
+  const jt=d[0].jt, om=(jt.rpm||0)*TAU/60;
+  return (((jt.th0+om*model.t)*R2D)%360+360)%360;
+}
+// Jump straight to a typed angle — the "what is the position at θ = 45°?" case.
+function setDriverAngle(deg){
+  const d=drivers();
+  if (!d.length){ say('No driver set.'); return; }
+  if (!range) findRange();
+  const jt=d[0].jt, om=(jt.rpm||0)*TAU/60;
+  if (Math.abs(om)<1e-9){ say('Give the driver a non-zero rpm first.'); return; }
+  let t=(deg*D2R - jt.th0)/om;
+  if (range && range.full){
+    const T=range.T;                       // pick the revolution we are already in
+    t = range.lo + (((t-range.lo)%T)+T)%T;
+  }
+  const tc=clampT(t);
+  stopAnim();
+  if (Math.abs(tc-t)>1e-9) say(`θ = ${deg}° is outside this mechanism's travel.`);
+  gotoT(tc,true);
+}
+document.getElementById('drv-ang').addEventListener('change', e=>{
+  const v=parseFloat(e.target.value);
+  if (isFinite(v)) setDriverAngle(v); else updScrub();
+});
+// Arrow keys nudge the mechanism when the page (not a field) has focus.
+window.addEventListener('keydown', e=>{
+  if (/^(INPUT|SELECT|TEXTAREA)$/.test((e.target.tagName)||'')) return;
+  if (e.key==='ArrowRight'){ stepBy(1);  e.preventDefault(); }
+  if (e.key==='ArrowLeft') { stepBy(-1); e.preventDefault(); }
+  if (e.key===' '){ toggleAnim(); e.preventDefault(); }
+});
+document.getElementById('scrub').addEventListener('input', e=>{
+  if(!range) findRange();
+  if(!range) return;
+  stopAnim();
+  gotoT(range.lo + (e.target.value/1000)*(range.hi-range.lo), true);
+});
+function step(now){
+  if(!animOn) return;
+  const dt=Math.min(.05,(now-lastT)/1000); lastT=now;
+  let t=model.t + animDir*dt;
+
+  // Bounce, wrap or halt at the ends of travel.
+  if (range){
+    if (range.full){
+      if (t>range.hi) t-=range.T;
+      if (t<range.lo) t+=range.T;
+    } else if (t>range.hi || t<range.lo){
+      const atTop = t>range.hi;
+      if (limitMode==='reverse'){ t=atTop?range.hi:range.lo; animDir=-animDir; }
+      else if (limitMode==='restart'){ t=atTop?range.lo:range.hi; pathPts=[]; }
+      else { t=atTop?range.hi:range.lo;
+        model.t=t; solvePosition(t); lastGoodQ=snapQ();
+        stopAnim('Reached the limit position.'); updScrub(); updBadge({ok:true});
+        render(); return; }
+    }
+  }
+  model.t=t;
+
+  const r=stepTo(model.t, lastGoodQ, model.t-animDir*dt, dt);
+  if (!r.ok) {
+    // Ran past the assembly limit anyway — hold the last valid pose rather
+    // than showing a shattered mechanism, and turn around if asked to.
+    if (lastGoodQ) restoreQ(lastGoodQ);
+    model.t-=animDir*dt;
+    if (limitMode==='reverse'){ animDir=-animDir; say('Reversed at the limit position.'); }
+    else stopAnim('Locked — the driven link cannot rotate past here.');
+    findRange(); updScrub(); updBadge({ok:true}); render();
+    if(animOn) animRAF=requestAnimationFrame(step);
+    return;
+  }
+  lastGoodQ=snapQ();
+  updScrub();
+  if (r.ok && model.probe && model.bodies[model.probe.b]){
+    pathPts.push(nodeWorld(model.probe.b,model.probe.p));
+    if (pathPts.length>900) pathPts.shift();
+  }
+  updBadge(r);
+  render();
+  animRAF=requestAnimationFrame(step);
+}
+function updBadge(r){
+  const drv=drivers();
+  const b=document.getElementById('cv-badge');
+  if (drv.length){
+    const jt=drv[0].jt, omega=(jt.rpm||0)*TAU/60;
+    const ang=((jt.th0+omega*model.t)*R2D)%360;
+    b.textContent='θ = '+((ang+360)%360).toFixed(1)+'°';
+  } else b.textContent='θ = —';
+  const info=document.getElementById('cv-info');
+  if (r && !r.ok){ info.style.color='var(--red)'; info.textContent='⚠ cannot assemble'; }
+  else if (model.probe && model.bodies[model.probe.b]){
+    const P=nodeWorld(model.probe.b,model.probe.p);
+    info.style.color='#A68A58';
+    info.textContent=`probe (${P[0].toFixed(2)}, ${P[1].toFixed(2)})`;
+  } else info.textContent='';
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PART 7 — EXAMPLES
+   ═══════════════════════════════════════════════════════════════════ */
+/* Examples are declared, not hand-assembled. Ground pivots are given exact
+   world coordinates and links exact lengths; the initial link poses are only
+   rough guesses, because Newton-Raphson assembles the mechanism from them.
+     links   : {name, len} or {name, pts:[[x,y]…]} in local coords, at:[x,y], ang°
+     grounds : {l, p, at:[x,y]}  pin link l's node p to the frame at `at`
+     pins    : [li, pi, lj, pj]  join two link nodes
+     slides  : {l, p, at|on, ang°, type:'pris'|'half'}
+     drive   : index into grounds                                              */
+function buildSpec(sp){
+  model=newModel(); pathPts=[]; model.t=0;
+  const B=model.bodies, J=model.joints;
+  sp.links.forEach((L,i)=>{
+    const pts = L.pts ? L.pts.map(p=>({x:p[0],y:p[1]})) : [{x:0,y:0},{x:L.len,y:0}];
+    const th=(L.ang||0)*D2R;
+    B.push({pts, q:[L.at[0],L.at[1],th], q0:[L.at[0],L.at[1],th],
+            name:L.name, col:LCOL[(i+1)%LCOL.length]});
+  });
+  (sp.grounds||[]).forEach(g=>{
+    B[0].pts.push({x:g.at[0], y:g.at[1]});
+    J.push({type:'rev', a:0, ia:B[0].pts.length-1, b:g.l+1, ib:g.p});
+  });
+  (sp.pins||[]).forEach(([li,pi,lj,pj])=>
+    J.push({type:'rev', a:li+1, ia:pi, b:lj+1, ib:pj}));
+  (sp.slides||[]).forEach(sl=>{
+    let a, ia;
+    if (sl.on==null){ B[0].pts.push({x:sl.at[0],y:sl.at[1]}); a=0; ia=B[0].pts.length-1; }
+    else { a=sl.on+1; ia=sl.onPt||0; }
+    const jt={type:sl.type||'pris', a, ia, b:sl.l+1, ib:sl.p, ax:(sl.ang||0)*D2R};
+    if (jt.type==='pris') jt.dth0=B[a].q[2]-B[sl.l+1].q[2];
+    J.push(jt);
+  });
+  if (sp.drive!=null){ const jt=J[sp.drive]; jt.drive=true; jt.rpm=sp.rpm||60; }
+  if (sp.probe) model.probe={b:sp.probe[0]+1, p:sp.probe[1]};
+  armDrivers();
+  undoStack=[];
+  resetView(); assemble();
+  say(sp.note||'');
+}
+
+const EXAMPLES = {
+  /* ── Four-bars ─────────────────────────────────────────────────── */
+  fourbar:{ note:'Grashof crank-rocker: shortest link is the grounded crank.',
+    links:[{name:'Crank',len:20,at:[0,0],ang:50},
+           {name:'Coupler',pts:[[0,0],[70,0],[35,28]],at:[13,15],ang:0},
+           {name:'Rocker',len:50,at:[80,0],ang:100}],
+    grounds:[{l:0,p:0,at:[0,0]},{l:2,p:0,at:[80,0]}],
+    pins:[[0,1,1,0],[1,1,2,1]], drive:0, probe:[1,2] },
+
+  draglink:{ note:'Drag-link: shortest link is the GROUND, so both cranks turn fully.',
+    links:[{name:'Crank',len:40,at:[0,0],ang:70},
+           {name:'Coupler',pts:[[0,0],[45,0],[22,18]],at:[14,38],ang:0},
+           {name:'Crank 2',len:35,at:[20,0],ang:30}],
+    grounds:[{l:0,p:0,at:[0,0]},{l:2,p:0,at:[20,0]}],
+    pins:[[0,1,1,0],[1,1,2,1]], drive:0, probe:[1,2] },
+
+  doublerocker:{ note:'Double-rocker: shortest link is the COUPLER — neither pivot turns fully.',
+    links:[{name:'Rocker A',len:35,at:[0,0],ang:75},
+           {name:'Coupler',pts:[[0,0],[20,0],[10,12]],at:[9,34],ang:0},
+           {name:'Rocker B',len:30,at:[40,0],ang:80}],
+    grounds:[{l:0,p:0,at:[0,0]},{l:2,p:0,at:[40,0]}],
+    pins:[[0,1,1,0],[1,1,2,1]], drive:0, probe:[1,2] },
+
+  parallelogram:{ note:'Parallelogram: the coupler stays parallel to the ground link.',
+    links:[{name:'Crank',len:30,at:[0,0],ang:60},
+           {name:'Coupler',pts:[[0,0],[80,0],[40,0]],at:[15,26],ang:0},
+           {name:'Rocker',len:30,at:[80,0],ang:60}],
+    grounds:[{l:0,p:0,at:[0,0]},{l:2,p:0,at:[80,0]}],
+    pins:[[0,1,1,0],[1,1,2,1]], drive:0, probe:[1,2] },
+
+  /* ── Sliders ───────────────────────────────────────────────────── */
+  slider:{ note:'In-line slider-crank: the slide axis passes through the crank centre.',
+    links:[{name:'Crank',len:22,at:[0,0],ang:40},
+           {name:'Coupler',len:75,at:[17,14],ang:0},
+           {name:'Piston',pts:[[0,0],[14,0]],at:[90,0],ang:0}],
+    grounds:[{l:0,p:0,at:[0,0]}],
+    pins:[[0,1,1,0],[1,1,2,0]],
+    slides:[{l:2,p:0,at:[0,0],ang:0,type:'pris'}], drive:0, probe:[2,0] },
+
+  offsetslider:{ note:'Offset slider-crank: the 25-unit offset makes the strokes unequal — a quick return.',
+    links:[{name:'Crank',len:22,at:[0,0],ang:40},
+           {name:'Coupler',len:75,at:[17,14],ang:0},
+           {name:'Piston',pts:[[0,0],[14,0]],at:[90,25],ang:0}],
+    grounds:[{l:0,p:0,at:[0,0]}],
+    pins:[[0,1,1,0],[1,1,2,0]],
+    slides:[{l:2,p:0,at:[0,25],ang:0,type:'pris'}], drive:0, probe:[2,0] },
+
+  scotchyoke:{ note:'Scotch yoke: the pin in a vertical slot gives exact simple harmonic motion.',
+    links:[{name:'Crank',len:25,at:[0,0],ang:35},
+           {name:'Yoke',pts:[[0,0],[0,42],[0,-42]],at:[20,0],ang:0}],
+    grounds:[{l:0,p:0,at:[0,0]}],
+    slides:[{l:1,p:0,at:[0,0],ang:0,type:'pris'},
+            {on:1,onPt:0,l:0,p:1,ang:90,type:'half'}],
+    drive:0, probe:[1,0] },
+
+  quickreturn:{ note:'Crank-shaper quick return: the crank pin rides in the lever slot (a half joint).',
+    links:[{name:'Crank',len:18,at:[0,40],ang:35},
+           {name:'Slotted lever',len:95,at:[0,-40],ang:72}],
+    grounds:[{l:0,p:0,at:[0,40]},{l:1,p:0,at:[0,-40]}],
+    slides:[{on:1,onPt:0,l:0,p:1,ang:0,type:'half'}], drive:0, probe:[1,1] },
+
+  /* ── Straight-line and six-bar ─────────────────────────────────── */
+  // Rockers perpendicular to the coupler at mid-stroke and turning in opposite
+  // senses — that is the condition that straightens the midpoint's path.
+  watt:{ note:"Watt's linkage: the coupler midpoint traces a near-straight line.",
+    links:[{name:'Rocker A',len:50,at:[-50,20],ang:0},
+           {name:'Coupler',pts:[[0,0],[40,0],[20,0]],at:[0,20],ang:-90},
+           {name:'Rocker B',len:50,at:[50,-20],ang:180}],
+    grounds:[{l:0,p:0,at:[-50,20]},{l:2,p:0,at:[50,-20]}],
+    pins:[[0,1,1,0],[1,1,2,1]], drive:0, probe:[1,2] },
+
+  // Base 48 : leg 60 : coupler 24 — the classic 4 : 5 : 2 ratio. The legs must
+  // CROSS; the uncrossed circuit is a different (and not straight) mechanism.
+  chebyshev:{ note:'Chebyshev linkage (4 : 5 : 2): the coupler midpoint runs almost straight.',
+    links:[{name:'Leg A',len:60,at:[0,0],ang:53.13},
+           {name:'Coupler',pts:[[0,0],[24,0],[12,0]],at:[36,48],ang:180},
+           {name:'Leg B',len:60,at:[48,0],ang:126.87}],
+    grounds:[{l:0,p:0,at:[0,0]},{l:2,p:0,at:[48,0]}],
+    pins:[[0,1,1,0],[1,1,2,1]], drive:0, probe:[1,2] },
+
+  stephenson:{ note:'Stephenson six-bar: a four-bar plus a dyad. L=6, J₁=7, so M=1.',
+    links:[{name:'Crank',len:25,at:[0,0],ang:60},
+           {name:'Coupler',pts:[[0,0],[70,0],[30,34]],at:[12,22],ang:0},
+           {name:'Rocker',len:55,at:[80,0],ang:105},
+           {name:'Link 5',len:45,at:[42,56],ang:255},
+           {name:'Link 6',len:35,at:[30,-55],ang:75}],
+    grounds:[{l:0,p:0,at:[0,0]},{l:2,p:0,at:[80,0]},{l:4,p:0,at:[30,-55]}],
+    pins:[[0,1,1,0],[1,1,2,1],[1,2,3,0],[3,1,4,1]], drive:0, probe:[1,2] },
+
+  /* ── Mobility teaching case ────────────────────────────────────── */
+  paradox:{ note:"Grübler's paradox: the formula says 0, but the redundant parallel link still lets it turn.",
+    links:[{name:'Crank',len:30,at:[0,0],ang:43},
+           {name:'Coupler',pts:[[0,0],[90,0],[45,0]],at:[22,20],ang:0},
+           {name:'Rocker',len:30,at:[90,0],ang:43},
+           {name:'Extra',len:30,at:[45,0],ang:43}],
+    grounds:[{l:0,p:0,at:[0,0]},{l:2,p:0,at:[90,0]},{l:3,p:0,at:[45,0]}],
+    pins:[[0,1,1,0],[1,1,2,1],[1,2,3,1]], drive:0, probe:[1,2] },
+};
+
+function loadExample(which){
+  const sp=EXAMPLES[which];
+  if(!sp) return;
+  pushUndo();
+  buildSpec(sp);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PART 8 — BOOT
+   ═══════════════════════════════════════════════════════════════════ */
+function refresh(posRes){
+  refreshDOF(posRes);
+  refreshLists();
+  refreshCharts();
+  findRange();
+  updScrub();
+  updBadge(posRes);
+  render();
+}
+window.addEventListener('resize', ()=>render());
+model=newModel();
+loadExample('fourbar');
+updZoom();
+document.querySelector('.mod-pill.active')?.scrollIntoView({inline:'center',block:'nearest'});
+</script>
+</body>
+</html>
