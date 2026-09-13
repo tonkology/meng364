@@ -414,6 +414,17 @@ let cycleData = null;
 /* ─────────────────────────────────────────────────────────────
    KINEMATICS  (identical to Modules 1 & 2)
 ───────────────────────────────────────────────────────────── */
+// Transmission angle μ — the angle at joint B between the coupler (link 3) and
+// the output link (link 4), μ = θ₄ − θ₃ taken in 0…180°. Force transmission
+// scales with sin μ, so 90° is ideal and quality is symmetric about it:
+// muQuality() folds μ to 0…90 (90 = ideal) for classification.
+function transmissionAngle(th3, th4) {
+  let m = (th4 - th3) * R2D;
+  m = ((m % 360) + 360) % 360;
+  return m > 180 ? 360 - m : m;
+}
+function muQuality(mu) { return 90 - Math.abs(mu - 90); }
+
 function positionAnalysis(th2,a,b,c,d,assembly){
   const K1=d/a, K2=d/c, K3=(a*a-b*b+c*c+d*d)/(2*a*c);
   const c2=Math.cos(th2), s2=Math.sin(th2);
@@ -666,7 +677,7 @@ function computeCycle(){
     const vel=velocityAnalysis(t2,pos.th3,pos.th4,a,b,c,w2);
     const acc=accelerationAnalysis(t2,pos.th3,pos.th4,a,b,c,w2,vel.w3,vel.w4);
     const fa =forceAnalysis(t2,pos.th3,pos.th4,w2,vel.w3,vel.w4,acc.a3,acc.a4,a,b,c,d);
-    const mu =Math.acos(Math.min(1,Math.abs(Math.cos(pos.th3-pos.th4))))*R2D;
+    const mu =transmissionAngle(pos.th3,pos.th4);
 
     arr.th3.push(pos.th3*R2D); arr.th4.push(pos.th4*R2D);
     arr.w3.push(vel.w3); arr.w4.push(vel.w4);
@@ -774,7 +785,7 @@ function drawMechanism(t2){
   const vel=velocityAnalysis(t2,th3,th4,a,b,c,omega2);
   const acc=accelerationAnalysis(t2,th3,th4,a,b,c,omega2,vel.w3,vel.w4);
   const fa =forceAnalysis(t2,th3,th4,omega2,vel.w3,vel.w4,acc.a3,acc.a4,a,b,c,d);
-  const mu =Math.acos(Math.min(1,Math.abs(Math.cos(th3-th4))))*R2D;
+  const mu =transmissionAngle(th3,th4);
 
   const Awx=a*Math.cos(t2), Awy=a*Math.sin(t2);
   const Bwx=d+c*Math.cos(th4), Bwy=c*Math.sin(th4);
@@ -858,7 +869,8 @@ function drawMechanism(t2){
   document.getElementById('cv-badge').textContent=`θ₂ = ${deg}°`;
   document.getElementById('th2-lbl').textContent=`${deg}°`;
   document.getElementById('theta2-range').value=deg;
-  const muColor=mu<30?'#733B43':mu<45?'#A68A58':'#208D44';
+  const muQ=muQuality(mu);
+  const muColor=muQ<30?'#733B43':muQ<45?'#A68A58':'#208D44';
   document.getElementById('cv-mu').style.color=muColor;
   document.getElementById('cv-mu').textContent=`μ=${mu.toFixed(1)}°`;
 }

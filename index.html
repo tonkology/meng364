@@ -752,8 +752,27 @@ function accelerationAnalysis(th2, th3, th4, a, b, c, w2, w3, w4) {
  * Transmission angle μ — acute angle between coupler and follower at pin B.
  * Returns angle in degrees, in [0°, 90°].
  */
+/**
+ * Transmission angle μ — the angle at joint B between the coupler (link 3)
+ * and the output link (link 4), i.e. μ = θ₄ − θ₃ taken in 0…180°.
+ *
+ * It measures how effectively the coupler force drives the output: the useful
+ * component scales with sin μ, so μ = 90° is ideal and force transmission
+ * degrades as μ approaches 0° or 180°. Norton's rule of thumb is to keep
+ * 40° ≤ μ ≤ 140°.
+ *
+ * Quality is symmetric about 90°, so use transmissionQuality() to classify —
+ * μ = 96° transmits exactly as well as μ = 84°.
+ */
 function transmissionAngle(th3, th4) {
-  return Math.acos(Math.min(1, Math.abs(Math.cos(th3 - th4)))) * R2D;
+  let m = (th4 - th3) * R2D;
+  m = ((m % 360) + 360) % 360;
+  return m > 180 ? 360 - m : m;
+}
+
+/** Distance from the ideal 90°, folded to 0…90 (90 = ideal, 0 = useless). */
+function transmissionQuality(mu) {
+  return 90 - Math.abs(mu - 90);
 }
 
 /* ────────────────────────────────────────────────────────
@@ -796,6 +815,7 @@ function computeCycle() {
   const w2 = omega2;
 
   const th3 = [], th4 = [], w3 = [], w4 = [], a4 = [], mu = [];
+  let prev3 = null, prev4 = null;
 
   for (let i = 0; i < NPTS; i++) {
     const t2  = i * TAU / NPTS;
@@ -812,8 +832,16 @@ function computeCycle() {
     const acc = accelerationAnalysis(t2, pos.th3, pos.th4, a, b, c, w2, vel.w3, vel.w4);
     const muV = transmissionAngle(pos.th3, pos.th4);
 
-    th3.push(pos.th3 * R2D);
-    th4.push(pos.th4 * R2D);
+    // Unwrap against the previous sample: an output link that rotates fully
+    // would otherwise jump +180° → −180° and draw a spurious vertical line.
+    let v3 = pos.th3 * R2D, v4 = pos.th4 * R2D;
+    if (prev3 !== null) { while (v3 - prev3 >  180) v3 -= 360;
+                          while (v3 - prev3 < -180) v3 += 360; }
+    if (prev4 !== null) { while (v4 - prev4 >  180) v4 -= 360;
+                          while (v4 - prev4 < -180) v4 += 360; }
+    prev3 = v3; prev4 = v4;
+    th3.push(v3);
+    th4.push(v4);
     w3.push(vel.w3);
     w4.push(vel.w4);
     a4.push(acc.a4);
@@ -1026,10 +1054,11 @@ function drawMechanism(t2) {
   updateLivePanel(th3, th4, muV, vel, acc);
 
   // ── Transmission angle badge ─────────────────────────
-  const muColor = muV < 30 ? '#733B43' : muV < 45 ? '#A68A58' : '#208D44';
+  const muQ = transmissionQuality(muV);          // 90 = ideal, 0 = useless
+  const muColor = muQ < 30 ? '#733B43' : muQ < 45 ? '#A68A58' : '#208D44';
   const cvMu = document.getElementById('cv-mu');
   cvMu.style.color = muColor;
-  cvMu.textContent = `μ = ${muV.toFixed(1)}°  ${muV < 30 ? '⚠ poor' : muV < 45 ? '⚡ marginal' : '✓ good'}`;
+  cvMu.textContent = `μ = ${muV.toFixed(1)}°  ${muQ < 30 ? '⚠ poor' : muQ < 45 ? '⚡ marginal' : '✓ good'}`;
 }
 
 /* ── Canvas drawing helpers ──────────────────────────── */
@@ -1401,13 +1430,14 @@ function updateDiagnostics() {
   // 2. Transmission angle
   const muArr = cycleData.mu.filter(v=>isFinite(v));
   if (muArr.length) {
-    const muMin = Math.min(...muArr).toFixed(1);
-    const muMax = Math.max(...muArr).toFixed(1);
-    const warn = parseFloat(muMin) < 40;
-    obs.push(`<b>Transmission angle μ:</b> min = ${muMin}°, max = ${muMax}°. `
+    const muMin = Math.min(...muArr), muMax = Math.max(...muArr);
+    const warn = muMin < 40 || muMax > 140;        // μ is judged against BOTH limits
+    obs.push(`<b>Transmission angle μ:</b> min = ${muMin.toFixed(1)}°, max = ${muMax.toFixed(1)}°. `
       + (warn
-        ? `⚠ <span style="color:var(--red)">Min below 40° — force transmission is poor near this angle. Consider increasing the crank length <i>a</i> or reducing the ground link <i>d</i>.</span>`
-        : `✓ Stays above 40° — good force transmission throughout.`));
+        ? `⚠ <span style="color:var(--red)">Leaves the 40°–140° band, so force transmission is poor near `
+          + `${muMin < 40 ? 'the minimum' : 'the maximum'}. Consider increasing the crank length <i>a</i> `
+          + `or reducing the ground link <i>d</i>.</span>`
+        : `✓ Stays within 40°–140° — good force transmission throughout.`));
   }
 
   // 3. Speed context
