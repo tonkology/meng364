@@ -1244,8 +1244,8 @@ function jogTo(cursor){
     let nt=model.t+dt;
     if (range.full){ if(nt>range.hi) nt-=range.T; if(nt<range.lo) nt+=range.T; }
     else nt=clampT(nt);
-    const save=snapQ();
-    if (!solvePosition(nt).ok){ restoreQ(save); solvePosition(model.t); break; }
+    const save=snapQ(), tBefore=model.t;
+    if (!walkTo(nt)){ restoreQ(save); model.t=tBefore; solvePosition(tBefore); break; }
     model.t=nt;
   }
   updScrub(); updBadge({ok:true}); render();
@@ -1637,14 +1637,36 @@ function stopAnim(msg){
   if(msg) say(msg);
 }
 
+/* Walk the driver from where it is to where it is asked to go, in steps small
+   enough that the solver cannot leave the assembly circuit it is on.
+
+   A single jump is not safe even through stepTo(): its branch tolerance scales
+   with the size of the step, so a half-revolution scrub is allowed a half
+   revolution of slop and a circuit flip slips through unnoticed — the piston
+   of a slider-crank reappearing on the far side of the crank. Stepping at a
+   bounded angular increment keeps the tolerance tight and the branch intact. */
+function walkTo(tTarget){
+  const tPrev=model.t;
+  if (tTarget===tPrev) return true;
+  const T = (range && range.T) ? range.T : (Math.abs(tTarget-tPrev)||1);
+  const maxStep = T/64;                       // ≈5.6° of driver rotation
+  const nStep = Math.max(1, Math.min(256, Math.ceil(Math.abs(tTarget-tPrev)/maxStep)));
+  let cur=tPrev, prevQ=snapQ();
+  for (let i=1;i<=nStep;i++){
+    const tk = tPrev + (tTarget-tPrev)*i/nStep;
+    if (!stepTo(tk, prevQ, cur, tk-cur).ok) return false;
+    cur=tk; prevQ=snapQ();
+  }
+  return true;
+}
+
 // Move the mechanism to a given driver time, keeping everything in step.
 function gotoT(t, keepPath){
-  const save=snapQ();
-  const r=solvePosition(t);
-  if (!r.ok){ restoreQ(save); solvePosition(model.t); return false; }
+  const save=snapQ(), tPrev=model.t;
+  if (!walkTo(t)){ restoreQ(save); model.t=tPrev; solvePosition(tPrev); return false; }
   model.t=t;
   if (!keepPath) pathPts=[];
-  updScrub(); updBadge(r); render();
+  updScrub(); updBadge({ok:true}); render();
   return true;
 }
 function updScrub(){
@@ -1843,7 +1865,9 @@ const EXAMPLES = {
     grounds:[{l:0,p:0,at:[0,0]},{l:2,p:0,at:[40,0]}],
     pins:[[0,1,1,0],[1,1,2,1]], drive:0, probe:[1,2] },
 
-  parallelogram:{ note:'Parallelogram: the coupler stays parallel to the ground link.',
+  // S+L = P+Q exactly, so this is a change-point linkage: at the collinear pose
+  // the parallelogram and antiparallelogram branches meet and either is valid.
+  parallelogram:{ note:'Parallelogram: coupler stays parallel to the ground. At the collinear pose it can flip to the antiparallelogram — a change point.',
     links:[{name:'Crank',len:30,at:[0,0],ang:60},
            {name:'Coupler',pts:[[0,0],[80,0],[40,0]],at:[15,26],ang:0},
            {name:'Rocker',len:30,at:[80,0],ang:60}],
