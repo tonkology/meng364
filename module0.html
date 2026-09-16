@@ -200,7 +200,8 @@ body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
         <button class="tool active" data-tool="select"><span class="gl">✥</span>Move</button>
         <button class="tool" data-tool="link"><span class="gl">╱</span>Link</button>
         <button class="tool" data-tool="pin"><span class="gl">●</span>Pin (R)</button>
-        <button class="tool" data-tool="ground"><span class="gl">⏚</span>Ground</button>
+        <button class="tool" data-tool="frame"><span class="gl">▨</span>Frame link</button>
+        <button class="tool" data-tool="ground"><span class="gl">⏚</span>Ground pin</button>
         <button class="tool" data-tool="slider"><span class="gl">▭</span>Slider (P)</button>
         <button class="tool" data-tool="half"><span class="gl">◐</span>Half joint</button>
         <button class="tool" data-tool="node"><span class="gl">✚</span>Add node</button>
@@ -240,6 +241,17 @@ body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
       <div class="panel-note">
         <b>⟳ drive</b> makes a joint a motor — one per degree of freedom.
         <b>remove motor</b> stops it driving. <b>✕</b> deletes the joint.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-ttl">Inversion <span style="float:right;font-weight:600;
+        text-transform:none;letter-spacing:0;color:var(--muted)" id="inv-now"></span></div>
+      <div class="tools" id="inv-list"></div>
+      <div class="panel-note">
+        Hold a different link still. The chain and its relative motion are
+        unchanged — only your reference link. A slider-crank inverted gives the
+        quick-return and the Whitworth.
       </div>
     </div>
 
@@ -393,7 +405,7 @@ function matRank(M, tol=1e-7) {
 }
 
 /* ── Model ───────────────────────────────────────────────────────
-   bodies[0] is ALWAYS ground.
+   bodies[0] is the frame link; model.fixed picks which body is held still.
    body  = {pts:[{x,y}…] local, q:[x,y,θ], q0:[…], name, col}
    joint = {type, a, ia, b, ib, ax?, dth0?, drive?, rpm?, th0?}
      a/ia = body index + local point index on side A
@@ -403,10 +415,20 @@ let model = null;
 const LCOL = ['#8D9991','#055934','#A68A58','#208D44','#733B43','#0A353E',
               '#4A7C59','#B07D3F','#5C6660','#2E6B8A'];
 
+/* bodies[0] is the frame link. model.fixed says which body is actually held
+   stationary — changing it is a kinematic INVERSION: the chain and all its
+   relative motion are unchanged, only the link we choose to stand on. */
 function newModel() {
-  return { bodies:[{pts:[], q:[0,0,0], q0:[0,0,0], name:'Ground', col:LCOL[0], ground:true}],
-           joints:[], probe:null, t:0 };
+  return { bodies:[{pts:[], q:[0,0,0], q0:[0,0,0], name:'Ground link', col:LCOL[0], ground:true}],
+           joints:[], probe:null, t:0, fixed:0 };
 }
+const fixedBody = () => model.bodies[model.fixed] || model.bodies[0];
+
+/* bodies[0] only becomes a real link once something anchors to it. If the user
+   draws their own frame link and grounds that instead, bodies[0] is an empty
+   placeholder: it must not float free and contribute three phantom DOF, and it
+   must not be counted as a link by Kutzbach. */
+const phantomFrame = () => model.fixed!==0 && model.bodies[0].pts.length===0;
 const jSA = jt => model.bodies[jt.a].pts[jt.ia];
 const jSB = jt => model.bodies[jt.b].pts[jt.ib];
 
@@ -457,10 +479,35 @@ function jointRows(jt) {
 
 function kinematicRows() {
   const n=model.bodies.length*3, rows=[];
-  for (let k=0;k<3;k++){ const r=new Array(n).fill(0); r[k]=1;
-    rows.push({r, v: model.bodies[0].q[k]-model.bodies[0].q0[k]}); }
+  const fi=model.fixed|0, fb=model.bodies[fi];
+  for (let k=0;k<3;k++){ const r=new Array(n).fill(0); r[fi*3+k]=1;
+    rows.push({r, v: fb.q[k]-fb.q0[k]}); }
+  if (phantomFrame()) {                    // pin the unused placeholder down
+    const b0=model.bodies[0];
+    for (let k=0;k<3;k++){ const r=new Array(n).fill(0); r[k]=1;
+      rows.push({r, v: b0.q[k]-b0.q0[k]}); }
+  }
   model.joints.forEach(jt=>{ if(validJoint(jt)) rows.push(...jointRows(jt)); });
   return rows;
+}
+
+/* Re-ground onto another link. The newly fixed link is locked where it stands,
+   and the drivers keep their joints, so the relative motion is identical — the
+   student sees the same chain from a different reference link. */
+function setFixed(k){
+  if (k===model.fixed || !model.bodies[k]) return;
+  if (model.bodies[k].pts.length<2){
+    say('A frame link needs at least two joints — it has to hold the chain.');
+    return;
+  }
+  pushUndo(); stopAnim();
+  model.fixed=k;
+  model.bodies[k].q0=[...model.bodies[k].q];
+  model.joints.forEach(jt=>{ if(jt.drive) jt.th0=undefined; });   // re-arm here
+  model.t=0; range=null; pathPts=[]; lastGoodQ=null; animDir=1;
+  armDrivers();
+  assemble();
+  say(`Inversion: ${model.bodies[k].name} is now the fixed link.`);
 }
 
 const validJoint = jt => model.bodies[jt.a] && model.bodies[jt.b] &&
@@ -496,12 +543,14 @@ function driverRows(t) {
    A disagreement is a redundant constraint — Grübler's paradox.
    ─────────────────────────────────────────────────────────────── */
 function dofInfo() {
-  const L=model.bodies.length;
+  const L=model.bodies.length - (phantomFrame()?1:0);
   const good=model.joints.filter(validJoint);
   const J1=good.filter(j=>j.type==='rev'||j.type==='pris').length;
   const J2=good.filter(j=>j.type==='half').length;
   const kutzbach=3*(L-1)-2*J1-J2;
-  const numeric=3*L-matRank(kinematicRows().map(r=>r.r));
+  // Rank is taken over the FULL coordinate vector — the placeholder still has
+  // three coordinates, they are just pinned by their own constraint rows.
+  const numeric=3*model.bodies.length-matRank(kinematicRows().map(r=>r.r));
   return {kutzbach, numeric, L, J1, J2, redundant:kutzbach!==numeric, nd:drivers().length};
 }
 
@@ -697,29 +746,34 @@ function render() {
     ctx.setLineDash([]);
   });
 
-  // links
+  // links — every body is drawn, including the frame link, so an inversion
+  // looks like what it is: the same chain standing on a different link.
   model.bodies.forEach((b,bi)=>{
-    if (bi===0) return;
+    const isFixed = bi===model.fixed;
+    if (bi===0 && isFixed && b.pts.length<2) return;   // bare frame, nothing to draw
     const pw=b.pts.map(p=>W2S(worldPt(b,p)));
     if (pw.length>=2) {
-      ctx.strokeStyle=b.col; ctx.lineWidth=(bi===dragBody?7:5); ctx.lineJoin='round';
-      ctx.lineCap='round';
+      ctx.strokeStyle = isFixed ? '#8D9991' : b.col;
+      ctx.lineWidth=(bi===dragBody?7:5); ctx.lineJoin='round'; ctx.lineCap='round';
+      ctx.setLineDash(isFixed?[7,5]:[]);           // the fixed link reads as ground
       ctx.beginPath();
       if (pw.length>=3) { pw.forEach((s,i)=>i?ctx.lineTo(s[0],s[1]):ctx.moveTo(s[0],s[1]));
-        ctx.closePath(); ctx.fillStyle=b.col+'22'; ctx.fill(); }
+        ctx.closePath(); ctx.fillStyle=(isFixed?'#8D9991':b.col)+'22'; ctx.fill(); }
       else { ctx.moveTo(pw[0][0],pw[0][1]); ctx.lineTo(pw[1][0],pw[1][1]); }
-      ctx.stroke();
+      ctx.stroke(); ctx.setLineDash([]);
     }
     // label at centroid
     if (pw.length) {
       const cxm=pw.reduce((a,s)=>a+s[0],0)/pw.length, cym=pw.reduce((a,s)=>a+s[1],0)/pw.length;
-      ctx.fillStyle=b.col; ctx.font='bold 10px system-ui'; ctx.textAlign='center';
-      ctx.textBaseline='middle'; ctx.fillText(b.name, cxm, cym-12);
+      ctx.fillStyle=isFixed?'#5C6660':b.col; ctx.font='bold 10px system-ui';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(b.name+(isFixed?' ⏚':''), cxm, cym-12);
     }
   });
 
-  // ground points
-  model.bodies[0].pts.forEach((p,i)=>{ const s=W2S(worldPt(model.bodies[0],p)); groundSymbol(s[0],s[1]); });
+  // ground symbols mark the link that is actually held still
+  const fb=fixedBody();
+  fb.pts.forEach(p=>{ const s=W2S(worldPt(fb,p)); groundSymbol(s[0],s[1]); });
 
   // joints
   model.joints.forEach(jt=>{
@@ -739,7 +793,7 @@ function render() {
   });
 
   // free nodes (not yet jointed)
-  model.bodies.forEach((b,bi)=>{ if(bi===0) return;
+  model.bodies.forEach((b,bi)=>{ if(bi===model.fixed) return;
     b.pts.forEach((p,pi)=>{
       const used=model.joints.some(jt=>validJoint(jt) &&
         ((jt.a===bi&&jt.ia===pi)||(jt.b===bi&&jt.ib===pi)));
@@ -795,7 +849,8 @@ const HINTS = {
   select:'<b>Move</b> — with a motor set, drag anywhere to pull the mechanism through its motion. With no motor, drag a <b>node</b> to reshape a link or a <b>bar</b> to move it.',
   link:'<b>Link</b> — drag to draw. Ends snap to existing nodes and to the grid, and a snapped end is <b>pinned automatically</b> (green ring). Chain links together and they come out connected.',
   pin:'<b>Pin (revolute)</b> — click two nodes to join them. If two nodes already sit on the same spot, one click joins them. Removes 2 DOF.',
-  ground:'<b>Ground</b> — click a node to pin it to the frame. Removes 2 DOF.',
+  frame:'<b>Frame link</b> — click a link to make it the fixed frame (link 1). This is how a mechanism is normally grounded: you choose which <i>link</i> stands still. Click another to explore inversions.',
+  ground:'<b>Ground pin</b> — anchors a single joint to earth, building up the frame link as you go. Use this when you do not want to draw the frame link yourself.',
   slider:'<b>Slider (prismatic)</b> — click the sliding node, then the link it rides on (or empty canvas for a ground track). Removes 2 DOF.',
   half:'<b>Half joint</b> — pin-in-slot. Click the pin node, then the slotted link. Slides AND rotates, so it removes only 1 DOF.',
   node:'<b>Add node</b> — click a link to add an attachment point (makes ternary links for six-bars).',
@@ -826,14 +881,16 @@ function clearAll(){
 }
 
 function pushUndo(){
-  undoStack.push(JSON.stringify({bodies:model.bodies, joints:model.joints, probe:model.probe}));
+  undoStack.push(JSON.stringify({bodies:model.bodies, joints:model.joints,
+    probe:model.probe, fixed:model.fixed}));
   if (undoStack.length>40) undoStack.shift();
 }
 function undo(){
   if(!undoStack.length) return;
   const s=JSON.parse(undoStack.pop());
   model.bodies=s.bodies; model.joints=s.joints; model.probe=s.probe;
-  pathPts=[]; refresh();
+  model.fixed=s.fixed|0;
+  pathPts=[]; range=null; lastGoodQ=null; refresh();
 }
 
 function evPos(e){
@@ -883,7 +940,9 @@ function snapAt(sx,sy,exclude=null){
   return {world:gp, node:null};
 }
 function hitLink(sx,sy,tol=9){
-  for(let bi=model.bodies.length-1;bi>=1;bi--){
+  for(let bi=model.bodies.length-1;bi>=0;bi--){
+    if (bi===model.fixed) continue;        // the fixed link is not draggable
+    if (bi===0 && model.bodies[0].pts.length<2) continue;
     const b=model.bodies[bi], pw=b.pts.map(p=>W2S(worldPt(b,p)));
     for(let i=0;i<pw.length-(pw.length>=3?0:1);i++){
       const A=pw[i], B=pw[(i+1)%pw.length];
@@ -896,6 +955,18 @@ function hitLink(sx,sy,tol=9){
   }
   return null;
 }
+// The ground symbol is drawn as a triangle from the pivot down to +14px with
+// hatching to +20px, so the obvious thing to click sits well below the node.
+// Give it its own hit box covering what is actually painted.
+function hitGround(sx,sy){
+  const f=model.bodies[model.fixed];
+  for(let i=f.pts.length-1;i>=0;i--){
+    const s=W2S(worldPt(f,f.pts[i]));
+    if (Math.abs(sx-s[0])<=12 && sy>=s[1]-4 && sy<=s[1]+22) return i;
+  }
+  return null;
+}
+
 function hitJoint(sx,sy,tol=10){
   for(let i=model.joints.length-1;i>=0;i--){
     const jt=model.joints[i]; if(!validJoint(jt)) continue;
@@ -910,9 +981,13 @@ function bodyAxis(bi){
   if(b.pts.length<2) return 0;
   return Math.atan2(b.pts[1].y-b.pts[0].y, b.pts[1].x-b.pts[0].x);
 }
+// Adds an anchor point on the link that is currently held still, so the
+// Ground and Slider tools pin to real earth even after an inversion.
 function addGroundPt(world){
-  model.bodies[0].pts.push({x:world[0], y:world[1]});
-  return model.bodies[0].pts.length-1;
+  const f=fixedBody(), th=-f.q[2], c=Math.cos(th), sn=Math.sin(th);
+  const dx=world[0]-f.q[0], dy=world[1]-f.q[1];
+  f.pts.push({x:c*dx-sn*dy, y:sn*dx+c*dy});
+  return f.pts.length-1;
 }
 
 let panning=false, panStart=null;
@@ -969,9 +1044,20 @@ cv.addEventListener('pointerdown', e=>{
 
   if (tool==='delete') {
     const ji=hitJoint(sx,sy);
-    if (ji!==null) { pushUndo(); model.joints.splice(ji,1); pruneGround(); refresh(); return; }
+    if (ji!==null) { pushUndo(); model.joints.splice(ji,1); pruneGround();
+      say('Joint deleted.'); refresh(); return; }
+    const gi=hitGround(sx,sy);
+    if (gi!==null) {                       // clicked the hatched ground symbol
+      pushUndo();
+      const n=model.joints.length;
+      model.joints=model.joints.filter(jt=>
+        !((jt.a===model.fixed && jt.ia===gi) || (jt.b===model.fixed && jt.ib===gi)));
+      pruneGround();
+      say(`Ground pivot released (${n-model.joints.length} joint${n-model.joints.length===1?'':'s'} removed).`);
+      refresh(); return;
+    }
     const h=hitLink(sx,sy);
-    if (h) { pushUndo(); deleteBody(h.bi); refresh(); }
+    if (h) { pushUndo(); deleteBody(h.bi); say('Link deleted.'); refresh(); }
     return;
   }
 
@@ -990,11 +1076,21 @@ cv.addEventListener('pointerdown', e=>{
     return;
   }
 
+  if (tool==='frame') {
+    const h=hitLink(sx,sy);
+    if (h) { setFixed(h.bi); return; }
+    const nd=hitNode(sx,sy);
+    if (nd && nd.b!==model.fixed) { setFixed(nd.b); return; }
+    say('Click a link to make it the fixed frame.');
+    return;
+  }
+
   if (tool==='ground') {
     const n=hitNode(sx,sy);
-    if (n && n.b!==0) { pushUndo();
+    if (n && n.b!==model.fixed) { pushUndo();
       const gi=addGroundPt(nodeWorld(n.b,n.p));
-      model.joints.push({type:'rev', a:0, ia:gi, b:n.b, ib:n.p});
+      model.joints.push({type:'rev', a:model.fixed, ia:gi, b:n.b, ib:n.p});
+      say(`Pinned ${model.bodies[n.b].name} to ${fixedBody().name}.`);
       refresh(); }
     return;
   }
@@ -1037,7 +1133,7 @@ cv.addEventListener('pointerdown', e=>{
     pushUndo();
     let aIdx, aPt, ax;
     if (h && h.bi!==pending.b) { aIdx=h.bi; aPt=0; ax=bodyAxis(h.bi); }
-    else { aIdx=0; aPt=addGroundPt(world); ax=0; }
+    else { aIdx=model.fixed; aPt=addGroundPt(world); ax=-fixedBody().q[2]; }
     const jt={type: tool==='slider'?'pris':'half', a:aIdx, ia:aPt, b:pending.b, ib:pending.p, ax};
     if (jt.type==='pris') jt.dth0=model.bodies[aIdx].q[2]-model.bodies[pending.b].q[2];
     model.joints.push(jt);
@@ -1110,6 +1206,7 @@ cv.addEventListener('dblclick', resetView);
 // Ground points are created on demand by the Ground and Slider tools, so
 // deleting a link can strand them. Drop the unreferenced ones and renumber.
 function pruneGround(){
+  if (model.fixed!==0) return;      // body 0 is a moving link now; keep its nodes
   const used=new Set();
   model.joints.forEach(jt=>{ if(jt.a===0) used.add(jt.ia); if(jt.b===0) used.add(jt.ib); });
   if (model.probe && model.probe.b===0) used.add(model.probe.p);
@@ -1159,6 +1256,9 @@ function deleteBody(bi){
   model.joints = model.joints.filter(jt=>jt.a!==bi && jt.b!==bi)
     .map(jt=>({...jt, a: jt.a>bi?jt.a-1:jt.a, b: jt.b>bi?jt.b-1:jt.b}));
   model.bodies.splice(bi,1);
+  // deleting the link we were standing on drops us back onto the frame
+  if (model.fixed===bi) { model.fixed=0; model.bodies[0].q0=[...model.bodies[0].q]; }
+  else if (model.fixed>bi) model.fixed--;
   if (model.probe) { if(model.probe.b===bi) model.probe=null;
     else if(model.probe.b>bi) model.probe.b--; }
   pruneGround();
@@ -1266,6 +1366,26 @@ function refreshDOF(posRes){
     txt=`<b>Constrained mechanism.</b> Mobility ${d.numeric} with ${d.nd} driver`+
         `${d.nd>1?'s':''} — motion is fully determined. Press ▶ Animate.`; }
   msg.className='dof-msg '+cls; msg.innerHTML=txt;
+}
+
+function refreshInversions(){
+  const el=document.getElementById('inv-list');
+  if(!el) return;
+  el.innerHTML='';
+  document.getElementById('inv-now').textContent=
+    model.bodies[model.fixed] ? model.bodies[model.fixed].name : '—';
+  model.bodies.forEach((b,bi)=>{
+    // Only a link with at least two joint points can sensibly be the frame.
+    if (bi!==0 && b.pts.length<2) return;
+    if (bi===0 && b.pts.length<2) return;
+    const btn=document.createElement('button');
+    btn.className='tool'+(bi===model.fixed?' active':'');
+    btn.textContent=(bi===model.fixed?'⏚ ':'')+b.name;
+    btn.title=bi===model.fixed?'This link is held still':`Hold ${b.name} still instead`;
+    btn.onclick=()=>setFixed(bi);
+    el.appendChild(btn);
+  });
+  if(!el.children.length) el.innerHTML='<div class="empty">Build a mechanism first</div>';
 }
 
 function refreshLists(){
@@ -1406,6 +1526,11 @@ function runCycle(){
   const N=121, save=snapQ(), saveT=model.t;
   const out={th:[],x:[],y:[],vx:[],vy:[],ax:[],ay:[],gaps:0,
              partial: !!(rg && !rg.full)};
+  // Walk into the first sample instead of jumping to it. A rocker's reachable
+  // travel can sit well away from the current pose, and one large jump can
+  // land off the branch — which used to blank out half the plot.
+  for (let i=1;i<=24;i++) solvePosition(saveT+(t0-saveT)*i/24);
+
   let lastGood=null, tPrev=t0;
   for (let i=0;i<N;i++){
     const t=t0+(t1-t0)*i/(N-1);
@@ -1688,6 +1813,7 @@ function buildSpec(sp){
   });
   if (sp.drive!=null){ const jt=J[sp.drive]; jt.drive=true; jt.rpm=sp.rpm||60; }
   if (sp.probe) model.probe={b:sp.probe[0]+1, p:sp.probe[1]};
+  model.fixed=0;
   armDrivers();
   undoStack=[]; lastGoodQ=null; animDir=1; range=null;
   resetView(); assemble();
@@ -1731,7 +1857,9 @@ const EXAMPLES = {
            {name:'Piston',pts:[[0,0],[14,0]],at:[90,0],ang:0}],
     grounds:[{l:0,p:0,at:[0,0]}],
     pins:[[0,1,1,0],[1,1,2,0]],
-    slides:[{l:2,p:0,at:[0,0],ang:0,type:'pris'}], drive:0, probe:[2,0] },
+    // guide anchored at mid-stroke so the frame reads as a real member from the
+    // crank bearing to the slider guide, closing the loop visually
+    slides:[{l:2,p:0,at:[75,0],ang:0,type:'pris'}], drive:0, probe:[2,0] },
 
   offsetslider:{ note:'Offset slider-crank: the 25-unit offset makes the strokes unequal — a quick return.',
     links:[{name:'Crank',len:22,at:[0,0],ang:40},
@@ -1739,13 +1867,15 @@ const EXAMPLES = {
            {name:'Piston',pts:[[0,0],[14,0]],at:[90,25],ang:0}],
     grounds:[{l:0,p:0,at:[0,0]}],
     pins:[[0,1,1,0],[1,1,2,0]],
-    slides:[{l:2,p:0,at:[0,25],ang:0,type:'pris'}], drive:0, probe:[2,0] },
+    slides:[{l:2,p:0,at:[70,25],ang:0,type:'pris'}], drive:0, probe:[2,0] },
 
   scotchyoke:{ note:'Scotch yoke: the pin in a vertical slot gives exact simple harmonic motion.',
     links:[{name:'Crank',len:25,at:[0,0],ang:35},
            {name:'Yoke',pts:[[0,0],[0,42],[0,-42]],at:[20,0],ang:0}],
     grounds:[{l:0,p:0,at:[0,0]}],
-    slides:[{l:1,p:0,at:[0,0],ang:0,type:'pris'},
+    // the yoke's own mid-stroke is the crank centre, so the guide is anchored
+    // just beyond the stroke to keep the frame member visible
+    slides:[{l:1,p:0,at:[42,0],ang:0,type:'pris'},
             {on:1,onPt:0,l:0,p:1,ang:90,type:'half'}],
     drive:0, probe:[1,0] },
 
@@ -1806,6 +1936,7 @@ function loadExample(which){
 function refresh(posRes){
   refreshDOF(posRes);
   refreshLists();
+  refreshInversions();
   refreshCharts();
   findRange();
   updScrub();
