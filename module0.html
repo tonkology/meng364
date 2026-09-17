@@ -4,7 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MENG 364 — Module 0: Mechanism Builder</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<!-- bundled locally: the plots are the half of the tool that produces
+     evidence, and a blocked CDN would fail them silently -->
+<script src="chart.umd.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -88,6 +90,9 @@ body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
 .orow .sw { width:10px; height:10px; border-radius:3px; flex:0 0 auto; }
 .orow .nm { flex:1 1 auto; font-weight:600; min-width:0; overflow:hidden;
   text-overflow:ellipsis; white-space:nowrap; }
+.ang { flex:0 0 auto; font-family:'Courier New',monospace; font-size:.68rem;
+  font-variant-numeric:tabular-nums; color:var(--muted); font-weight:700;
+  min-width:40px; text-align:right; }
 .mini { width:46px; flex:0 0 auto; padding:3px 4px; border:1.5px solid var(--border);
   border-radius:4px; font-size:.71rem; font-weight:700; text-align:right; background:#FAFAFA;
   color:var(--text); }
@@ -147,7 +152,7 @@ body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
 .zoom-lbl { font-size:.7rem; color:var(--muted); min-width:38px; text-align:center; font-weight:600; }
 .spacer { flex:1; }
 
-.plots { display:grid; grid-template-columns:1fr 1fr 1fr; gap:11px; }
+.plots { display:grid; grid-template-columns:repeat(2,1fr); gap:11px; }
 @media (max-width:820px){ .plots{ grid-template-columns:1fr; } }
 .plt-card { background:var(--surface); border-radius:10px; box-shadow:0 1px 5px rgba(0,0,0,.09);
   padding:11px; }
@@ -206,6 +211,7 @@ body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
         <button class="tool" data-tool="half"><span class="gl">◐</span>Half joint</button>
         <button class="tool" data-tool="node"><span class="gl">✚</span>Add node</button>
         <button class="tool" data-tool="probe"><span class="gl">◎</span>Probe</button>
+        <button class="tool" data-tool="measure"><span class="gl">∠</span>Measure ∠</button>
         <button class="tool" data-tool="delete"><span class="gl">✕</span>Delete</button>
         <button class="tool" onclick="clearAll()"><span class="gl">⌫</span>Clear all</button>
       </div>
@@ -215,6 +221,13 @@ body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
       <div class="btns">
         <button class="btn btn-s" onclick="undo()">↶ Undo</button>
         <button class="btn btn-s" onclick="assemble()">⚙ Assemble</button>
+      </div>
+      <div class="btns">
+        <button class="btn btn-s" onclick="exportMechanism()"
+          title="Download this mechanism as a .json file">⭳ Save file</button>
+        <button class="btn btn-s" onclick="document.getElementById('imp').click()"
+          title="Open a mechanism .json file">⭱ Open file</button>
+        <input type="file" id="imp" accept=".json,application/json" hidden>
       </div>
     </div>
 
@@ -226,6 +239,22 @@ body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
       </div>
       <div class="dof-eq" id="dof-eq"></div>
       <div class="dof-msg" id="dof-msg"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-ttl">Angle between links
+        <span style="float:right;font-weight:600;text-transform:none;letter-spacing:0;
+          color:var(--muted)" id="mu-pair">—</span></div>
+      <div class="dof-big" style="padding:8px 6px 6px">
+        <div class="dof-n" id="mu-now" style="font-size:1.7rem">—</div>
+        <div class="dof-l">Transmission angle μ</div>
+      </div>
+      <div class="dof-msg" id="mu-msg" style="margin-top:8px"></div>
+      <div class="panel-note">
+        μ is the angle at the joint the two links share. 90° transmits best;
+        Norton's usable band is 40°–140°. Pick a different pair with
+        <b>Measure ∠</b>.
+      </div>
     </div>
 
     <div class="card">
@@ -313,6 +342,10 @@ body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
       </div>
     </div>
 
+    <div style="display:flex;justify-content:flex-end;margin:2px 0 8px">
+      <button class="zoom-btn" onclick="copyPlotData()"
+        title="Copy the plotted numbers as tab-separated columns">⧉ Copy plot data</button>
+    </div>
     <div class="plots">
       <div class="plt-card">
         <div class="plt-ttl">Probe position</div>
@@ -328,6 +361,13 @@ body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
         <div class="plt-ttl">Probe acceleration</div>
         <canvas id="ch-acc" height="150"></canvas>
         <div class="plt-note" id="note-acc" style="display:none"></div>
+      </div>
+      <div class="plt-card">
+        <div class="plt-ttl">Transmission angle μ</div>
+        <canvas id="ch-mu" height="150"></canvas>
+        <div class="plt-note" id="note-mu" style="display:none"></div>
+        <div id="mu-worst" style="font-size:.7rem;color:var(--muted);margin-top:6px;
+          line-height:1.45;font-weight:600"></div>
       </div>
     </div>
 
@@ -535,6 +575,56 @@ function driverRows(t) {
     const target=jt.th0 + omega*t;
     return {r, v: model.bodies[jt.b].q[2]-model.bodies[jt.a].q[2]-target, vt: omega};
   });
+}
+
+/* ── Angle between two links ─────────────────────────────────────
+   The transmission angle μ is this quantity taken between the coupler and
+   the output link: the angle at the joint they share. Reported on 0…180°,
+   the same convention as Modules 1–5 and as a hand calculation of θ₄ − θ₃,
+   so the tool and the worksheet agree.
+
+   Force transmission scales with sin μ, so 90° is ideal and quality falls
+   away symmetrically either side. Norton's usable band is 40°…140°;
+   muQuality() folds to 0…90 (90 = ideal) purely for classification.
+   ─────────────────────────────────────────────────────────────────── */
+function linkAngle(bi){
+  const b=model.bodies[bi];
+  if(!b || b.pts.length<2) return null;
+  const A=worldPt(b,b.pts[0]), B=worldPt(b,b.pts[1]);
+  return Math.atan2(B[1]-A[1], B[0]-A[0]);
+}
+function angleBetween(biA, biB){
+  const tA=linkAngle(biA), tB=linkAngle(biB);
+  if(tA===null || tB===null) return null;
+  let m=(tB-tA)*R2D;
+  m=((m%360)+360)%360;
+  return m>180 ? 360-m : m;
+}
+const muQuality = mu => 90-Math.abs(mu-90);
+
+/* Default pair for a four-bar: the two links meeting at the joint furthest
+   from the driver — the coupler and the output link. A six-bar has no single
+   right answer, so the student picks the pair with the Measure tool. */
+function defaultMeasurePair(){
+  const drv=drivers();
+  if(!drv.length) return null;
+  const dj=drv[0].jt;
+  const origin=worldPt(model.bodies[dj.b], jSB(dj));
+  let best=null, bd=-1;
+  model.joints.forEach(jt=>{
+    if(!validJoint(jt) || jt===dj) return;
+    if(jt.a===model.fixed || jt.b===model.fixed) return;   // skip ground pivots
+    if(model.bodies[jt.a].pts.length<2 || model.bodies[jt.b].pts.length<2) return;
+    const p=worldPt(model.bodies[jt.b], jSB(jt));
+    const d=Math.hypot(p[0]-origin[0], p[1]-origin[1]);
+    if(d>bd){ bd=d; best=jt; }
+  });
+  return best ? {a:best.a, b:best.b} : null;
+}
+function measurePair(){
+  if(model.measure && model.bodies[model.measure.a] && model.bodies[model.measure.b])
+    return model.measure;
+  return defaultMeasurePair();
 }
 
 /* ── Mobility ────────────────────────────────────────────────────
@@ -842,7 +932,7 @@ function render() {
    ═══════════════════════════════════════════════════════════════════ */
 let tool='select', pending=null, drawing=null, dragBody=null, dragOff=null, undoStack=[];
 let dragNode=null, snapOn=true, status='';
-let jog=null, range=null, animDir=1, limitMode='reverse';
+let jog=null, range=null, animDir=1, limitMode='reverse', pendingMeasure=null;
 let pathPts=[];
 
 const HINTS = {
@@ -855,6 +945,7 @@ const HINTS = {
   half:'<b>Half joint</b> — pin-in-slot. Click the pin node, then the slotted link. Slides AND rotates, so it removes only 1 DOF.',
   node:'<b>Add node</b> — click a link to add an attachment point (makes ternary links for six-bars).',
   probe:'<b>Probe</b> — click a node to trace its path and plot its kinematics.',
+  measure:'<b>Measure angle</b> — click two links to read the angle between them. On the coupler and the output link that angle is the <b>transmission angle μ</b>. Defaults to the pair furthest from the driver.',
   delete:'<b>Delete</b> — click a link or joint to remove it.',
 };
 
@@ -862,13 +953,84 @@ document.querySelectorAll('.tool[data-tool]').forEach(btn=>{
   btn.onclick=()=>{
     document.querySelectorAll('.tool[data-tool]').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
-    tool=btn.dataset.tool; pending=null;
+    tool=btn.dataset.tool; pending=null; pendingMeasure=null;
     document.getElementById('hint').innerHTML=HINTS[tool]||'';
     cv.style.cursor = tool==='select' ? 'grab' : 'crosshair';
     render();
   };
 });
 document.getElementById('hint').innerHTML=HINTS.select;
+
+/* ── Mechanism files ─────────────────────────────────────────────
+   Plain JSON, downloaded and re-opened locally — no backend, no accounts.
+   The point is not only to save your own work: a mechanism can be handed
+   out, so a class opens the same linkage instead of each building their own
+   slightly different one.
+   ─────────────────────────────────────────────────────────────────── */
+const FILE_VERSION = 1;
+
+function exportMechanism(){
+  const d=dofInfo();
+  const doc={
+    format:'meng364.mechanism', version:FILE_VERSION,
+    saved:new Date().toISOString().slice(0,10),
+    mobility:d.numeric,
+    bodies:model.bodies.map(b=>({name:b.name, col:b.col, ground:!!b.ground,
+      pts:b.pts.map(p=>({x:p.x,y:p.y})), q:[...b.q], q0:[...b.q0]})),
+    joints:model.joints.map(j=>({...j})),
+    fixed:model.fixed, probe:model.probe, measure:model.measure, t:model.t,
+  };
+  const name=(prompt('Save as:', 'mechanism')||'mechanism').replace(/[^\w.-]+/g,'_');
+  const blob=new Blob([JSON.stringify(doc,null,1)], {type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=name.endsWith('.json')?name:name+'.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+  say(`Saved ${a.download}.`);
+}
+
+// Never trust a file: a malformed one must say what is wrong, not half-load.
+function importMechanism(text, filename){
+  let doc;
+  try { doc=JSON.parse(text); }
+  catch(e){ say(`${filename} is not valid JSON.`); return false; }
+  if (!doc || doc.format!=='meng364.mechanism' || !Array.isArray(doc.bodies)){
+    say(`${filename} is not a mechanism file.`); return false; }
+  if (doc.version>FILE_VERSION){
+    say(`${filename} was saved by a newer version of this tool.`); return false; }
+  const nb=doc.bodies.length;
+  const okJoint=j=> j && typeof j.a==='number' && typeof j.b==='number' &&
+    j.a>=0 && j.b>=0 && j.a<nb && j.b<nb &&
+    doc.bodies[j.a].pts[j.ia] && doc.bodies[j.b].pts[j.ib];
+  if (!nb || !(doc.joints||[]).every(okJoint)){
+    say(`${filename} is damaged — a joint refers to a link that is not there.`);
+    return false; }
+
+  pushUndo(); stopAnim();
+  model={
+    bodies: doc.bodies.map((b,i)=>({ name:b.name||('L'+i), col:b.col||LCOL[i%LCOL.length],
+      ground:!!b.ground, pts:(b.pts||[]).map(p=>({x:+p.x,y:+p.y})),
+      q:[...b.q], q0:[...(b.q0||b.q)] })),
+    joints: (doc.joints||[]).map(j=>({...j})),
+    probe: doc.probe||null, measure: doc.measure||null,
+    t: +doc.t||0, fixed: Math.min(Math.max(0,doc.fixed|0), nb-1),
+  };
+  pathPts=[]; range=null; lastGoodQ=null; animDir=1; undoStack=[];
+  armDrivers(); resetView(); assemble();
+  say(`Opened ${filename} — ${nb-1} link${nb===2?'':'s'}, mobility ${dofInfo().numeric}.`);
+  return true;
+}
+
+document.getElementById('imp').addEventListener('change', e=>{
+  const file=e.target.files && e.target.files[0];
+  if(!file) return;
+  const rd=new FileReader();
+  rd.onload=()=>importMechanism(String(rd.result), file.name);
+  rd.onerror=()=>say(`Could not read ${file.name}.`);
+  rd.readAsText(file);
+  e.target.value='';                       // allow re-opening the same file
+});
 
 function say(msg){ status=msg;
   const el=document.getElementById('status'); if(el) el.textContent=msg; }
@@ -1068,6 +1230,19 @@ cv.addEventListener('pointerdown', e=>{
       const dx=world[0]-b.q[0], dy=world[1]-b.q[1];
       b.pts.push({x:c*dx-s*dy, y:s*dx+c*dy}); refresh(); }
     return;
+  }
+
+  if (tool==='measure') {
+    const h=hitLink(sx,sy) || (hitNode(sx,sy) ? {bi:hitNode(sx,sy).b} : null);
+    if (!h) { say('Click a link, then a second link.'); return; }
+    if (!pendingMeasure) { pendingMeasure=h.bi;
+      say(`${model.bodies[h.bi].name} — now click the second link.`); render(); return; }
+    if (h.bi===pendingMeasure) { pendingMeasure=null; say('Cancelled.'); render(); return; }
+    pushUndo();
+    model.measure={a:pendingMeasure, b:h.bi};
+    pendingMeasure=null;
+    say(`Measuring ${model.bodies[model.measure.a].name}–${model.bodies[model.measure.b].name}.`);
+    refresh(); return;
   }
 
   if (tool==='probe') {
@@ -1388,6 +1563,50 @@ function refreshInversions(){
   if(!el.children.length) el.innerHTML='<div class="empty">Build a mechanism first</div>';
 }
 
+function refreshMu(){
+  const el=document.getElementById('mu-now'), msg=document.getElementById('mu-msg'),
+        pl=document.getElementById('mu-pair');
+  if(!el) return;
+  const pr=measurePair();
+  if(!pr){ el.textContent='—'; el.style.color='var(--muted)';
+    pl.textContent='—'; msg.className='dof-msg msg-warn';
+    msg.innerHTML='Pick two links with <b>Measure ∠</b>, or set a driver and the '+
+      'coupler/output pair is chosen for you.';
+    return; }
+  pl.textContent=`${model.bodies[pr.a].name}–${model.bodies[pr.b].name}`;
+  const mu=angleBetween(pr.a, pr.b);
+  if(mu===null){ el.textContent='—'; return; }
+  const q=muQuality(mu);
+  el.textContent=mu.toFixed(1)+'°';
+  el.style.color = q<30?'var(--red)' : q<45?'var(--amber)' : 'var(--green)';
+
+  // A toggle is the driver's own limit of travel, which the range sweep has
+  // already located exactly — that is also where dragging stalls.
+  const atLimit = range && !range.full &&
+    (Math.abs(model.t-range.lo)<(range.hi-range.lo)*0.01 ||
+     Math.abs(model.t-range.hi)<(range.hi-range.lo)*0.01);
+  if (atLimit){
+    msg.className='dof-msg msg-warn';
+    msg.innerHTML='<b>Toggle / dead point.</b> The driver has reached its limit of '+
+      'travel. Dragging stalls here because the grabbed point has no velocity to '+
+      'follow — nudge sideways, or use the slider.';
+  } else if (mu<5 || mu>175){
+    msg.className='dof-msg msg-bad';
+    msg.innerHTML='<b>Dead point for this pair.</b> The links are collinear, so this '+
+      'pair transmits no force at all — the coupler pushes straight along the output link.';
+  } else if (mu<40 || mu>140){
+    msg.className='dof-msg msg-bad';
+    msg.innerHTML=`<b>Outside 40°–140°.</b> Force transmission is poor here — `+
+      `${(90-q).toFixed(0)}° from the ideal 90°.`;
+  } else if (q<60){
+    msg.className='dof-msg msg-warn';
+    msg.innerHTML=`Usable, but ${(90-q).toFixed(0)}° off the ideal 90°.`;
+  } else {
+    msg.className='dof-msg msg-ok';
+    msg.innerHTML=`<b>Good transmission.</b> Within ${(90-q).toFixed(0)}° of ideal.`;
+  }
+}
+
 function refreshLists(){
   const ll=document.getElementById('link-list');
   document.getElementById('link-count').textContent=(model.bodies.length-1)+' + ground';
@@ -1397,8 +1616,13 @@ function refreshLists(){
     if(bi===0) return;
     const row=document.createElement('div'); row.className='orow';
     const len = b.pts.length>=2 ? Math.hypot(b.pts[1].x-b.pts[0].x, b.pts[1].y-b.pts[0].y) : 0;
+    const th=linkAngle(bi);
     row.innerHTML=`<span class="sw" style="background:${b.col}"></span>`+
-      `<span class="nm">${b.name} · ${b.pts.length} node${b.pts.length>1?'s':''}</span>`;
+      `<span class="nm" title="${b.pts.length} node${b.pts.length>1?'s':''}">${b.name}</span>`+
+      // current orientation, so a hand calculation can be checked against the
+      // tool without needing any other feature
+      `<span class="ang" title="Current angle of this link">`+
+      `${th===null?'—':(((th*R2D)%360+360)%360).toFixed(1)+'°'}</span>`;
     // Editable length — students design to specified link lengths, so this has
     // to be a number they can type, not a readout. Scales every attachment
     // point so a ternary link keeps its shape.
@@ -1495,11 +1719,13 @@ const CH_BASE = {
            y:{ ticks:{font:{size:8}} } },
   elements:{ point:{radius:0}, line:{borderWidth:2, tension:.25} },
 };
-function mkChart(id,label,sets){
+function mkChart(id,label,sets,yPatch){
   const c=document.getElementById(id);
   if (charts[id]) charts[id].destroy();
+  const opts=JSON.parse(JSON.stringify(CH_BASE));
+  if (yPatch) Object.assign(opts.scales.y, yPatch);
   charts[id]=new Chart(c.getContext('2d'),{ type:'line',
-    data:{ datasets: sets }, options: JSON.parse(JSON.stringify(CH_BASE)) });
+    data:{ datasets: sets }, options: opts });
   return charts[id];
 }
 
@@ -1509,7 +1735,8 @@ function mkChart(id,label,sets){
 function runCycle(){
   const drv=drivers();
   const d=dofInfo();
-  if (!drv.length || !model.probe || d.numeric<1 || d.nd!==d.numeric) return null;
+  if (!drv.length || d.numeric<1 || d.nd!==d.numeric) return null;
+  const haveProbe = !!(model.probe && model.bodies[model.probe.b]);
   const rpm=drv[0].jt.rpm||60;
   if (!rpm) return null;
   const T=Math.abs(60/rpm);                        // seconds per revolution
@@ -1524,8 +1751,9 @@ function runCycle(){
   const t1 = rg ? (rg.full ? rg.lo+T : rg.hi-inset) : T;
   const omega=Math.abs(rpm)*TAU/60;
   const N=121, save=snapQ(), saveT=model.t;
-  const out={th:[],x:[],y:[],vx:[],vy:[],ax:[],ay:[],gaps:0,
+  const out={th:[],x:[],y:[],vx:[],vy:[],ax:[],ay:[],mu:[],gaps:0,
              partial: !!(rg && !rg.full)};
+  const pr=measurePair();
   // Walk into the first sample instead of jumping to it. A rocker's reachable
   // travel can sit well away from the current pose, and one large jump can
   // land off the branch — which used to blank out half the plot.
@@ -1542,8 +1770,11 @@ function runCycle(){
     // back into reach — otherwise one unreachable angle poisons the rest.
     if (!r.ok){ if(lastGood) restoreQ(lastGood); out.gaps++;
       out.x.push(null); out.y.push(null); out.vx.push(null); out.vy.push(null);
-      out.ax.push(null); out.ay.push(null); continue; }
+      out.ax.push(null); out.ay.push(null); out.mu.push(null); continue; }
     lastGood=snapQ(); tPrev=t;
+    out.mu.push(pr ? angleBetween(pr.a, pr.b) : null);
+    if (!haveProbe){ out.x.push(null); out.y.push(null); out.vx.push(null);
+      out.vy.push(null); out.ax.push(null); out.ay.push(null); continue; }
     const P=nodeWorld(model.probe.b, model.probe.p);
     const qd=solveVelocity(t), qdd=solveAccel(t);
     const b=model.bodies[model.probe.b], s=b.pts[model.probe.p];
@@ -1569,22 +1800,63 @@ function noteOff(id){
   document.getElementById(id).style.display='none';
 }
 
+/* Hand the plotted numbers over as tab-separated columns, ready to paste into
+   a spreadsheet — reading points off a chart by eye is not evidence. */
+function copyPlotData(){
+  const cyc=runCycle();
+  if(!cyc){ say('Nothing to copy — set a driver first.'); return; }
+  const probe=!!(model.probe && model.bodies[model.probe.b]);
+  const pr=measurePair();
+  const head=['driver_deg'];
+  if(probe) head.push('probe_x','probe_y','vx','vy','speed','ax','ay','accel');
+  if(pr) head.push('mu_deg');
+  const rows=[head.join('\t')];
+  const f=v=>(v===null||v===undefined||!isFinite(v))?'':(+v).toFixed(6);
+  for(let i=0;i<cyc.th.length;i++){
+    const r=[cyc.th[i].toFixed(3)];
+    if(probe){
+      const sp=(cyc.vx[i]===null)?null:Math.hypot(cyc.vx[i],cyc.vy[i]);
+      const ac=(cyc.ax[i]===null)?null:Math.hypot(cyc.ax[i],cyc.ay[i]);
+      r.push(f(cyc.x[i]),f(cyc.y[i]),f(cyc.vx[i]),f(cyc.vy[i]),f(sp),
+             f(cyc.ax[i]),f(cyc.ay[i]),f(ac));
+    }
+    if(pr) r.push(f(cyc.mu[i]));
+    rows.push(r.join('\t'));
+  }
+  const text=rows.join('\n');
+  const done=()=>say(`Copied ${cyc.th.length} rows — paste into a spreadsheet.`);
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done,
+      ()=>say('Could not reach the clipboard — check the browser permission.'));
+  } else {
+    const ta=document.createElement('textarea');
+    ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); done(); }
+    catch(e){ say('Could not copy on this browser.'); }
+    ta.remove();
+  }
+}
+
 function refreshCharts(){
   const d=dofInfo();
+  const probeNotes=['note-pos','note-vel','note-acc'];
   let why=null;
-  if (!model.probe) why='Pick a point with the <b>Probe</b> tool to plot its motion.';
-  else if (d.numeric<1) why='Mechanism has no mobility to plot.';
+  if (d.numeric<1) why='Mechanism has no mobility to plot.';
   else if (d.nd!==d.numeric) why='Set one driver per degree of freedom to plot a cycle.';
-  if (why){ ['note-pos','note-vel','note-acc'].forEach(i=>noteOn(i,why)); return; }
+  if (why){ [...probeNotes,'note-mu'].forEach(i=>noteOn(i,why));
+    document.getElementById('mu-worst').textContent=''; return; }
+  if (!model.probe) probeNotes.forEach(i=>noteOn(i,
+    'Pick a point with the <b>Probe</b> tool to plot its motion.'));
 
   const cyc=runCycle();
-  if (!cyc){ ['note-pos','note-vel','note-acc'].forEach(i=>noteOn(i,'No cycle data.')); return; }
+  if (!cyc){ [...probeNotes,'note-mu'].forEach(i=>noteOn(i,'No cycle data.')); return; }
   if (cyc.gaps>0 && cyc.gaps>=cyc.th.length-1){
-    ['note-pos','note-vel','note-acc'].forEach(i=>noteOn(i,
+    [...probeNotes,'note-mu'].forEach(i=>noteOn(i,
       'The mechanism cannot assemble anywhere in the cycle. Check the link lengths.'));
     return;
   }
-  ['note-pos','note-vel','note-acc'].forEach(noteOff);
+  if (model.probe) probeNotes.forEach(noteOff);
 
   // A partial cycle is a real result, not an error: the driven link is not a
   // crank. Say so, because this is the Grashof lesson.
@@ -1596,6 +1868,43 @@ function refreshCharts(){
 
   const XY=(arr)=>cyc.th.map((t,i)=>({x:t,y:arr[i]}));
   const mag=(a,b)=>a.map((v,i)=> (v===null||b[i]===null)?null:Math.hypot(v,b[i]));
+
+  // ── transmission angle, against Norton's 40°–140° band ──
+  const pr=measurePair();
+  const muArr=cyc.mu.filter(v=>v!==null&&isFinite(v));
+  const worstEl=document.getElementById('mu-worst');
+  if (!pr || !muArr.length){
+    noteOn('note-mu','Pick two links with <b>Measure ∠</b> to plot the angle between them.');
+    worstEl.textContent='';
+  } else {
+    noteOff('note-mu');
+    const band=v=>cyc.th.map(t=>({x:t,y:v}));
+    mkChart('ch-mu','mu',[
+      {label:'μ', data:XY(cyc.mu), borderColor:'#055934', borderWidth:2.4, spanGaps:false},
+      {label:'40°',  data:band(40),  borderColor:'#733B43', borderWidth:1.2,
+       borderDash:[5,4], pointRadius:0},
+      {label:'140°', data:band(140), borderColor:'#733B43', borderWidth:1.2,
+       borderDash:[5,4], pointRadius:0},
+    ], {suggestedMin:0, suggestedMax:180});
+
+    // The number a designer uses is the pose FURTHEST from 90°, which may be a
+    // maximum rather than a minimum once μ is reported on the full 0–180 range.
+    let worst=null, worstAt=0, mn=Infinity, mx=-Infinity;
+    cyc.mu.forEach((v,i)=>{
+      if(v===null||!isFinite(v)) return;
+      mn=Math.min(mn,v); mx=Math.max(mx,v);
+      const dev=Math.abs(v-90);
+      if(worst===null || dev>Math.abs(worst-90)){ worst=v; worstAt=cyc.th[i]; }
+    });
+    const bad = mn<40 || mx>140;
+    worstEl.innerHTML =
+      `<span style="color:${bad?'var(--red)':'var(--green)'}">`+
+      `worst μ = ${worst.toFixed(1)}° at driver ${worstAt.toFixed(0)}°</span>`+
+      `<br>range ${mn.toFixed(1)}°–${mx.toFixed(1)}° · `+
+      (bad ? 'leaves the 40°–140° band' : 'stays inside 40°–140°');
+  }
+
+  if (!model.probe) return;
 
   mkChart('ch-pos','pos',[
     {label:'x', data:XY(cyc.x), borderColor:'#055934', spanGaps:false},
@@ -1666,7 +1975,7 @@ function gotoT(t, keepPath){
   if (!walkTo(t)){ restoreQ(save); model.t=tPrev; solvePosition(tPrev); return false; }
   model.t=t;
   if (!keepPath) pathPts=[];
-  updScrub(); updBadge({ok:true}); render();
+  updScrub(); refreshMu(); updBadge({ok:true}); render();
   return true;
 }
 function updScrub(){
@@ -1773,7 +2082,7 @@ function step(now){
     return;
   }
   lastGoodQ=snapQ();
-  updScrub();
+  updScrub(); refreshMu();
   if (r.ok && model.probe && model.bodies[model.probe.b]){
     pathPts.push(nodeWorld(model.probe.b,model.probe.p));
     if (pathPts.length>900) pathPts.shift();
@@ -1959,6 +2268,7 @@ function loadExample(which){
    ═══════════════════════════════════════════════════════════════════ */
 function refresh(posRes){
   refreshDOF(posRes);
+  refreshMu();
   refreshLists();
   refreshInversions();
   refreshCharts();
