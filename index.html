@@ -123,7 +123,7 @@ body {
 .iunit { font-size: .7rem; color: var(--muted); width: 22px; }
 
 /* ── Presets ────────────────────────────────────────────── */
-.presets { display: flex; gap: 6px; margin-top: 10px; }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .pre-btn {
   flex: 1;
   padding: 5px 4px;
@@ -510,6 +510,7 @@ input[type=range]::-webkit-slider-thumb {
         <button class="pre-btn" onclick="setPreset('cr')">Crank-Rocker</button>
         <button class="pre-btn" onclick="setPreset('dc')">Double Crank</button>
         <button class="pre-btn" onclick="setPreset('dr')">Double Rocker</button>
+        <button class="pre-btn" onclick="setPreset('tr')">Triple Rocker</button>
       </div>
       <div id="save-indicator" style="margin-top:8px;font-size:.7rem;color:var(--muted);text-align:right;"></div>
     </div>
@@ -790,8 +791,9 @@ function grashofAnalysis(a, b, c, d) {
   let type, cls;
 
   if (SL > PQ + eps) {
-    // Non-Grashof: no link can rotate fully
-    type = 'Non-Grashof — Double Rocker';
+    // Non-Grashof: no link rotates fully in any inversion, so with any link
+    // held still all three moving links merely rock — a triple rocker.
+    type = 'Non-Grashof — Triple Rocker';
     cls  = 'g-fail';
   } else if (Math.abs(SL - PQ) < eps) {
     // Change-point (degenerate Grashof)
@@ -1370,8 +1372,11 @@ const PRESETS = {
   cr: { a: 2,   b: 4.5, c: 3.5, d: 4   },
   // Double crank (drag link) — d is shortest, both input and output rotate
   dc: { a: 3,   b: 5,   c: 4.5, d: 2   },
-  // Non-Grashof double rocker — S+L > P+Q, no continuous rotation possible
-  dr: { a: 3,   b: 3,   c: 3,   d: 5   },
+  // Double rocker — coupler is the shortest link, so the coupler rotates fully
+  // while both pivots only rock. S+L = 12 < P+Q = 13, so still Grashof.
+  dr: { a: 6,   b: 4,   c: 7,   d: 8   },
+  // Triple rocker — S+L = 8 > P+Q = 6, non-Grashof: nothing rotates fully
+  tr: { a: 3,   b: 3,   c: 3,   d: 5   },
 };
 
 function setPreset(name) {

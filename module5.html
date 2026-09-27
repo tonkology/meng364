@@ -950,7 +950,7 @@ function computeLinkageCycle(){
 ══════════════════════════════════════════════ */
 function grashofAnalysis(a,b,c,d){
   const S=Math.min(a,b,c,d),L=Math.max(a,b,c,d),PQ=a+b+c+d-S-L,SL=S+L,eps=1e-9;
-  if(SL>PQ+eps)return{type:'Non-Grashof — Double Rocker',cls:'g-fail',S,L,PQ,SL};
+  if(SL>PQ+eps)return{type:'Non-Grashof — Triple Rocker',cls:'g-fail',S,L,PQ,SL};
   if(Math.abs(SL-PQ)<eps)return{type:'Change Point',cls:'g-warn',S,L,PQ,SL};
   const near=v=>Math.abs(v-S)<eps;
   const type=near(d)?'Double Crank':near(a)?'Crank-Rocker':near(c)?'Rocker-Crank':'Double Rocker';

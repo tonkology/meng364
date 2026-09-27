@@ -807,7 +807,7 @@ function grashofAnalysis(a,b,c,d) {
   const SL=S+L;
   const eps=1e-9;
   let type,cls;
-  if      (SL>PQ+eps)          { type='Non-Grashof — Double Rocker';            cls='g-fail'; }
+  if      (SL>PQ+eps)          { type='Non-Grashof — Triple Rocker';            cls='g-fail'; }
   else if (Math.abs(SL-PQ)<eps){ type='Special Grashof — Change Point';          cls='g-warn'; }
   else {
     const near=v=>Math.abs(v-S)<eps;
